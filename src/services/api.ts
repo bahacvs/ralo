@@ -234,8 +234,19 @@ export const api = {
     }),
 
   // User & Friends
-  getMyMatches: () => 
+  getMyMatches: () =>
     request<{ upcoming: any[]; past: any[] }>('/api/my-matches'),
+
+  cancelReservation: (id: string) =>
+    request<{ success: boolean; message: string; reservation: Reservation }>(`/api/reservations/${id}/cancel`, {
+      method: 'POST'
+    }),
+
+  getLeaderboard: () =>
+    request<{ players: (Pick<User, 'id' | 'role' | 'displayName' | 'maskedName' | 'avatarUrl' | 'elo' | 'matchesCount' | 'playSide' | 'dominantHand'> & { rank: number })[] }>('/api/leaderboard'),
+
+  getPanelBusiness: () =>
+    request<{ business: Business; activeCourtCount: number }>('/api/panel/business'),
 
   getFriends: () =>
     request<{ friends: User[]; allPlayers: User[] }>('/api/friends'),

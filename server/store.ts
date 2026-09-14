@@ -37,6 +37,8 @@ const DATA_DIR = path.resolve(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'ralo_db.json');
 const LEGACY_DB_FILE = path.join(DATA_DIR, 'arenamate_db.json');
 
+export const DEFAULT_CANCELLATION_WINDOW_HOURS = 24;
+
 // Local (Europe/Istanbul) YYYY-MM-DD
 export const formatDateKey = formatLocalDate;
 
@@ -1887,6 +1889,72 @@ export class ArenaStore {
 
     this.save();
     return { success: true, promotedUserId };
+  }
+
+  /** Players ranked by Elo (desc), ties broken by match count. */
+  public getLeaderboard(limit: number = 50): User[] {
+    return this.data.users
+      .filter(u => u.role === 'OYUNCU' && typeof u.elo === 'number')
+      .sort((a, b) => b.elo - a.elo || b.matchesCount - a.matchesCount)
+      .slice(0, limit);
+  }
+
+  public getCancellationWindowHours(businessId: string): number {
+    const hours = this.data.businesses.find(b => b.id === businessId)?.cancellationWindowHours;
+    return typeof hours === 'number' && Number.isFinite(hours) && hours >= 0 ? hours : DEFAULT_CANCELLATION_WINDOW_HOURS;
+  }
+
+  /** Player cancels their own booking; allowed only while start is more than the club's window away. */
+  public cancelReservationByOwner(reservationId: string, userId: string, nowMs: number = Date.now()): {
+    success: boolean; status?: number; error?: string; reservation?: Reservation; notifiedUserIds?: string[]
+  } {
+    const reservation = this.data.reservations.find(r => r.id === reservationId);
+    if (!reservation || reservation.ownerUserId !== userId) {
+      return { success: false, status: 404, error: 'Rezervasyon bulunamadı.' };
+    }
+    if (reservation.status === 'CANCELLED') {
+      return { success: false, status: 409, error: 'Bu rezervasyon zaten iptal edilmiş.' };
+    }
+
+    const windowHours = this.getCancellationWindowHours(reservation.businessId);
+    const msUntilStart = new Date(reservation.startAt).getTime() - nowMs;
+    if (msUntilStart <= windowHours * 60 * 60 * 1000) {
+      return {
+        success: false,
+        status: 409,
+        error: `İptal süresi doldu. Bu kulüpte rezervasyonlar başlama saatinden en geç ${windowHours} saat önce iptal edilebilir. Lütfen kulüple iletişime geçin.`
+      };
+    }
+
+    reservation.status = 'CANCELLED';
+    reservation.updatedAt = new Date().toISOString();
+    this.data.reservation_slots = this.data.reservation_slots.filter(s => s.reservationId !== reservationId);
+
+    const notifiedUserIds: string[] = [];
+    if (reservation.isOpenMatch) {
+      const owner = this.data.users.find(u => u.id === userId);
+      const ownerName = owner ? (owner.displayName || owner.maskedName) : 'Organizatör';
+      const court = this.data.courts.find(c => c.id === reservation.courtId);
+      const courtName = court ? court.name : 'Padel Kortu';
+      this.data.open_match_participants
+        .filter(p => p.reservationId === reservationId && p.userId !== userId)
+        .forEach(p => {
+          notifiedUserIds.push(p.userId);
+          this.addNotification({
+            userId: p.userId,
+            title: 'Maç İptal Edildi',
+            message: `${ownerName}, ${courtName} için ${reservation.startAt.replace('T', ' ').slice(0, 16)} açık maçını iptal etti.`,
+            type: 'RESERVATION_UPDATE',
+            matchId: reservationId,
+            senderId: userId,
+            senderName: ownerName
+          });
+        });
+      this.data.open_match_waitlists = this.data.open_match_waitlists.filter(w => w.reservationId !== reservationId);
+    }
+
+    this.save();
+    return { success: true, reservation, notifiedUserIds };
   }
 
   // Waitlist Join / Leave

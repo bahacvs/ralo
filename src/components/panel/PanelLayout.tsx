@@ -1,5 +1,7 @@
-import React, { useState, ReactNode } from 'react';
+import React, { useState, useEffect, ReactNode } from 'react';
 import { useAuth } from '../../context/AuthContext.js';
+import { api } from '../../services/api.js';
+import type { Business } from '../../types/index.js';
 import { 
   Calendar, ListFilter, LayoutGrid, Users2, 
   BarChart3, Building2, User, Menu, X, ArrowLeft, LogOut
@@ -12,8 +14,24 @@ interface PanelLayoutProps {
 export const PanelLayout: React.FC<PanelLayoutProps> = ({ children }) => {
   const { user, currentRoute, navigate, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [panelBusiness, setPanelBusiness] = useState<{ business: Business; activeCourtCount: number } | null>(null);
 
-  const businessId = user?.businessId || 'biz_urla';
+  useEffect(() => {
+    let cancelled = false;
+    api.getPanelBusiness()
+      .then(res => { if (!cancelled) setPanelBusiness(res); })
+      .catch(() => { if (!cancelled) setPanelBusiness(null); });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  const businessId = panelBusiness?.business.id || user?.businessId || '';
+  const businessName = panelBusiness?.business.name || 'İşletme';
+  const businessInitials = businessName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(word => word[0].toLocaleUpperCase('tr-TR'))
+    .join('');
 
   const isOwner = user?.role === 'ISLETME_SAHIBI';
   const menuItems = [
@@ -55,14 +73,16 @@ export const PanelLayout: React.FC<PanelLayoutProps> = ({ children }) => {
           <div className="pb-5 border-b border-slate-800">
             <div className="flex items-center gap-2.5">
               <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-sm">
-                PA
+                {businessInitials}
               </div>
               <div className="overflow-hidden">
-                <h2 className="font-bold text-sm text-white truncate">Padel Arena Urla</h2>
-                <p className="text-[11px] text-amber-400 mt-0.5 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                  <span>3 Kort Aktif</span>
-                </p>
+                <h2 className="font-bold text-sm text-white truncate">{panelBusiness ? businessName : 'Yükleniyor...'}</h2>
+                {panelBusiness && (
+                  <p className="text-[11px] text-amber-400 mt-0.5 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    <span>{panelBusiness.activeCourtCount} Kort Aktif</span>
+                  </p>
+                )}
               </div>
             </div>
           </div>

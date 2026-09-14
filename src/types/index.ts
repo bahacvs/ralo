@@ -41,6 +41,7 @@ export interface Business {
   coverImage: string;
   latitude?: number;
   longitude?: number;
+  cancellationWindowHours?: number; // players may cancel app bookings until this many hours before start (default 24)
 }
 
 export type CourtType = 

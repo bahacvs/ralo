@@ -661,6 +661,27 @@ app.post('/api/reservations', authMiddleware, (req: Request, res: Response) => {
   });
 });
 
+// Player cancels their own reservation (outside the club's cancellation window)
+app.post('/api/reservations/:id/cancel', authMiddleware, (req: Request, res: Response) => {
+  const user = (req as any).user as User;
+  const result = dbStore.cancelReservationByOwner(req.params.id, user.id);
+  if (!result.success) {
+    return res.status(result.status || 400).json({ error: result.error });
+  }
+
+  return res.json({
+    success: true,
+    message: 'Rezervasyonunuz iptal edildi.',
+    reservation: result.reservation
+  });
+});
+
+// Public Elo leaderboard (top 50 players, public profile fields only)
+app.get('/api/leaderboard', (_req: Request, res: Response) => {
+  const players = dbStore.getLeaderboard(50).map((u, index) => ({ rank: index + 1, ...toPublicUser(u) }));
+  return res.json({ players });
+});
+
 // -------------------------------------------------------------
 // 4. OPEN MATCHES APIS
 // -------------------------------------------------------------
@@ -1320,6 +1341,21 @@ app.post('/api/feed/:id/reply', authMiddleware, (req: Request, res: Response) =>
 // -------------------------------------------------------------
 
 // Schedule View (All courts on timeline or list)
+// The caller's own business (from their staff membership) for the panel header
+app.get('/api/panel/business', authMiddleware, requireBusiness(), (req: Request, res: Response) => {
+  const businessId = (req as any).businessId as string;
+  const business = dbStore.getBusinesses().find(b => b.id === businessId);
+  if (!business) {
+    return res.status(404).json({ error: 'İşletme bulunamadı.' });
+  }
+
+  const activeCourtCount = dbStore.getCourts().filter(c => c.businessId === businessId && c.isActive).length;
+  return res.json({
+    business: { ...business, cancellationWindowHours: dbStore.getCancellationWindowHours(businessId) },
+    activeCourtCount
+  });
+});
+
 app.get('/api/panel/schedule', authMiddleware, requireBusiness(), (req: Request, res: Response) => {
   const businessId = (req as any).businessId as string;
   const { date = todayLocal(), days = '1' } = req.query;
