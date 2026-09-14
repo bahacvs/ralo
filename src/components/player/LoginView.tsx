@@ -7,7 +7,7 @@ import { RaloIcon } from '../common/RaloLogo.js';
 export const LoginView: React.FC = () => {
   const { loginWithOtp, navigate } = useAuth();
 
-  const [phone, setPhone] = useState('0532 100 2030');
+  const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'PHONE' | 'OTP'>('PHONE');
   const [loading, setLoading] = useState(false);
@@ -183,11 +183,12 @@ export const LoginView: React.FC = () => {
               </p>
             </div>
 
-            {/* Demo Helper Box */}
+            {/* Demo Helper Box: only shown when the server echoes the code (DEMO_MODE) */}
+            {demoCode && (
             <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 text-xs flex items-center justify-between">
               <div>
                 <span className="font-bold text-amber-950 block">Demo Geliştirici Kodu:</span>
-                <span className="font-mono text-amber-900 text-sm font-extrabold">{demoCode || '123456'}</span>
+                <span className="font-mono text-amber-900 text-sm font-extrabold">{demoCode}</span>
               </div>
               <button
                 type="button"
@@ -198,6 +199,7 @@ export const LoginView: React.FC = () => {
                 <span>{copied ? 'Dolduruldu' : 'Kodu Doldur'}</span>
               </button>
             </div>
+            )}
 
             <button
               type="submit"

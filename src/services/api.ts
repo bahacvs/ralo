@@ -4,6 +4,9 @@ import {
   FeedPost, FeedReply, FeedCategory, CourtWeatherInfo, CourtOccupancyInfo
 } from '../types/index.js';
 
+/** Fired on window when the server rejects the session; detail: { method } */
+export const UNAUTHORIZED_EVENT = 'ralo:unauthorized';
+
 let authToken: string | null = localStorage.getItem('arenamate_token');
 
 export function setApiToken(token: string | null) {
@@ -34,6 +37,13 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(url, { ...options, headers });
 
   if (!res.ok) {
+    if (res.status === 401) {
+      if (token) setApiToken(null);
+      window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT, {
+        detail: { method: (options.method || 'GET').toUpperCase() }
+      }));
+    }
+
     let errorMsg = 'Beklenmeyen bir hata oluştu.';
     try {
       const data = await res.json();

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ThemeProvider } from './context/ThemeContext.js';
 import { AuthProvider, useAuth } from './context/AuthContext.js';
 import { LocationProvider } from './context/LocationContext.js';
@@ -36,11 +36,34 @@ import { PanelCourtsView } from './components/panel/PanelCourtsView.js';
 import { PanelStaffView } from './components/panel/PanelStaffView.js';
 import { PanelReportsView } from './components/panel/PanelReportsView.js';
 
+const PROTECTED_PLAYER_ROUTES = ['/maclarim', '/mesajlar', '/profil', '/hesap-ve-gizlilik'];
+
 const AppContent: React.FC = () => {
-  const { currentRoute } = useAuth();
+  const { currentRoute, user, isLoading, navigate, setReturnTo } = useAuth();
 
   // Route matching logic
   const isPanelRoute = currentRoute.startsWith('/panel');
+  const needsLogin = !user && (isPanelRoute || PROTECTED_PLAYER_ROUTES.includes(currentRoute));
+  const needsBusinessRole = !!user && isPanelRoute && user.role === 'OYUNCU';
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (needsLogin) {
+      setReturnTo(currentRoute);
+      navigate('/giris');
+    } else if (needsBusinessRole) {
+      navigate('/ana');
+    }
+  }, [isLoading, needsLogin, needsBusinessRole, currentRoute]);
+
+  if (isLoading || needsLogin || needsBusinessRole) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950" role="status" aria-live="polite">
+        <span className="w-8 h-8 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" aria-hidden="true" />
+        <span className="sr-only">Yükleniyor...</span>
+      </div>
+    );
+  }
 
   const renderRoute = () => {
     // Business Panel Routes

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserRole } from '../types/index.js';
-import { api, setApiToken } from '../services/api.js';
+import { api, setApiToken, getApiToken, UNAUTHORIZED_EVENT } from '../services/api.js';
 
 interface AuthContextType {
   user: User | null;
@@ -93,19 +93,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Fetch session on boot
   useEffect(() => {
     const initAuth = async () => {
+      if (!getApiToken()) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       try {
         const res = await api.getMe();
         setUser(res.user);
         setToken(res.token);
         setApiToken(res.token);
-      } catch (err) {
-        console.error('Session init error:', err);
+      } catch {
+        // Expired or invalid session: continue as guest
+        setUser(null);
+        setToken(null);
       } finally {
         setIsLoading(false);
       }
     };
     initAuth();
+  }, []);
+
+  // Server rejected the session: drop it, and send the user to login if they were trying to act
+  useEffect(() => {
+    const handleUnauthorized = (event: Event) => {
+      const method = (event as CustomEvent<{ method: string }>).detail?.method;
+      setUser(null);
+      setToken(null);
+      const here = window.location.pathname;
+      if (method !== 'GET' && here !== '/giris') {
+        setReturnTo(here);
+        navigate('/giris');
+      }
+    };
+    window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
   }, []);
 
   const demoSwitch = async (targetRole: 'OYUNCU' | 'ISLETME_SAHIBI' | 'PERSONEL') => {

@@ -1,24 +1,24 @@
 import express, { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { dbStore } from './server/store.js';
+import {
+  createSession, getSessionUserId, deleteSession, deleteUserSessions, extractToken,
+  normalizePhone, issueOtp, verifyOtp
+} from './server/auth.js';
+import { sendOtpSms } from './server/sms.js';
 import { User, Reservation, Court, FeedPost, FeedReply, FeedCategory, CourtOccupancyInfo, CourtWeatherInfo } from './src/types/index.js';
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
+// Demo helpers (role switcher, OTP echo, demo data refresh) are only exposed when explicitly enabled
+const DEMO_MODE = process.env.DEMO_MODE === 'true';
 
-app.use(express.json());
+const MAX_AVATAR_LENGTH = 900_000;
 
-// In-memory sessions & rate limits
-const sessions = new Map<string, { userId: string; role: string; createdAt: number }>();
-
-interface OtpRecord {
-  code: string;
-  attempts: number;
-  lastAttempt: number;
-  expiresAt: number;
-}
-const otpStore = new Map<string, OtpRecord>();
+app.set('trust proxy', 1);
+app.use(express.json({ limit: '1mb' }));
 
 // Helper to validate internal paths for safe returnTo
 export function isValidInternalPath(target?: string): boolean {
@@ -26,23 +26,25 @@ export function isValidInternalPath(target?: string): boolean {
   return target.startsWith('/') && !target.startsWith('//') && !target.includes('://') && !target.includes('\\');
 }
 
+function toMaskedName(displayName: string): string {
+  const [first, last] = displayName.trim().split(/\s+/);
+  return last ? `${first} ${last[0]}.` : first;
+}
+
+function getCurrentUser(req: Request): User | undefined {
+  const userId = getSessionUserId(extractToken(req));
+  return userId ? dbStore.getUsers().find(u => u.id === userId) : undefined;
+}
+
 // Auth Middleware
 function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers['authorization'] || req.headers['x-session-token'];
-  const token = typeof authHeader === 'string' ? authHeader.replace(/^Bearer\s+/, '') : undefined;
-
-  if (!token || !sessions.has(token)) {
+  const user = getCurrentUser(req);
+  if (!user) {
     return res.status(401).json({ error: 'Oturum açmanız gerekmektedir. Lütfen giriş yapın.' });
   }
 
-  const session = sessions.get(token)!;
-  const user = dbStore.getUsers().find(u => u.id === session.userId);
-  if (!user) {
-    return res.status(401).json({ error: 'Kullanıcı bulunamadı.' });
-  }
-
   (req as any).user = user;
-  (req as any).token = token;
+  (req as any).token = extractToken(req);
   next();
 }
 
@@ -70,74 +72,62 @@ function businessAuthMiddleware(req: Request, res: Response, next: NextFunction)
 // -------------------------------------------------------------
 
 // OTP Send API with Rate Limiting
-app.post('/api/auth/otp/send', (req: Request, res: Response) => {
-  const { phone } = req.body;
-  if (!phone || typeof phone !== 'string' || phone.trim().length < 10) {
-    return res.status(400).json({ error: 'Geçerli bir telefon numarası giriniz (örn: 0532 100 2030).' });
+app.post('/api/auth/otp/send', async (req: Request, res: Response) => {
+  const phone = normalizePhone(req.body?.phone);
+  if (!phone) {
+    return res.status(400).json({ error: 'Geçerli bir cep telefonu numarası giriniz (örn: 0532 100 2030).' });
   }
 
-  const cleanPhone = phone.replace(/\s+/g, '');
-  const now = Date.now();
-  const existing = otpStore.get(cleanPhone);
-
-  if (existing) {
-    // Check 5-minute rate limit window
-    if (now - existing.lastAttempt < 5 * 60 * 1000 && existing.attempts >= 3) {
-      return res.status(429).json({ 
-        error: 'Çok fazla kod denemesi yapıldı. Lütfen 5 dakika bekledikten sonra tekrar deneyiniz.' 
-      });
-    }
+  const issued = issueOtp(phone);
+  if ('retryAfterSeconds' in issued) {
+    const minutes = Math.max(1, Math.ceil(issued.retryAfterSeconds / 60));
+    return res.status(429).json({ error: `Çok fazla kod istendi. Lütfen ${minutes} dakika sonra tekrar deneyiniz.` });
   }
 
-  // Demo OTP provider for development/preview
-  const demoCode = '123456';
-  otpStore.set(cleanPhone, {
-    code: demoCode,
-    attempts: (existing ? existing.attempts : 0) + 1,
-    lastAttempt: now,
-    expiresAt: now + 5 * 60 * 1000 // 5 minutes
-  });
+  try {
+    await sendOtpSms(phone, issued.code);
+  } catch (err: any) {
+    console.error('OTP SMS delivery failed:', err?.message);
+    return res.status(502).json({ error: 'SMS gönderilemedi. Lütfen biraz sonra tekrar deneyiniz.' });
+  }
 
   return res.json({
     success: true,
     message: 'Doğrulama kodu telefonunuza SMS olarak iletildi.',
-    // Demo helper so reviewer can instantly copy/test
-    demoOtp: process.env.NODE_ENV === 'production' ? undefined : demoCode
+    demoOtp: DEMO_MODE ? issued.code : undefined
   });
 });
 
 // OTP Verify API
 app.post('/api/auth/otp/verify', (req: Request, res: Response) => {
-  const { phone, code, returnTo } = req.body;
-  if (!phone || !code) {
+  const phone = normalizePhone(req.body?.phone);
+  const { code, returnTo } = req.body || {};
+  if (!phone || typeof code !== 'string') {
     return res.status(400).json({ error: 'Telefon ve 6 haneli doğrulama kodu zorunludur.' });
   }
 
-  const cleanPhone = phone.replace(/\s+/g, '');
-  const record = otpStore.get(cleanPhone);
-
-  if (!record || record.expiresAt < Date.now()) {
+  const result = verifyOtp(phone, code);
+  if (result === 'EXPIRED') {
     return res.status(400).json({ error: 'Doğrulama kodu süresi dolmuş veya kod talep edilmemiş. Lütfen yeni kod isteyin.' });
   }
-
-  if (record.code !== code.trim()) {
+  if (result === 'TOO_MANY_ATTEMPTS') {
+    return res.status(429).json({ error: 'Çok fazla hatalı deneme yapıldı. Lütfen yeni kod isteyin.' });
+  }
+  if (result === 'INVALID') {
     return res.status(400).json({ error: 'Hatalı 6 haneli doğrulama kodu. Lütfen kontrol edip tekrar deneyin.' });
   }
 
-  // Clear OTP
-  otpStore.delete(cleanPhone);
-
   // Find or create user
-  let user = dbStore.getUsers().find(u => u.phone.replace(/\s+/g, '') === cleanPhone);
+  let user = dbStore.getUsers().find(u => normalizePhone(u.phone) === phone);
   if (!user) {
-    const rawNumber = cleanPhone.slice(-4);
-    const newId = `user_${Date.now()}`;
+    const lastDigits = phone.slice(-4);
+    const displayName = `Oyuncu ${lastDigits}`;
     user = {
-      id: newId,
+      id: `user_${crypto.randomUUID()}`,
       role: 'OYUNCU',
-      phone: cleanPhone,
-      displayName: `Oyuncu ${rawNumber}`,
-      maskedName: `Oyuncu ${rawNumber.slice(0, 1)}***`,
+      phone: `+${phone}`,
+      displayName,
+      maskedName: displayName,
       avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       elo: 1400,
       matchesCount: 0,
@@ -151,9 +141,7 @@ app.post('/api/auth/otp/verify', (req: Request, res: Response) => {
     dbStore.save();
   }
 
-  const sessionToken = `token_${user.id}_${Date.now()}`;
-  sessions.set(sessionToken, { userId: user.id, role: user.role, createdAt: Date.now() });
-
+  const sessionToken = createSession(user.id);
   const safeReturnTo = isValidInternalPath(returnTo) ? returnTo : '/ana';
 
   return res.json({
@@ -164,8 +152,11 @@ app.post('/api/auth/otp/verify', (req: Request, res: Response) => {
   });
 });
 
-// Demo Fast Switcher (For reviewer to easily inspect OYUNCU, ISLETME_SAHIBI, PERSONEL)
+// Demo Fast Switcher (only in DEMO_MODE)
 app.post('/api/auth/demo-switch', (req: Request, res: Response) => {
+  if (!DEMO_MODE) {
+    return res.status(404).json({ error: 'Bulunamadı.' });
+  }
   const { targetRole } = req.body; // 'OYUNCU' | 'ISLETME_SAHIBI' | 'PERSONEL'
   let targetUser: User | undefined;
 
@@ -181,8 +172,7 @@ app.post('/api/auth/demo-switch', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Hedef demo hesabı bulunamadı.' });
   }
 
-  const token = `token_${targetUser.id}_${Date.now()}`;
-  sessions.set(token, { userId: targetUser.id, role: targetUser.role, createdAt: Date.now() });
+  const token = createSession(targetUser.id);
 
   return res.json({
     success: true,
@@ -193,33 +183,16 @@ app.post('/api/auth/demo-switch', (req: Request, res: Response) => {
 
 // Current User Session
 app.get('/api/auth/me', (req: Request, res: Response) => {
-  const authHeader = req.headers['authorization'] || req.headers['x-session-token'];
-  const token = typeof authHeader === 'string' ? authHeader.replace(/^Bearer\s+/, '') : undefined;
-
-  if (!token || !sessions.has(token)) {
-    // Return demo player as default guest fallback for smooth initial render
-    const defaultUser = dbStore.getUsers().find(u => u.id === 'user_player_demo')!;
-    const defaultToken = `token_${defaultUser.id}_demo`;
-    sessions.set(defaultToken, { userId: defaultUser.id, role: defaultUser.role, createdAt: Date.now() });
-    return res.json({ user: defaultUser, token: defaultToken, isGuest: true });
-  }
-
-  const session = sessions.get(token)!;
-  const user = dbStore.getUsers().find(u => u.id === session.userId);
+  const user = getCurrentUser(req);
   if (!user) {
-    return res.status(401).json({ error: 'Kullanıcı bulunamadı.' });
+    return res.status(401).json({ error: 'Oturum bulunamadı.' });
   }
-
-  return res.json({ user, token });
+  return res.json({ user, token: extractToken(req) });
 });
 
 // Logout
 app.post('/api/auth/logout', (req: Request, res: Response) => {
-  const authHeader = req.headers['authorization'] || req.headers['x-session-token'];
-  const token = typeof authHeader === 'string' ? authHeader.replace(/^Bearer\s+/, '') : undefined;
-  if (token) {
-    sessions.delete(token);
-  }
+  deleteSession(extractToken(req));
   return res.json({ success: true });
 });
 
@@ -238,36 +211,40 @@ app.post('/api/auth/delete-account', authMiddleware, (req: Request, res: Respons
     dbStore.save();
   }
 
-  const token = (req as any).token as string;
-  sessions.delete(token);
+  deleteUserSessions(user.id);
 
   return res.json({ success: true, message: 'Hesabınız ve tüm ilişkili veriler başarıyla silinmiştir.' });
 });
 
 // Update Profile & Avatar API
-app.patch('/api/user/profile', (req: Request, res: Response) => {
-  const authHeader = req.headers['authorization'] || req.headers['x-session-token'];
-  const token = typeof authHeader === 'string' ? authHeader.replace(/^Bearer\s+/, '') : undefined;
-  
-  let user: User | undefined;
-  if (token && sessions.has(token)) {
-    const session = sessions.get(token)!;
-    user = dbStore.getUsers().find(u => u.id === session.userId);
-  } else {
-    user = dbStore.getUsers().find(u => u.id === 'user_player_demo');
+app.patch('/api/user/profile', authMiddleware, (req: Request, res: Response) => {
+  const user = (req as any).user as User;
+  const { avatarUrl, displayName, playSide, dominantHand } = req.body || {};
+
+  if (avatarUrl !== undefined) {
+    const isValidAvatar = typeof avatarUrl === 'string'
+      && avatarUrl.length <= MAX_AVATAR_LENGTH
+      && (/^https:\/\//.test(avatarUrl) || /^data:image\/(jpeg|png|webp);base64,/.test(avatarUrl));
+    if (!isValidAvatar) {
+      return res.status(400).json({ error: 'Geçersiz veya çok büyük profil fotoğrafı.' });
+    }
+  }
+  if (displayName !== undefined && (typeof displayName !== 'string' || !displayName.trim() || displayName.trim().length > 60)) {
+    return res.status(400).json({ error: 'İsim 1 ile 60 karakter arasında olmalıdır.' });
+  }
+  if (playSide !== undefined && !['LEFT', 'RIGHT', 'BOTH'].includes(playSide)) {
+    return res.status(400).json({ error: 'Geçersiz kort pozisyonu.' });
+  }
+  if (dominantHand !== undefined && !['LEFT', 'RIGHT'].includes(dominantHand)) {
+    return res.status(400).json({ error: 'Geçersiz baskın el.' });
   }
 
-  if (!user) {
-    return res.status(404).json({ error: 'Kullanıcı bulunamadı.' });
-  }
-
-  const { avatarUrl, displayName, playSide, dominantHand } = req.body;
   if (avatarUrl !== undefined) {
     user.avatarUrl = avatarUrl;
   }
   if (displayName !== undefined) {
-    user.displayName = displayName;
-    user.maskedName = `${displayName.split(' ')[0]} ${displayName.split(' ')[1]?.[0] || ''}.`;
+    user.displayName = displayName.trim();
+    user.maskedName = toMaskedName(user.displayName);
   }
   if (playSide !== undefined) {
     user.playSide = playSide;
@@ -515,22 +492,8 @@ app.get('/api/courts/:courtId', (req: Request, res: Response) => {
 });
 
 // Toggle favorite court for current user
-app.post('/api/courts/:courtId/toggle-favorite', (req: Request, res: Response) => {
-  const authHeader = req.headers['authorization'] || req.headers['x-session-token'];
-  const token = typeof authHeader === 'string' ? authHeader.replace(/^Bearer\s+/, '') : undefined;
-  
-  let user: User | undefined;
-  if (token && sessions.has(token)) {
-    const session = sessions.get(token)!;
-    user = dbStore.getUsers().find(u => u.id === session.userId);
-  } else {
-    user = dbStore.getUsers().find(u => u.id === 'user_player_demo');
-  }
-
-  if (!user) {
-    return res.status(404).json({ error: 'Kullanıcı bulunamadı.' });
-  }
-
+app.post('/api/courts/:courtId/toggle-favorite', authMiddleware, (req: Request, res: Response) => {
+  const user = (req as any).user as User;
   const { courtId } = req.params;
   const court = dbStore.getCourts().find(c => c.id === courtId);
   if (!court) {
@@ -561,22 +524,8 @@ app.post('/api/courts/:courtId/toggle-favorite', (req: Request, res: Response) =
 });
 
 // Get user favorite courts with full business details
-app.get('/api/user/favorites/courts', (req: Request, res: Response) => {
-  const authHeader = req.headers['authorization'] || req.headers['x-session-token'];
-  const token = typeof authHeader === 'string' ? authHeader.replace(/^Bearer\s+/, '') : undefined;
-  
-  let user: User | undefined;
-  if (token && sessions.has(token)) {
-    const session = sessions.get(token)!;
-    user = dbStore.getUsers().find(u => u.id === session.userId);
-  } else {
-    user = dbStore.getUsers().find(u => u.id === 'user_player_demo');
-  }
-
-  if (!user) {
-    return res.status(404).json({ error: 'Kullanıcı bulunamadı.' });
-  }
-
+app.get('/api/user/favorites/courts', authMiddleware, (req: Request, res: Response) => {
+  const user = (req as any).user as User;
   const favIds = user.favoriteCourtIds || [];
   const allCourts = dbStore.getCourts();
   const allBusinesses = dbStore.getBusinesses();
@@ -675,7 +624,7 @@ app.get('/api/open-matches', (req: Request, res: Response) => {
     date, timeRange, minAvailableSpots, maxPricePerPlayer, fitForMe, sortBy, search,
     city, district, userLat, userLng, maxDistanceKm
   } = req.query;
-  const user = dbStore.getUsers().find(u => u.id === 'user_player_demo')!;
+  const user = getCurrentUser(req);
 
   const reservations = dbStore.getReservations();
   const participants = dbStore.getOpenMatchParticipants();
@@ -711,8 +660,8 @@ app.get('/api/open-matches', (req: Request, res: Response) => {
 
     const pricePerPlayer = Math.round(m.totalPrice / 4);
     const availableSpots = Math.max(0, 4 - activeParts.length);
-    const isUserJoined = matchParts.some(p => p.userId === user.id);
-    const isUserOnWaitlist = matchWaitlist.some(w => w.userId === user.id);
+    const isUserJoined = !!user && matchParts.some(p => p.userId === user.id);
+    const isUserOnWaitlist = !!user && matchWaitlist.some(w => w.userId === user.id);
 
     // Distance calculation if user coords and business coords available
     let distanceKm: number | undefined = undefined;
@@ -726,7 +675,8 @@ app.get('/api/open-matches', (req: Request, res: Response) => {
     }
 
     // Check Elo fit
-    const isEloFit = (!m.minElo || user.elo >= m.minElo) && (!m.maxElo || user.elo <= m.maxElo);
+    // Guests see every match as a fit
+    const isEloFit = !user || ((!m.minElo || user.elo >= m.minElo) && (!m.maxElo || user.elo <= m.maxElo));
 
     return {
       ...m,
@@ -940,7 +890,7 @@ app.post('/api/open-matches/:id/invite', authMiddleware, (req: Request, res: Res
 });
 
 // AI Match Social Share Card Generator
-app.post('/api/open-matches/:id/generate-share-card', async (req: Request, res: Response) => {
+app.post('/api/open-matches/:id/generate-share-card', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { theme = 'SUNSET', format = 'STORY' } = req.body || {};

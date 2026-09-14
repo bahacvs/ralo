@@ -2,7 +2,7 @@ import React, { useState, ReactNode } from 'react';
 import { useAuth } from '../../context/AuthContext.js';
 import { 
   Calendar, ListFilter, LayoutGrid, Users2, 
-  BarChart3, Building2, User, Menu, X, ArrowLeft
+  BarChart3, Building2, User, Menu, X, ArrowLeft, LogOut
 } from 'lucide-react';
 
 interface PanelLayoutProps {
@@ -10,7 +10,7 @@ interface PanelLayoutProps {
 }
 
 export const PanelLayout: React.FC<PanelLayoutProps> = ({ children }) => {
-  const { user, currentRoute, navigate } = useAuth();
+  const { user, currentRoute, navigate, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const businessId = user?.businessId || 'biz_urla';
@@ -104,6 +104,15 @@ export const PanelLayout: React.FC<PanelLayoutProps> = ({ children }) => {
           >
             <ArrowLeft className="w-4 h-4 text-slate-400" />
             <span>Oyuncu Görünümüne Geç</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={logout}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:bg-red-950/30 transition-colors min-h-[44px]"
+          >
+            <LogOut className="w-4 h-4" aria-hidden="true" />
+            <span>Oturumu Kapat</span>
           </button>
 
           <div className="px-3 py-2 bg-slate-950/60 rounded-xl text-[11px] text-slate-400">

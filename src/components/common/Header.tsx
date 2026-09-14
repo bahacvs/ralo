@@ -13,6 +13,8 @@ import { PWAInstallModal } from './PWAInstallModal.js';
 import { ThemeToggle } from './ThemeToggle.js';
 import { RaloWordmark } from './RaloLogo.js';
 
+const IS_DEMO_UI = import.meta.env.VITE_DEMO_MODE === 'true';
+
 export const Header: React.FC = () => {
   const { user, role, demoSwitch, logout, navigate, currentRoute } = useAuth();
   const { isInstalled, isIOS } = usePWAInstall();
@@ -35,10 +37,14 @@ export const Header: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 8000);
     return () => clearInterval(interval);
-  }, []);
+  }, [user?.id]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -221,7 +227,8 @@ export const Header: React.FC = () => {
               </button>
             )}
 
-            {/* Quick Demo Switcher Dropdown */}
+            {/* Quick Demo Switcher Dropdown (VITE_DEMO_MODE only) */}
+            {IS_DEMO_UI && (
             <div className="relative shrink-0">
               <button
                 type="button"
@@ -304,6 +311,7 @@ export const Header: React.FC = () => {
                 </div>
               )}
             </div>
+            )}
 
             {/* Dedicated Mesajlar Button (Desktop/tablet; on mobile BottomNav includes Mesajlar) */}
             {!isPanel && (
@@ -341,6 +349,7 @@ export const Header: React.FC = () => {
             )}
 
             {/* Notifications Button & Dropdown */}
+            {user && (
             <div className="relative shrink-0">
               <button
                 type="button"
@@ -456,9 +465,10 @@ export const Header: React.FC = () => {
                 </div>
               )}
             </div>
+            )}
 
             {/* Profile Avatar Shortcut */}
-            {!isPanel && (
+            {!isPanel && user && (
               <button
                 type="button"
                 onClick={() => navigate('/profil')}
@@ -472,6 +482,17 @@ export const Header: React.FC = () => {
                     {user?.displayName ? user.displayName.slice(0, 2).toUpperCase() : 'OY'}
                   </span>
                 )}
+              </button>
+            )}
+
+            {/* Guest Login Button */}
+            {!user && currentRoute !== '/giris' && (
+              <button
+                type="button"
+                onClick={() => navigate('/giris')}
+                className="inline-flex items-center justify-center h-9 px-3.5 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 shrink-0"
+              >
+                Giriş Yap
               </button>
             )}
 
