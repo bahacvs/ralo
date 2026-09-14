@@ -1,46 +1,50 @@
 import crypto from 'crypto';
 import type { Request } from 'express';
+import { dbStore } from './store.js';
 
 // -------------------------------------------------------------
-// Sessions
+// Sessions (persisted with the store; only token hashes are stored)
 // -------------------------------------------------------------
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-interface Session {
-  userId: string;
-  createdAt: number;
-  expiresAt: number;
+function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
 }
-
-const sessions = new Map<string, Session>();
 
 export function createSession(userId: string): string {
   const token = crypto.randomBytes(32).toString('base64url');
   const now = Date.now();
-  sessions.set(token, { userId, createdAt: now, expiresAt: now + SESSION_TTL_MS });
+  dbStore.getSessions().push({
+    id: hashToken(token),
+    userId,
+    createdAt: new Date(now).toISOString(),
+    expiresAt: new Date(now + SESSION_TTL_MS).toISOString()
+  });
+  dbStore.save();
   return token;
 }
 
 export function getSessionUserId(token: string | undefined): string | undefined {
   if (!token) return undefined;
-  const session = sessions.get(token);
+  const id = hashToken(token);
+  const session = dbStore.getSessions().find(s => s.id === id);
   if (!session) return undefined;
-  if (session.expiresAt < Date.now()) {
-    sessions.delete(token);
+  if (Date.parse(session.expiresAt) < Date.now()) {
+    dbStore.removeSessions(s => s.id === id);
     return undefined;
   }
   return session.userId;
 }
 
 export function deleteSession(token: string | undefined): void {
-  if (token) sessions.delete(token);
+  if (!token) return;
+  const id = hashToken(token);
+  dbStore.removeSessions(s => s.id === id);
 }
 
 export function deleteUserSessions(userId: string): void {
-  for (const [token, session] of sessions) {
-    if (session.userId === userId) sessions.delete(token);
-  }
+  dbStore.removeSessions(s => s.userId === userId);
 }
 
 export function extractToken(req: Request): string | undefined {

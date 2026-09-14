@@ -1,0 +1,15 @@
+# Local development database. Production uses Supabase Postgres via DATABASE_URL.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ralo
+      POSTGRES_PASSWORD: ralo_dev
+      POSTGRES_DB: ralo
+    ports:
+      - "5433:5432"
+    volumes:
+      - ralo-pg:/var/lib/postgresql/data
+
+volumes:
+  ralo-pg:

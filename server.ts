@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import path from 'path';
@@ -9,6 +10,7 @@ import {
   normalizePhone, issueOtp, verifyOtp
 } from './server/auth.js';
 import { sendOtpSms } from './server/sms.js';
+import { Persistence } from './server/persistence.js';
 import { User, Reservation, Court, FeedPost, FeedReply, FeedCategory, CourtOccupancyInfo, CourtWeatherInfo } from './src/types/index.js';
 
 const app = express();
@@ -1857,6 +1859,29 @@ app.patch('/api/user/notification-settings', authMiddleware, (req: Request, res:
 // -------------------------------------------------------------
 
 async function start() {
+  if (process.env.DATABASE_URL) {
+    const persistence = new Persistence(process.env.DATABASE_URL);
+    await persistence.migrate();
+    await dbStore.connectDatabase(persistence);
+    console.log('Connected to Postgres.');
+
+    // Render sends SIGTERM on deploy: write pending changes before exiting
+    const shutdown = async (signal: string) => {
+      console.log(`${signal} received, flushing pending data...`);
+      try {
+        await persistence.close();
+      } catch (err: any) {
+        console.error('Final flush failed:', err?.message);
+      } finally {
+        process.exit(0);
+      }
+    };
+    process.once('SIGTERM', () => void shutdown('SIGTERM'));
+    process.once('SIGINT', () => void shutdown('SIGINT'));
+  } else if (process.env.NODE_ENV === 'production') {
+    throw new Error('DATABASE_URL is required in production');
+  }
+
   const publicPath = path.join(process.cwd(), 'public');
   app.use(express.static(publicPath));
 
@@ -1879,5 +1904,8 @@ async function start() {
   });
 }
 
-start();
+start().catch(err => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
+});
 export default app;

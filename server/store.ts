@@ -1,4 +1,5 @@
 import { formatLocalDate, nowLocal } from './time.js';
+import type { Persistence } from './persistence.js';
 import fs from 'fs';
 import path from 'path';
 import { 
@@ -22,6 +23,14 @@ interface DatabaseSchema {
   conversations: Conversation[];
   notifications: Notification[];
   feed_posts: FeedPost[];
+  sessions: StoredSession[];
+}
+
+export interface StoredSession {
+  id: string; // sha256 of the bearer token
+  userId: string;
+  createdAt: string;
+  expiresAt: string;
 }
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
@@ -51,8 +60,11 @@ export class ArenaStore {
     messages: [],
     conversations: [],
     notifications: [],
-    feed_posts: []
+    feed_posts: [],
+    sessions: []
   };
+
+  private persistence: Persistence | null = null;
 
   private isLoaded = false;
   private sent2HourReminders = new Set<string>();
@@ -62,7 +74,10 @@ export class ArenaStore {
   }
 
   constructor() {
-    this.init();
+    // With DATABASE_URL the data is loaded asynchronously by connectDatabase()
+    if (!process.env.DATABASE_URL) {
+      this.init();
+    }
   }
 
   private init() {
@@ -74,7 +89,7 @@ export class ArenaStore {
     if (targetFile) {
       try {
         const raw = fs.readFileSync(targetFile, 'utf-8');
-        this.data = JSON.parse(raw);
+        this.data = { ...this.data, ...JSON.parse(raw) };
         this.isLoaded = true;
         // Verify if seeds are current (relative to today). If not, reseed relative to today
         this.ensureFreshSeedData();
@@ -89,11 +104,47 @@ export class ArenaStore {
     this.isLoaded = true;
   }
 
+  /** Loads data from Postgres and mirrors every later save() there instead of the JSON file. */
+  public async connectDatabase(persistence: Persistence): Promise<void> {
+    const loaded = await persistence.loadAll();
+    if (loaded) {
+      this.data = { ...this.data, ...(loaded as unknown as Partial<DatabaseSchema>) };
+    } else if (process.env.DEMO_MODE === 'true') {
+      console.log('Database is empty, seeding demo data (DEMO_MODE=true).');
+      this.seedInitialData();
+    } else {
+      console.warn('Database is empty. Import data with "bun run db:import <file>" or add businesses before going live.');
+    }
+
+    const now = new Date().toISOString();
+    this.data.sessions = this.data.sessions.filter(s => s.expiresAt > now);
+
+    this.persistence = persistence;
+    this.isLoaded = true;
+    await persistence.flush(this.data);
+  }
+
   public save() {
+    if (this.persistence) {
+      this.persistence.scheduleFlush(this.data);
+      return;
+    }
     try {
       fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
     } catch (err) {
       console.error('Failed to save DB file:', err);
+    }
+  }
+
+  public getSessions(): StoredSession[] {
+    return this.data.sessions;
+  }
+
+  public removeSessions(predicate: (session: StoredSession) => boolean): void {
+    const before = this.data.sessions.length;
+    this.data.sessions = this.data.sessions.filter(s => !predicate(s));
+    if (this.data.sessions.length !== before) {
+      this.save();
     }
   }
 
