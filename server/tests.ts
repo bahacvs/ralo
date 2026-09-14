@@ -178,6 +178,62 @@ async function runTests() {
   assert(parseClientDateTime('2026-03-01T15:00:00.000Z') === '2026-03-01T18:00:00', 'Test 4.3: UTC gelen istemci saati yerel saate çevrildi');
   assert(parseClientDateTime('dün akşam') === null, 'Test 4.4: Geçersiz tarih metni reddedildi');
 
+  // TEST 5: Player cancellation window, slot release and open match notifications
+  const cancelResIds: string[] = [];
+  const biz = data.businesses.find(b => b.id === 'biz_urla');
+  const originalWindow = biz?.cancellationWindowHours;
+  try {
+    const cancelDate = formatDateKey(addDays(new Date(), uniqueOffsetDays + 1));
+    const openMatch = dbStore.createReservationAtomic({
+      courtId: 'court_urla_3', businessId: 'biz_urla', ownerUserId: 'user_player_demo',
+      startAt: `${cancelDate}T20:00:00`, endAt: `${cancelDate}T21:30:00`,
+      durationMinutes: 90, totalPrice: 1500, source: 'ONLINE', isOpenMatch: true
+    });
+    const matchId = openMatch.reservation!.id;
+    cancelResIds.push(matchId);
+    const joiner = data.users.find(u => u.id === 'u_2')!;
+    dbStore.joinOpenMatch(matchId, joiner);
+
+    if (biz) delete biz.cancellationWindowHours;
+    assert(dbStore.getCancellationWindowHours('biz_urla') === 24, 'Test 5.1: İptal süresi tanımsızsa varsayılan 24 saat kullanıldı');
+
+    const notOwner = dbStore.cancelReservationByOwner(matchId, 'u_2');
+    assert(!notOwner.success && notOwner.status === 404, 'Test 5.2: Rezervasyon sahibi olmayan kullanıcı iptal edemedi');
+
+    const startMs = new Date(`${cancelDate}T20:00:00`).getTime();
+    const tooLate = dbStore.cancelReservationByOwner(matchId, 'user_player_demo', startMs - 23 * 60 * 60 * 1000);
+    assert(!tooLate.success && tooLate.status === 409 && !!tooLate.error?.includes('24 saat'), 'Test 5.3: Başlamaya 24 saatten az kala iptal reddedildi', tooLate.error);
+
+    if (biz) biz.cancellationWindowHours = 12;
+    const cancelled = dbStore.cancelReservationByOwner(matchId, 'user_player_demo', startMs - 23 * 60 * 60 * 1000);
+    const resAfter = data.reservations.find(r => r.id === matchId);
+    assert(cancelled.success && resAfter?.status === 'CANCELLED', 'Test 5.4: Kulübün 12 saatlik penceresi dışında iptal başarılı oldu', cancelled.error);
+    assert(!data.reservation_slots.some(s => s.reservationId === matchId), 'Test 5.5: İptal edilen rezervasyonun slotu serbest bırakıldı');
+    assert(!!cancelled.notifiedUserIds?.includes('u_2') && data.notifications.some(n => n.userId === 'u_2' && n.matchId === matchId && n.type === 'RESERVATION_UPDATE'), 'Test 5.6: Açık maçın diğer katılımcısına iptal bildirimi gönderildi');
+    assert(dbStore.isSlotAvailable('court_urla_3', `${cancelDate}T20:00:00`, `${cancelDate}T21:30:00`), 'Test 5.7: İptal sonrası kort saati yeniden rezerve edilebilir');
+
+    const again = dbStore.cancelReservationByOwner(matchId, 'user_player_demo');
+    assert(!again.success && again.status === 409, 'Test 5.8: Zaten iptal edilmiş rezervasyon tekrar iptal edilemedi');
+  } catch (err: any) {
+    assert(false, 'Test 5: İptal testi beklenmedik hata verdi', err.message);
+  } finally {
+    if (biz) {
+      if (originalWindow === undefined) delete biz.cancellationWindowHours;
+      else biz.cancellationWindowHours = originalWindow;
+    }
+    data.reservations = data.reservations.filter(r => !cancelResIds.includes(r.id));
+    data.reservation_slots = data.reservation_slots.filter(s => !cancelResIds.includes(s.reservationId));
+    data.open_match_participants = data.open_match_participants.filter(p => !cancelResIds.includes(p.reservationId));
+    data.notifications = data.notifications.filter(n => !n.matchId || !cancelResIds.includes(n.matchId));
+    dbStore.save();
+  }
+
+  // TEST 6: Leaderboard ordering and size
+  const board = dbStore.getLeaderboard(50);
+  assert(board.length > 0 && board.length <= 50, 'Test 6.1: Sıralama en fazla 50 oyuncu döndürdü');
+  assert(board.every((u, i) => i === 0 || board[i - 1].elo >= u.elo), 'Test 6.2: Sıralama Elo puanına göre azalan düzende');
+  assert(board.every(u => u.role === 'OYUNCU'), 'Test 6.3: Sıralamada yalnızca oyuncular yer aldı');
+
   console.log(`\n🏁 Test Özeti: ${passed} Başarılı, ${failed} Hatalı\n`);
 
   if (failed > 0) {

@@ -6,11 +6,11 @@ import { LoadingState, EmptyState, ErrorState } from '../common/StateViews.js';
 import { MatchGearChecklist } from './MatchGearChecklist.js';
 import { 
   Calendar, Clock, MapPin, Users, ChevronRight, CheckCircle2, 
-  Bell, BellRing, Sparkles, Volume2, ShieldCheck, Play 
+  Bell, BellRing, Sparkles, Volume2, ShieldCheck, Play, XCircle
 } from 'lucide-react';
 
 export const MyMatchesView: React.FC = () => {
-  const { navigate } = useAuth();
+  const { navigate, user } = useAuth();
   const { 
     pushEnabled, 
     reminder2HoursEnabled, 
@@ -49,6 +49,42 @@ export const MyMatchesView: React.FC = () => {
     await simulate2HourAlert(matchId);
     setSimulationSuccess(true);
     setTimeout(() => setSimulationSuccess(false), 4000);
+  };
+
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancelFeedback, setCancelFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const getWindowHours = (m: any): number =>
+    typeof m.business?.cancellationWindowHours === 'number' ? m.business.cancellationWindowHours : 24;
+
+  const isCancellable = (m: any): boolean =>
+    new Date(m.startAt).getTime() - Date.now() > getWindowHours(m) * 60 * 60 * 1000;
+
+  const handleCancel = async (m: any) => {
+    setCancelFeedback(null);
+    const hours = getWindowHours(m);
+    if (!isCancellable(m)) {
+      setCancelFeedback({
+        type: 'error',
+        text: `İptal süresi doldu. Bu kulüpte rezervasyonlar başlama saatinden en geç ${hours} saat önce iptal edilebilir. Lütfen kulüple iletişime geçin.`
+      });
+      return;
+    }
+    const confirmText = m.isOpenMatch
+      ? 'Bu açık maçı iptal etmek istediğinize emin misiniz? Katılan oyunculara bildirim gönderilecek.'
+      : 'Bu rezervasyonu iptal etmek istediğinize emin misiniz?';
+    if (!window.confirm(confirmText)) return;
+
+    setCancellingId(m.id);
+    try {
+      const res = await api.cancelReservation(m.id);
+      setCancelFeedback({ type: 'success', text: res.message || 'Rezervasyonunuz iptal edildi.' });
+      await fetchMatches();
+    } catch (err: any) {
+      setCancelFeedback({ type: 'error', text: err.message || 'Rezervasyon iptal edilemedi.' });
+    } finally {
+      setCancellingId(null);
+    }
   };
 
   const list = tab === 'UPCOMING' ? matches.upcoming : matches.past;
@@ -175,6 +211,19 @@ export const MyMatchesView: React.FC = () => {
         />
       )}
 
+      {cancelFeedback && (
+        <div
+          role={cancelFeedback.type === 'error' ? 'alert' : 'status'}
+          className={`rounded-2xl px-4 py-3 text-xs font-semibold border ${
+            cancelFeedback.type === 'error'
+              ? 'bg-red-50 text-red-800 border-red-200 dark:bg-red-950/60 dark:text-red-300 dark:border-red-900'
+              : 'bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-900'
+          }`}
+        >
+          {cancelFeedback.text}
+        </div>
+      )}
+
       {/* List */}
       {loading ? (
         <LoadingState message="Maç kayıtlarınız yükleniyor..." />
@@ -272,6 +321,27 @@ export const MyMatchesView: React.FC = () => {
                     >
                       <Bell className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                       <span>Uyarıyı Simüle Et</span>
+                    </button>
+                  )}
+
+                  {tab === 'UPCOMING' && m.ownerUserId === user?.id && m.status !== 'CANCELLED' && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCancel(m);
+                      }}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      disabled={cancellingId === m.id}
+                      className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-xl border transition-colors cursor-pointer disabled:opacity-50 ${
+                        isCancellable(m)
+                          ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-slate-700 border-red-200 dark:border-slate-700'
+                          : 'text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                      }`}
+                      title={isCancellable(m) ? 'Rezervasyonu iptal et' : `İptal süresi doldu (başlamaya ${getWindowHours(m)} saatten az kaldı)`}
+                    >
+                      <XCircle className="w-3 h-3" aria-hidden="true" />
+                      <span>{cancellingId === m.id ? 'İptal Ediliyor...' : 'İptal Et'}</span>
                     </button>
                   )}
 
