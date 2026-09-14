@@ -1937,6 +1937,73 @@ export class ArenaStore {
     return { success: true, block };
   }
 
+  /** KVKK account deletion: removes the user's personal data and releases their bookings. */
+  public deleteUserAccount(userId: string): { success: boolean; error?: string } {
+    const ownsBusiness = this.data.staff_memberships.some(s => s.userId === userId && s.role === 'ISLETME_SAHIBI');
+    if (ownsBusiness) {
+      return { success: false, error: 'İşletme sahibi hesapları uygulama içinden silinemez. Lütfen destek ekibiyle iletişime geçin.' };
+    }
+
+    const now = nowLocal();
+
+    // Leave other players' open matches (promotes their waitlist)
+    const joinedMatchIds = this.data.open_match_participants
+      .filter(p => p.userId === userId)
+      .map(p => p.reservationId)
+      .filter(id => this.data.reservations.find(r => r.id === id)?.ownerUserId !== userId);
+    joinedMatchIds.forEach(matchId => this.leaveOpenMatch(matchId, userId));
+    this.data.open_match_waitlists = this.data.open_match_waitlists.filter(w => w.userId !== userId);
+
+    // Cancel the user's upcoming bookings; past ones stay for the venue's records
+    const cancelledIds = new Set<string>();
+    this.data.reservations.forEach(r => {
+      if (r.ownerUserId === userId && r.startAt > now && r.status !== 'CANCELLED') {
+        r.status = 'CANCELLED';
+        r.updatedAt = new Date().toISOString();
+        cancelledIds.add(r.id);
+      }
+    });
+    this.data.reservation_slots = this.data.reservation_slots.filter(s => !cancelledIds.has(s.reservationId));
+    this.data.open_match_participants
+      .filter(p => cancelledIds.has(p.reservationId) && p.userId !== userId)
+      .forEach(p => this.addNotification({
+        userId: p.userId,
+        title: 'Maç İptal Edildi',
+        message: 'Katıldığınız bir açık maç, organizatörün hesabını silmesi nedeniyle iptal edildi.',
+        type: 'RESERVATION_UPDATE',
+        matchId: p.reservationId
+      }));
+    this.data.open_match_participants = this.data.open_match_participants
+      .filter(p => p.userId !== userId && !cancelledIds.has(p.reservationId));
+
+    // Messages and conversations; conversations left with fewer than two people are removed
+    this.data.messages = this.data.messages.filter(m => m.senderUserId !== userId);
+    const emptiedConversationIds = new Set<string>();
+    this.data.conversations.forEach(c => {
+      if (!c.participantIds.includes(userId)) return;
+      c.participantIds = c.participantIds.filter(id => id !== userId);
+      if (c.participantIds.length < 2) emptiedConversationIds.add(c.id);
+    });
+    this.data.conversations = this.data.conversations.filter(c => !emptiedConversationIds.has(c.id));
+    this.data.messages = this.data.messages.filter(m => !emptiedConversationIds.has(m.conversationId));
+
+    // Notifications, social feed, friend lists and staff role
+    this.data.notifications = this.data.notifications.filter(n => n.userId !== userId && n.senderId !== userId);
+    this.data.feed_posts = this.getFeedPosts().filter(p => p.userId !== userId);
+    this.data.feed_posts.forEach(p => {
+      p.replies = p.replies.filter(r => r.userId !== userId);
+      p.likes = p.likes.filter(id => id !== userId);
+    });
+    this.data.users.forEach(u => {
+      if (u.friends) u.friends = u.friends.filter(id => id !== userId);
+    });
+    this.data.staff_memberships = this.data.staff_memberships.filter(s => s.userId !== userId);
+    this.data.users = this.data.users.filter(u => u.id !== userId);
+
+    this.save();
+    return { success: true };
+  }
+
   // Delete Court Block
   public deleteCourtBlock(blockId: string): boolean {
     const initialLen = this.data.court_blocks.length;

@@ -238,11 +238,9 @@ app.post('/api/auth/delete-account', authMiddleware, (req: Request, res: Respons
   }
 
   const user = (req as any).user as User;
-  // Remove user from store
-  const uIdx = dbStore.getUsers().findIndex(u => u.id === user.id);
-  if (uIdx >= 0) {
-    dbStore.getUsers().splice(uIdx, 1);
-    dbStore.save();
+  const result = dbStore.deleteUserAccount(user.id);
+  if (!result.success) {
+    return res.status(409).json({ error: result.error });
   }
 
   deleteUserSessions(user.id);
@@ -1852,6 +1850,11 @@ app.patch('/api/user/notification-settings', authMiddleware, (req: Request, res:
   } catch (err: any) {
     return res.status(500).json({ error: err.message || 'Ayarlar güncellenemedi.' });
   }
+});
+
+// Health check for the hosting platform
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.json({ ok: true });
 });
 
 // -------------------------------------------------------------

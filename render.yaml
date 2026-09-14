@@ -1,0 +1,37 @@
+# Render Blueprint. Data lives in memory and is mirrored to Postgres,
+# so the service must run as a single instance.
+services:
+  - type: web
+    name: ralo
+    runtime: node
+    region: frankfurt
+    plan: starter
+    numInstances: 1
+    # Dev dependencies (vite plugins, esbuild, typescript) are needed to build
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TZ
+        value: Europe/Istanbul
+      - key: DEMO_MODE
+        value: "false"
+      - key: VITE_DEMO_MODE
+        value: "false"
+      - key: SMS_PROVIDER
+        value: netgsm
+      # Secrets: set these in the Render dashboard
+      - key: DATABASE_URL
+        sync: false
+      - key: NETGSM_USERCODE
+        sync: false
+      - key: NETGSM_PASSWORD
+        sync: false
+      - key: NETGSM_MSGHEADER
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
