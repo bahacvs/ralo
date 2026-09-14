@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Deep sleek luxury black background -->
+    <linearGradient id="raloBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B0F17" />
+      <stop offset="100%" stop-color="#030712" />
+    </linearGradient>
+
+    <!-- Warm Amber Gold Ribbon Gradient -->
+    <linearGradient id="raloGold" x1="15%" y1="10%" x2="85%" y2="90%">
+      <stop offset="0%" stop-color="#FCD34D" />
+      <stop offset="25%" stop-color="#FBBF24" />
+      <stop offset="60%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+
+    <!-- Shadow Fold Gradient -->
+    <linearGradient id="raloShadow" x1="20%" y1="15%" x2="80%" y2="85%">
+      <stop offset="0%" stop-color="#D97706" />
+      <stop offset="60%" stop-color="#B45309" />
+      <stop offset="100%" stop-color="#78350F" />
+    </linearGradient>
+
+    <!-- Glowing Drop Shadow for 3D Ribbon -->
+    <filter id="raloGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#F59E0B" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Dark Squircle Icon Container with subtle golden perimeter border -->
+  <rect x="8" y="8" width="496" height="496" rx="120" fill="url(#raloBg)" stroke="#F59E0B" stroke-width="4" stroke-opacity="0.5" />
+
+  <!-- RALO Golden Ribbon "R" Mark -->
+  <g filter="url(#raloGlow)" transform="translate(40, 40) scale(2.16)">
+    <!-- Upper Loop of the "R" -->
+    <path
+      d="M 68 46 
+         L 132 46 
+         C 152 46 168 62 168 82 
+         C 168 102 152 118 132 118 
+         L 100 118 
+         C 94 118 90 114 90 108 
+         C 90 102 94 98 100 98 
+         L 130 98 
+         C 139 98 146 91 146 82 
+         C 146 73 139 66 130 66 
+         L 76 66 
+         Z"
+      fill="url(#raloGold)"
+    />
+
+    <!-- Diagonal Fold Cross Stroke -->
+    <path
+      d="M 72 64 
+         C 76 64 80 66 84 72 
+         L 164 164 
+         L 126 164 
+         L 82 108 
+         L 58 144 
+         L 34 144 
+         L 64 74 
+         C 66 68 69 64 72 64 
+         Z"
+      fill="url(#raloShadow)"
+    />
+
+    <!-- Upper Fold Highlight Layer -->
+    <path
+      d="M 78 66 
+         C 83 66 88 71 92 78 
+         L 162 162 
+         L 138 162 
+         L 94 106 
+         C 86 96 82 86 78 76 
+         Z"
+      fill="url(#raloGold)"
+      opacity="0.95"
+    />
+
+    <!-- Lower Left Leg -->
+    <path
+      d="M 32 144 
+         L 68 86 
+         L 86 114 
+         L 64 144 
+         Z"
+      fill="url(#raloGold)"
+    />
+
+    <!-- Ball Ring Cutout in Left Leg -->
+    <path
+      d="M 64 144 
+         A 18 18 0 1 1 50 116 
+         L 56 125 
+         A 10 10 0 1 0 64 136 
+         Z"
+      fill="url(#raloShadow)"
+    />
+
+    <!-- Integrated Padel Ball -->
+    <circle
+      cx="68"
+      cy="128"
+      r="12"
+      fill="url(#raloGold)"
+    />
+    <!-- Ball Highlight Reflection -->
+    <circle
+      cx="65"
+      cy="124"
+      r="4"
+      fill="#FEF3C7"
+      opacity="0.85"
+    />
+  </g>
+</svg>

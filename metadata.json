@@ -1,0 +1,7 @@
+{
+  "name": "RALO",
+  "description": "RALO - The Social Network for Padel. Padel kort rezervasyonu, açık maç eşleşmesi ve oyuncu topluluğu platformu.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

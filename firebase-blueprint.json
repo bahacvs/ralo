@@ -1,0 +1,177 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "ArenaMate oyuncu ve işletme kullanıcı profili",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "role": { "type": "string", "enum": ["OYUNCU", "ISLETME_SAHIBI", "PERSONEL"] },
+        "phone": { "type": "string", "maxLength": 30 },
+        "displayName": { "type": "string", "maxLength": 80 },
+        "maskedName": { "type": "string", "maxLength": 80 },
+        "avatarUrl": { "type": "string", "maxLength": 500 },
+        "elo": { "type": "number" },
+        "matchesCount": { "type": "number" },
+        "playSide": { "type": "string", "enum": ["LEFT", "RIGHT", "BOTH"] },
+        "dominantHand": { "type": "string", "enum": ["RIGHT", "LEFT"] },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["id", "role", "phone", "displayName", "elo"]
+    },
+    "Business": {
+      "title": "Business",
+      "description": "Padel kulübü / işletmesi",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "city": { "type": "string", "maxLength": 60 },
+        "district": { "type": "string", "maxLength": 60 },
+        "address": { "type": "string", "maxLength": 250 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "rating": { "type": "number" },
+        "reviewsCount": { "type": "number" },
+        "openingHour": { "type": "string", "maxLength": 10 },
+        "closingHour": { "type": "string", "maxLength": 10 },
+        "coverImage": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["id", "name", "city", "district", "address"]
+    },
+    "Court": {
+      "title": "Court",
+      "description": "İşletmeye bağlı padel kortu",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "type": { "type": "string", "enum": ["OUTDOOR_PANORAMIC", "INDOOR_PANORAMIC", "OUTDOOR_STANDARD", "INDOOR_STANDARD"] },
+        "surface": { "type": "string", "maxLength": 60 },
+        "pricePerHour": { "type": "number" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "businessId", "name", "type", "pricePerHour", "isActive"]
+    },
+    "Reservation": {
+      "title": "Reservation",
+      "description": "Kort rezervasyonu veya açık maç",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "courtId": { "type": "string", "maxLength": 128 },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "ownerUserId": { "type": "string", "maxLength": 128 },
+        "startAt": { "type": "string", "maxLength": 60 },
+        "endAt": { "type": "string", "maxLength": 60 },
+        "durationMinutes": { "type": "number" },
+        "totalPrice": { "type": "number" },
+        "source": { "type": "string", "enum": ["ONLINE", "PANEL"] },
+        "status": { "type": "string", "enum": ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED", "NO_SHOW"] },
+        "paymentStatus": { "type": "string", "enum": ["PAY_AT_VENUE", "PAID", "REFUNDED"] },
+        "isOpenMatch": { "type": "boolean" },
+        "participantLimit": { "type": "number" },
+        "minElo": { "type": "number" },
+        "maxElo": { "type": "number" },
+        "matchType": { "type": "string", "enum": ["CASUAL", "COMPETITIVE"] },
+        "genderPreference": { "type": "string", "enum": ["MIXED", "FEMALE", "MALE", "ANY"] },
+        "approvalRequired": { "type": "boolean" },
+        "createdAt": { "type": "string", "maxLength": 60 },
+        "updatedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["id", "courtId", "businessId", "ownerUserId", "startAt", "endAt", "durationMinutes", "totalPrice", "source", "status", "paymentStatus", "isOpenMatch"]
+    },
+    "ReservationSlot": {
+      "title": "ReservationSlot",
+      "description": "Çakışmaları engelleyen atomik kort zaman dilimi kaydı",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "courtId": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 20 },
+        "startTime": { "type": "string", "maxLength": 10 },
+        "durationMinutes": { "type": "number" },
+        "reservationId": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "courtId", "date", "startTime", "durationMinutes", "reservationId"]
+    },
+    "OpenMatchParticipant": {
+      "title": "OpenMatchParticipant",
+      "description": "Açık maç katılımcısı",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "reservationId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "slotIndex": { "type": "number" },
+        "status": { "type": "string", "enum": ["ACTIVE", "PENDING_APPROVAL"] },
+        "joinedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["id", "reservationId", "userId", "slotIndex", "status", "joinedAt"]
+    },
+    "OpenMatchWaitlist": {
+      "title": "OpenMatchWaitlist",
+      "description": "Dolu maç için bekleme sırası",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "reservationId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "requestedAt": { "type": "string", "maxLength": 60 },
+        "position": { "type": "number" }
+      },
+      "required": ["id", "reservationId", "userId", "requestedAt", "position"]
+    },
+    "CourtBlock": {
+      "title": "CourtBlock",
+      "description": "Kort bakım veya etkinlik blokajı",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "courtId": { "type": "string", "maxLength": 128 },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "startAt": { "type": "string", "maxLength": 60 },
+        "endAt": { "type": "string", "maxLength": 60 },
+        "reason": { "type": "string", "enum": ["BAKIM", "OZEL_ETKINLIK", "TURNUVA", "DIGER"] },
+        "createdByUserId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["id", "courtId", "businessId", "startAt", "endAt", "reason", "createdByUserId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Kullanıcı profilleri"
+    },
+    "/businesses/{businessId}": {
+      "schema": "Business",
+      "description": "Kayıtlı padel işletmeleri"
+    },
+    "/courts/{courtId}": {
+      "schema": "Court",
+      "description": "İşletme kortları"
+    },
+    "/reservations/{reservationId}": {
+      "schema": "Reservation",
+      "description": "Kort rezervasyonları ve açık maçlar"
+    },
+    "/reservation_slots/{slotId}": {
+      "schema": "ReservationSlot",
+      "description": "Çakışma önleyici zaman dilimleri"
+    },
+    "/open_match_participants/{participantId}": {
+      "schema": "OpenMatchParticipant",
+      "description": "Maç katılımcı koltukları"
+    },
+    "/open_match_waitlists/{waitlistId}": {
+      "schema": "OpenMatchWaitlist",
+      "description": "Açık maç bekleme listesi"
+    },
+    "/court_blocks/{blockId}": {
+      "schema": "CourtBlock",
+      "description": "Kort blokaj kayıtları"
+    }
+  }
+}

@@ -1,0 +1,3233 @@
+{
+  "users": [
+    {
+      "id": "user_player_demo",
+      "role": "OYUNCU",
+      "phone": "+90 532 100 2030",
+      "displayName": "Baha Çavuşoğlu",
+      "maskedName": "Baha Ç.",
+      "avatarUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+      "elo": 1450,
+      "matchesCount": 28,
+      "playSide": "BOTH",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Pazartesi",
+        "Çarşamba",
+        "Cumartesi"
+      ],
+      "preferredHours": [
+        "18:00 - 20:00",
+        "20:00 - 22:00"
+      ],
+      "friends": [
+        "u_1",
+        "u_3",
+        "u_17",
+        "u_16",
+        "u_2"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z",
+      "favoriteCourtIds": [
+        "court_urla_1",
+        "court_maslak_1"
+      ]
+    },
+    {
+      "id": "user_owner_demo",
+      "role": "ISLETME_SAHIBI",
+      "phone": "+90 532 200 4050",
+      "displayName": "Kemal Demirbağ",
+      "maskedName": "Kemal D.",
+      "avatarUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+      "elo": 1620,
+      "matchesCount": 54,
+      "playSide": "LEFT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Hafta İçi"
+      ],
+      "preferredHours": [
+        "10:00 - 12:00"
+      ],
+      "businessId": "biz_urla",
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "user_staff_demo",
+      "role": "PERSONEL",
+      "phone": "+90 532 300 6070",
+      "displayName": "Gözde Yılmaz",
+      "maskedName": "Gözde Y.",
+      "avatarUrl": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+      "elo": 1310,
+      "matchesCount": 16,
+      "playSide": "RIGHT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Salı",
+        "Perşembe"
+      ],
+      "preferredHours": [
+        "16:00 - 18:00"
+      ],
+      "businessId": "biz_urla",
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_1",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0001",
+      "displayName": "Zeynep Kaya",
+      "maskedName": "Zeynep K.",
+      "avatarUrl": "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
+      "elo": 1520,
+      "matchesCount": 42,
+      "playSide": "LEFT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Salı"
+      ],
+      "preferredHours": [
+        "19:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_2",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0002",
+      "displayName": "Mert Yılmaz",
+      "maskedName": "Mert Y.",
+      "avatarUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+      "elo": 1380,
+      "matchesCount": 19,
+      "playSide": "RIGHT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Çarşamba"
+      ],
+      "preferredHours": [
+        "20:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_3",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0003",
+      "displayName": "Caner Deniz",
+      "maskedName": "Caner D.",
+      "avatarUrl": "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
+      "elo": 1475,
+      "matchesCount": 35,
+      "playSide": "BOTH",
+      "dominantHand": "LEFT",
+      "preferredDays": [
+        "Pazar"
+      ],
+      "preferredHours": [
+        "10:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_4",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0004",
+      "displayName": "Selin Aktaş",
+      "maskedName": "Selin A.",
+      "avatarUrl": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
+      "elo": 1290,
+      "matchesCount": 12,
+      "playSide": "RIGHT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Cuma"
+      ],
+      "preferredHours": [
+        "18:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_5",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0005",
+      "displayName": "Barış Tanır",
+      "maskedName": "Barış T.",
+      "avatarUrl": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
+      "elo": 1740,
+      "matchesCount": 88,
+      "playSide": "LEFT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Cumartesi"
+      ],
+      "preferredHours": [
+        "16:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_6",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0006",
+      "displayName": "Ece Güven",
+      "maskedName": "Ece G.",
+      "avatarUrl": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+      "elo": 1410,
+      "matchesCount": 22,
+      "playSide": "RIGHT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Pazartesi"
+      ],
+      "preferredHours": [
+        "21:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_7",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0007",
+      "displayName": "Burak Şahin",
+      "maskedName": "Burak Ş.",
+      "avatarUrl": "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
+      "elo": 1650,
+      "matchesCount": 64,
+      "playSide": "LEFT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Perşembe"
+      ],
+      "preferredHours": [
+        "19:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_8",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0008",
+      "displayName": "Melis Öztürk",
+      "maskedName": "Melis Ö.",
+      "avatarUrl": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=150&auto=format&fit=crop&q=80",
+      "elo": 1330,
+      "matchesCount": 15,
+      "playSide": "BOTH",
+      "dominantHand": "LEFT",
+      "preferredDays": [
+        "Hafta Sonu"
+      ],
+      "preferredHours": [
+        "11:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_9",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0009",
+      "displayName": "Kaan Erdem",
+      "maskedName": "Kaan E.",
+      "avatarUrl": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
+      "elo": 1560,
+      "matchesCount": 47,
+      "playSide": "RIGHT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Salı"
+      ],
+      "preferredHours": [
+        "20:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_10",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0010",
+      "displayName": "Derya Arslan",
+      "maskedName": "Derya A.",
+      "avatarUrl": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
+      "elo": 1490,
+      "matchesCount": 38,
+      "playSide": "LEFT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Çarşamba"
+      ],
+      "preferredHours": [
+        "18:30"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_11",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0011",
+      "displayName": "Emre Çetinkaya",
+      "maskedName": "Emre Ç.",
+      "avatarUrl": "https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=150&auto=format&fit=crop&q=80",
+      "elo": 1820,
+      "matchesCount": 95,
+      "playSide": "LEFT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Hafta İçi"
+      ],
+      "preferredHours": [
+        "20:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_12",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0012",
+      "displayName": "Elif Sönmez",
+      "maskedName": "Elif S.",
+      "avatarUrl": "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=150&auto=format&fit=crop&q=80",
+      "elo": 1250,
+      "matchesCount": 8,
+      "playSide": "RIGHT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Cumartesi"
+      ],
+      "preferredHours": [
+        "14:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_13",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0013",
+      "displayName": "Onur Varol",
+      "maskedName": "Onur V.",
+      "avatarUrl": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
+      "elo": 1390,
+      "matchesCount": 24,
+      "playSide": "BOTH",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Pazar"
+      ],
+      "preferredHours": [
+        "17:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_14",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0014",
+      "displayName": "Gamze Uçar",
+      "maskedName": "Gamze U.",
+      "avatarUrl": "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&auto=format&fit=crop&q=80",
+      "elo": 1460,
+      "matchesCount": 31,
+      "playSide": "RIGHT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Cuma"
+      ],
+      "preferredHours": [
+        "19:30"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_15",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0015",
+      "displayName": "Tolga Koç",
+      "maskedName": "Tolga K.",
+      "avatarUrl": "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
+      "elo": 1610,
+      "matchesCount": 52,
+      "playSide": "LEFT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Salı"
+      ],
+      "preferredHours": [
+        "21:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_16",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0016",
+      "displayName": "İrem Aydın",
+      "maskedName": "İrem A.",
+      "avatarUrl": "https://images.unsplash.com/photo-1548142813-c348350df52b?w=150&auto=format&fit=crop&q=80",
+      "elo": 1340,
+      "matchesCount": 14,
+      "playSide": "RIGHT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Perşembe"
+      ],
+      "preferredHours": [
+        "18:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_17",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0017",
+      "displayName": "Alp Tuncer",
+      "maskedName": "Alp T.",
+      "avatarUrl": "https://images.unsplash.com/photo-1528892952291-009c663ce843?w=150&auto=format&fit=crop&q=80",
+      "elo": 1530,
+      "matchesCount": 40,
+      "playSide": "BOTH",
+      "dominantHand": "LEFT",
+      "preferredDays": [
+        "Cumartesi"
+      ],
+      "preferredHours": [
+        "12:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_18",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0018",
+      "displayName": "Hazal Keskin",
+      "maskedName": "Hazal K.",
+      "avatarUrl": "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=150&auto=format&fit=crop&q=80",
+      "elo": 1425,
+      "matchesCount": 26,
+      "playSide": "LEFT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Pazartesi"
+      ],
+      "preferredHours": [
+        "19:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_19",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0019",
+      "displayName": "Okan Polat",
+      "maskedName": "Okan P.",
+      "avatarUrl": "https://images.unsplash.com/photo-1507591064344-4c6ce005b128?w=150&auto=format&fit=crop&q=80",
+      "elo": 1680,
+      "matchesCount": 71,
+      "playSide": "RIGHT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Çarşamba"
+      ],
+      "preferredHours": [
+        "20:30"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_20",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0020",
+      "displayName": "Buse Karaca",
+      "maskedName": "Buse K.",
+      "avatarUrl": "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=150&auto=format&fit=crop&q=80",
+      "elo": 1295,
+      "matchesCount": 11,
+      "playSide": "RIGHT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Hafta Sonu"
+      ],
+      "preferredHours": [
+        "16:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_21",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0021",
+      "displayName": "Cem Bozkurt",
+      "maskedName": "Cem B.",
+      "avatarUrl": "https://images.unsplash.com/photo-1463453091185-61582044d556?w=150&auto=format&fit=crop&q=80",
+      "elo": 1770,
+      "matchesCount": 84,
+      "playSide": "LEFT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Cuma"
+      ],
+      "preferredHours": [
+        "20:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_22",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0022",
+      "displayName": "Yasemin Yıldız",
+      "maskedName": "Yasemin Y.",
+      "avatarUrl": "https://images.unsplash.com/photo-1534751516642-a171ed2c2188?w=150&auto=format&fit=crop&q=80",
+      "elo": 1375,
+      "matchesCount": 18,
+      "playSide": "BOTH",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Salı"
+      ],
+      "preferredHours": [
+        "18:30"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_23",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0023",
+      "displayName": "Serdar Güler",
+      "maskedName": "Serdar G.",
+      "avatarUrl": "https://images.unsplash.com/photo-1513956589380-bad6acb9b9d4?w=150&auto=format&fit=crop&q=80",
+      "elo": 1485,
+      "matchesCount": 34,
+      "playSide": "LEFT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Perşembe"
+      ],
+      "preferredHours": [
+        "20:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_24",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0024",
+      "displayName": "Aslıhan Kurt",
+      "maskedName": "Aslıhan K.",
+      "avatarUrl": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
+      "elo": 1440,
+      "matchesCount": 29,
+      "playSide": "RIGHT",
+      "dominantHand": "LEFT",
+      "preferredDays": [
+        "Cumartesi"
+      ],
+      "preferredHours": [
+        "18:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_25",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0025",
+      "displayName": "Yiğit Akın",
+      "maskedName": "Yiğit A.",
+      "avatarUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+      "elo": 1590,
+      "matchesCount": 49,
+      "playSide": "LEFT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Pazartesi"
+      ],
+      "preferredHours": [
+        "20:30"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_26",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0026",
+      "displayName": "Damla Özcan",
+      "maskedName": "Damla Ö.",
+      "avatarUrl": "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
+      "elo": 1315,
+      "matchesCount": 13,
+      "playSide": "RIGHT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Çarşamba"
+      ],
+      "preferredHours": [
+        "19:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_27",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0027",
+      "displayName": "Murat Başar",
+      "maskedName": "Murat B.",
+      "avatarUrl": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
+      "elo": 1665,
+      "matchesCount": 68,
+      "playSide": "BOTH",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Pazar"
+      ],
+      "preferredHours": [
+        "18:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_28",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0028",
+      "displayName": "Simge Tekin",
+      "maskedName": "Simge T.",
+      "avatarUrl": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+      "elo": 1405,
+      "matchesCount": 21,
+      "playSide": "LEFT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Cuma"
+      ],
+      "preferredHours": [
+        "18:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_29",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0029",
+      "displayName": "Kerem Bilgin",
+      "maskedName": "Kerem B.",
+      "avatarUrl": "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
+      "elo": 1720,
+      "matchesCount": 79,
+      "playSide": "RIGHT",
+      "dominantHand": "RIGHT",
+      "preferredDays": [
+        "Salı"
+      ],
+      "preferredHours": [
+        "20:00"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "u_30",
+      "role": "OYUNCU",
+      "phone": "+90 530 000 0030",
+      "displayName": "Tuğçe Yanık",
+      "maskedName": "Tuğçe Y.",
+      "avatarUrl": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=150&auto=format&fit=crop&q=80",
+      "elo": 1360,
+      "matchesCount": 17,
+      "playSide": "BOTH",
+      "dominantHand": "LEFT",
+      "preferredDays": [
+        "Perşembe"
+      ],
+      "preferredHours": [
+        "19:30"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    }
+  ],
+  "businesses": [
+    {
+      "id": "biz_urla",
+      "name": "Padel Arena Urla",
+      "city": "İzmir",
+      "district": "Urla",
+      "address": "İskele Mah. Mithatpaşa Cad. No:142, Urla / İzmir",
+      "phone": "+90 232 754 1020",
+      "rating": 4.9,
+      "reviewsCount": 148,
+      "amenities": [
+        "Otopark",
+        "Kafeterya",
+        "Soyunma Odası",
+        "Duş",
+        "Ekipman Kiralama",
+        "Pro Shop",
+        "Gece Aydınlatması",
+        "Wi-Fi"
+      ],
+      "openingHour": "08:00",
+      "closingHour": "24:00",
+      "policies": [
+        "Maça 4 saat kala ücretsiz iptal",
+        "Temiz kort ayakkabısı zorunludur",
+        "Tesiste nakit veya kredi kartı ile ödeme"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&auto=format&fit=crop&q=80",
+      "latitude": 38.3228,
+      "longitude": 26.764
+    },
+    {
+      "id": "biz_cesme",
+      "name": "İzmir Padel Club Çeşme",
+      "city": "İzmir",
+      "district": "Çeşme",
+      "address": "Alaçatı Mah. 12050 Sok. No:8, Çeşme / İzmir",
+      "phone": "+90 232 716 3040",
+      "rating": 4.8,
+      "reviewsCount": 215,
+      "amenities": [
+        "Otopark",
+        "Kafeterya",
+        "Soyunma Odası",
+        "Duş",
+        "Ekipman Kiralama",
+        "Gece Aydınlatması",
+        "Wi-Fi"
+      ],
+      "openingHour": "08:00",
+      "closingHour": "01:00",
+      "policies": [
+        "Maça 6 saat kala ücretsiz iptal",
+        "Turnuva standartlarında WPT kortlar"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?w=800&auto=format&fit=crop&q=80",
+      "latitude": 38.2831,
+      "longitude": 26.3768
+    },
+    {
+      "id": "biz_karsiyaka",
+      "name": "Mavi Padel Point Karşıyaka",
+      "city": "İzmir",
+      "district": "Karşıyaka",
+      "address": "Mavişehir Mah. Caher Dudayev Blv. No:52, Karşıyaka / İzmir",
+      "phone": "+90 232 324 5560",
+      "rating": 4.7,
+      "reviewsCount": 182,
+      "amenities": [
+        "Otopark",
+        "Soyunma Odası",
+        "Duş",
+        "Ekipman Kiralama",
+        "Gece Aydınlatması",
+        "Wi-Fi"
+      ],
+      "openingHour": "07:30",
+      "closingHour": "23:30",
+      "policies": [
+        "2 saat kala iptal hakkı",
+        "İkram su ve havlu desteği"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=80",
+      "latitude": 38.4682,
+      "longitude": 27.0854
+    },
+    {
+      "id": "biz_bornova",
+      "name": "Bornova Smash Park",
+      "city": "İzmir",
+      "district": "Bornova",
+      "address": "Kazımdirik Mah. Sanayi Cad. No:33, Bornova / İzmir",
+      "phone": "+90 232 461 8890",
+      "rating": 4.6,
+      "reviewsCount": 96,
+      "amenities": [
+        "Otopark",
+        "Kafeterya",
+        "Soyunma Odası",
+        "Duş",
+        "Ekipman Kiralama",
+        "Wi-Fi"
+      ],
+      "openingHour": "08:00",
+      "closingHour": "23:00",
+      "policies": [
+        "Grup rezervasyonlarında indirim",
+        "Raket kiralama 100 TRY"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&auto=format&fit=crop&q=80",
+      "latitude": 38.4632,
+      "longitude": 27.2185
+    },
+    {
+      "id": "biz_alsancak",
+      "name": "Alsancak Rooftop Padel",
+      "city": "İzmir",
+      "district": "Alsancak",
+      "address": "Kültür Mah. Şair Eşref Blv. No:78 Teras, Konak / İzmir",
+      "phone": "+90 232 421 7080",
+      "rating": 4.9,
+      "reviewsCount": 164,
+      "amenities": [
+        "Kafeterya",
+        "Soyunma Odası",
+        "Duş",
+        "Ekipman Kiralama",
+        "Gece Aydınlatması",
+        "Wi-Fi"
+      ],
+      "openingHour": "09:00",
+      "closingHour": "24:00",
+      "policies": [
+        "Şehir manzaralı panoramik teras",
+        "Girişte spor ayakkabı kontrolü"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&auto=format&fit=crop&q=80",
+      "latitude": 38.4371,
+      "longitude": 27.1428
+    },
+    {
+      "id": "biz_guzelbahce",
+      "name": "Güzelbahçe Padel Garden",
+      "city": "İzmir",
+      "district": "Güzelbahçe",
+      "address": "Yalı Mah. 68. Sok. No:15, Güzelbahçe / İzmir",
+      "phone": "+90 232 234 9010",
+      "rating": 4.8,
+      "reviewsCount": 110,
+      "amenities": [
+        "Otopark",
+        "Kafeterya",
+        "Soyunma Odası",
+        "Duş",
+        "Ekipman Kiralama",
+        "Gece Aydınlatması"
+      ],
+      "openingHour": "08:00",
+      "closingHour": "23:00",
+      "policies": [
+        "Doğa içinde açık hava kortları",
+        "Ücretsiz otopark"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=800&auto=format&fit=crop&q=80",
+      "latitude": 38.3695,
+      "longitude": 26.8906
+    },
+    {
+      "id": "biz_ist_maslak",
+      "name": "Padel Club Maslak",
+      "city": "İstanbul",
+      "district": "Sarıyer",
+      "address": "Maslak Mah. Büyükdere Cad. No:245, Sarıyer / İstanbul",
+      "phone": "+90 212 285 4010",
+      "rating": 4.9,
+      "reviewsCount": 312,
+      "amenities": [
+        "Otopark",
+        "Kafeterya",
+        "Soyunma Odası",
+        "Duş",
+        "Ekipman Kiralama",
+        "Pro Shop",
+        "Gece Aydınlatması",
+        "Wi-Fi"
+      ],
+      "openingHour": "07:00",
+      "closingHour": "01:00",
+      "policies": [
+        "İptal süresi 4 saattir",
+        "Özel WPT zemin kortlar",
+        "Vale otopark hizmeti"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&auto=format&fit=crop&q=80",
+      "latitude": 41.1118,
+      "longitude": 29.0225
+    },
+    {
+      "id": "biz_ist_kadikoy",
+      "name": "Moda Padel Arena Kadıköy",
+      "city": "İstanbul",
+      "district": "Kadıköy",
+      "address": "Caferağa Mah. Moda Cad. No:88, Kadıköy / İstanbul",
+      "phone": "+90 216 345 7780",
+      "rating": 4.8,
+      "reviewsCount": 265,
+      "amenities": [
+        "Kafeterya",
+        "Soyunma Odası",
+        "Duş",
+        "Ekipman Kiralama",
+        "Gece Aydınlatması",
+        "Wi-Fi"
+      ],
+      "openingHour": "08:00",
+      "closingHour": "24:00",
+      "policies": [
+        "Maça 3 saat kala iptal imkanı",
+        "Deniz esintili panoramik kort"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?w=800&auto=format&fit=crop&q=80",
+      "latitude": 40.9856,
+      "longitude": 29.0298
+    },
+    {
+      "id": "biz_ist_gokturk",
+      "name": "Göktürk Country Padel",
+      "city": "İstanbul",
+      "district": "Eyüpsultan",
+      "address": "Göktürk Merkez Mah. İstanbul Cad. No:114, Eyüpsultan / İstanbul",
+      "phone": "+90 212 322 8990",
+      "rating": 4.9,
+      "reviewsCount": 198,
+      "amenities": [
+        "Otopark",
+        "Kafeterya",
+        "Soyunma Odası",
+        "Duş",
+        "Ekipman Kiralama",
+        "Pro Shop",
+        "Gece Aydınlatması",
+        "Wi-Fi"
+      ],
+      "openingHour": "08:00",
+      "closingHour": "23:30",
+      "policies": [
+        "Orman kenarı açık & kapalı panoramik kortlar",
+        "Ücretsiz sporcu içeceği"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=80",
+      "latitude": 41.1782,
+      "longitude": 28.8912
+    },
+    {
+      "id": "biz_ist_atasehir",
+      "name": "Ataşehir Smash Padel Park",
+      "city": "İstanbul",
+      "district": "Ataşehir",
+      "address": "Barbaros Mah. Mor Sümbül Sok. No:12, Ataşehir / İstanbul",
+      "phone": "+90 216 577 6040",
+      "rating": 4.7,
+      "reviewsCount": 142,
+      "amenities": [
+        "Otopark",
+        "Kafeterya",
+        "Soyunma Odası",
+        "Duş",
+        "Ekipman Kiralama",
+        "Gece Aydınlatması"
+      ],
+      "openingHour": "08:00",
+      "closingHour": "24:00",
+      "policies": [
+        "Metropol İstanbul yanı kapalı ve açık kortlar",
+        "Online güvenli ödeme"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&auto=format&fit=crop&q=80",
+      "latitude": 40.9924,
+      "longitude": 29.1173
+    },
+    {
+      "id": "biz_ank_cankaya",
+      "name": "Çankaya Panoramik Padel Club",
+      "city": "Ankara",
+      "district": "Çankaya",
+      "address": "Gaziosmanpaşa Mah. Arjantin Cad. No:44, Çankaya / Ankara",
+      "phone": "+90 312 447 9010",
+      "rating": 4.9,
+      "reviewsCount": 220,
+      "amenities": [
+        "Otopark",
+        "Kafeterya",
+        "Soyunma Odası",
+        "Duş",
+        "Ekipman Kiralama",
+        "Gece Aydınlatması",
+        "Wi-Fi"
+      ],
+      "openingHour": "08:00",
+      "closingHour": "24:00",
+      "policies": [
+        "Başkentin merkezinde ısıtmalı kapalı ve açık WPT kortlar",
+        "Ücretsiz otopark"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&auto=format&fit=crop&q=80",
+      "latitude": 39.8854,
+      "longitude": 32.8597
+    },
+    {
+      "id": "biz_ank_cayyolu",
+      "name": "Çayyolu Padel Point",
+      "city": "Ankara",
+      "district": "Çankaya",
+      "address": "Alacaatlı Mah. Park Cad. No:76, Çayyolu / Ankara",
+      "phone": "+90 312 240 5560",
+      "rating": 4.8,
+      "reviewsCount": 175,
+      "amenities": [
+        "Otopark",
+        "Soyunma Odası",
+        "Duş",
+        "Ekipman Kiralama",
+        "Gece Aydınlatması"
+      ],
+      "openingHour": "08:30",
+      "closingHour": "23:30",
+      "policies": [
+        "Kışın tam kapalı iklimlendirmeli kortlar",
+        "Turnuva ligleri"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=800&auto=format&fit=crop&q=80",
+      "latitude": 39.8821,
+      "longitude": 32.6845
+    },
+    {
+      "id": "biz_ant_lara",
+      "name": "Lara Riviera Padel Club",
+      "city": "Antalya",
+      "district": "Muratpaşa",
+      "address": "Şirinyalı Mah. Lara Cad. No:190, Muratpaşa / Antalya",
+      "phone": "+90 242 316 2030",
+      "rating": 4.9,
+      "reviewsCount": 280,
+      "amenities": [
+        "Otopark",
+        "Kafeterya",
+        "Soyunma Odası",
+        "Duş",
+        "Ekipman Kiralama",
+        "Gece Aydınlatması",
+        "Wi-Fi"
+      ],
+      "openingHour": "07:30",
+      "closingHour": "01:00",
+      "policies": [
+        "Akdeniz manzaralı WPT standart kortlar",
+        "Havuz ve dinlenme alanı kullanımı"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&auto=format&fit=crop&q=80",
+      "latitude": 36.8524,
+      "longitude": 30.7712
+    },
+    {
+      "id": "biz_ant_konyaalti",
+      "name": "Konyaaltı Beach Padel",
+      "city": "Antalya",
+      "district": "Konyaaltı",
+      "address": "Arapsuyu Mah. Akdeniz Blv. No:82, Konyaaltı / Antalya",
+      "phone": "+90 242 228 1140",
+      "rating": 4.8,
+      "reviewsCount": 190,
+      "amenities": [
+        "Otopark",
+        "Kafeterya",
+        "Soyunma Odası",
+        "Duş",
+        "Ekipman Kiralama",
+        "Gece Aydınlatması"
+      ],
+      "openingHour": "08:00",
+      "closingHour": "24:00",
+      "policies": [
+        "Sahile 50 metre mesafede",
+        "Gece LED aydınlatma"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?w=800&auto=format&fit=crop&q=80",
+      "latitude": 36.8789,
+      "longitude": 30.6384
+    },
+    {
+      "id": "biz_mug_bodrum",
+      "name": "Bodrum Sunset Padel Club",
+      "city": "Muğla",
+      "district": "Bodrum",
+      "address": "Yalıkavak Mah. Çökertme Cad. No:24, Bodrum / Muğla",
+      "phone": "+90 252 385 4520",
+      "rating": 4.9,
+      "reviewsCount": 245,
+      "amenities": [
+        "Otopark",
+        "Kafeterya",
+        "Soyunma Odası",
+        "Duş",
+        "Ekipman Kiralama",
+        "Gece Aydınlatması",
+        "Wi-Fi"
+      ],
+      "openingHour": "08:00",
+      "closingHour": "01:00",
+      "policies": [
+        "Yalıkavak günbatımı manzaralı lüks kortlar",
+        "Kokteyl bar ve lounge"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=80",
+      "latitude": 37.1042,
+      "longitude": 27.2954
+    },
+    {
+      "id": "biz_bur_nilufer",
+      "name": "Nilüfer Padel Park",
+      "city": "Bursa",
+      "district": "Nilüfer",
+      "address": "Özlüce Mah. Ahmet Taner Kışlalı Blv. No:50, Nilüfer / Bursa",
+      "phone": "+90 224 413 8090",
+      "rating": 4.7,
+      "reviewsCount": 130,
+      "amenities": [
+        "Otopark",
+        "Kafeterya",
+        "Soyunma Odası",
+        "Duş",
+        "Ekipman Kiralama",
+        "Gece Aydınlatması"
+      ],
+      "openingHour": "08:30",
+      "closingHour": "23:30",
+      "policies": [
+        "Özlüce merkezinde kapalı ve açık seçenekler",
+        "Geniş otopark"
+      ],
+      "coverImage": "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&auto=format&fit=crop&q=80",
+      "latitude": 40.2145,
+      "longitude": 28.9812
+    }
+  ],
+  "courts": [
+    {
+      "id": "court_urla_1",
+      "businessId": "biz_urla",
+      "name": "Merkez Kort (Panoramik)",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "WPT Süper Mavi Suni Çim",
+      "pricePerHour": 1400,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_urla_2",
+      "businessId": "biz_urla",
+      "name": "Kort 2 - Kapalı Klimalı",
+      "type": "INDOOR_PANORAMIC",
+      "surface": "Mondo Supercourt XN",
+      "pricePerHour": 1600,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_urla_3",
+      "businessId": "biz_urla",
+      "name": "Kort 3 - Açık Standart",
+      "type": "OUTDOOR_STANDARD",
+      "surface": "Suni Çim",
+      "pricePerHour": 1200,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_urla_4",
+      "businessId": "biz_urla",
+      "name": "Kort 4 - Teras Kort",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "WPT Pro Akrilik",
+      "pricePerHour": 1500,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_cesme_1",
+      "businessId": "biz_cesme",
+      "name": "Alaçatı Rüzgar Kortu",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "WPT Süper Mavi Çim",
+      "pricePerHour": 1800,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_cesme_2",
+      "businessId": "biz_cesme",
+      "name": "Kort 2 - Sunset Panoramik",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "Mondo Supercourt",
+      "pricePerHour": 1800,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_cesme_3",
+      "businessId": "biz_cesme",
+      "name": "Kort 3 - Kapalı Salon",
+      "type": "INDOOR_STANDARD",
+      "surface": "Pro Çim",
+      "pricePerHour": 1600,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_karsiyaka_1",
+      "businessId": "biz_karsiyaka",
+      "name": "Kort 1 - Körfez Manzaralı",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "WPT Mavi Çim",
+      "pricePerHour": 1400,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_karsiyaka_2",
+      "businessId": "biz_karsiyaka",
+      "name": "Kort 2 - Kapalı Kort",
+      "type": "INDOOR_PANORAMIC",
+      "surface": "Akrilik Zemin",
+      "pricePerHour": 1500,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_karsiyaka_3",
+      "businessId": "biz_karsiyaka",
+      "name": "Kort 3 - Standart Açık",
+      "type": "OUTDOOR_STANDARD",
+      "surface": "Suni Çim",
+      "pricePerHour": 1200,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_bornova_1",
+      "businessId": "biz_bornova",
+      "name": "Kort 1 - Üniversite Kortu",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "Mavi Çim",
+      "pricePerHour": 1100,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_bornova_2",
+      "businessId": "biz_bornova",
+      "name": "Kort 2 - Kapalı Antrenman",
+      "type": "INDOOR_STANDARD",
+      "surface": "Standart Çim",
+      "pricePerHour": 1300,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_alsancak_1",
+      "businessId": "biz_alsancak",
+      "name": "Teras Panoramik Kort 1",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "WPT Supercourt XN",
+      "pricePerHour": 1700,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_alsancak_2",
+      "businessId": "biz_alsancak",
+      "name": "Teras Panoramik Kort 2",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "WPT Supercourt XN",
+      "pricePerHour": 1700,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_guzelbahce_1",
+      "businessId": "biz_guzelbahce",
+      "name": "Garden Kort 1",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "Suni Çim",
+      "pricePerHour": 1300,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_guzelbahce_2",
+      "businessId": "biz_guzelbahce",
+      "name": "Garden Kort 2",
+      "type": "OUTDOOR_STANDARD",
+      "surface": "Suni Çim",
+      "pricePerHour": 1150,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_maslak_1",
+      "businessId": "biz_ist_maslak",
+      "name": "Maslak Merkez Panoramik",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "Mondo Supercourt WPT",
+      "pricePerHour": 2200,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_maslak_2",
+      "businessId": "biz_ist_maslak",
+      "name": "Maslak Kort 2 - Kapalı İklimlendirmeli",
+      "type": "INDOOR_PANORAMIC",
+      "surface": "Supercourt XN",
+      "pricePerHour": 2400,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_kadikoy_1",
+      "businessId": "biz_ist_kadikoy",
+      "name": "Moda Panoramik Kort 1",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "WPT Mavi Çim",
+      "pricePerHour": 2000,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_kadikoy_2",
+      "businessId": "biz_ist_kadikoy",
+      "name": "Moda Kapalı Salon Kortu",
+      "type": "INDOOR_PANORAMIC",
+      "surface": "Mondo Supercourt",
+      "pricePerHour": 2200,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_gokturk_1",
+      "businessId": "biz_ist_gokturk",
+      "name": "Göktürk Orman Panoramik",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "Mondo Supercourt WPT",
+      "pricePerHour": 2100,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_atasehir_1",
+      "businessId": "biz_ist_atasehir",
+      "name": "Ataşehir Smash Kort 1",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "WPT Pro Zemin",
+      "pricePerHour": 1900,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_cankaya_1",
+      "businessId": "biz_ank_cankaya",
+      "name": "Arjantin Panoramik Kort",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "Mondo Supercourt WPT",
+      "pricePerHour": 1800,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_cankaya_2",
+      "businessId": "biz_ank_cankaya",
+      "name": "Çankaya Kapalı Isıtmalı Kort",
+      "type": "INDOOR_PANORAMIC",
+      "surface": "Supercourt XN",
+      "pricePerHour": 2000,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_cayyolu_1",
+      "businessId": "biz_ank_cayyolu",
+      "name": "Park Cadde Kort 1",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "WPT Mavi Zemin",
+      "pricePerHour": 1600,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_lara_1",
+      "businessId": "biz_ant_lara",
+      "name": "Riviera Sunset Kort",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "Mondo Supercourt WPT",
+      "pricePerHour": 1700,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_lara_2",
+      "businessId": "biz_ant_lara",
+      "name": "Riviera Kort 2 (Işıklandırmalı)",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "WPT Mavi Zemin",
+      "pricePerHour": 1700,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_konyaalti_1",
+      "businessId": "biz_ant_konyaalti",
+      "name": "Beach Padel Kort 1",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "Suni Çim",
+      "pricePerHour": 1500,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_bodrum_1",
+      "businessId": "biz_mug_bodrum",
+      "name": "Yalıkavak Sunset Kort",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "Mondo Supercourt WPT",
+      "pricePerHour": 2500,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_bodrum_2",
+      "businessId": "biz_mug_bodrum",
+      "name": "Bodrum Marina Kort 2",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "WPT Süper Mavi",
+      "pricePerHour": 2300,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?w=800&auto=format&fit=crop&q=80"
+      ]
+    },
+    {
+      "id": "court_nilufer_1",
+      "businessId": "biz_bur_nilufer",
+      "name": "Özlüce Park Kort 1",
+      "type": "OUTDOOR_PANORAMIC",
+      "surface": "WPT Mavi Suni Çim",
+      "pricePerHour": 1400,
+      "isActive": true,
+      "photos": [
+        "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=80"
+      ]
+    }
+  ],
+  "reservations": [
+    {
+      "id": "m_today_1",
+      "courtId": "court_urla_1",
+      "businessId": "biz_urla",
+      "ownerUserId": "u_1",
+      "startAt": "2026-09-10T18:00:00",
+      "endAt": "2026-09-10T19:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 2100,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "İş çıkışı keyifli 90 dakika padel. Her seviyeye açık!",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.594Z",
+      "updatedAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "m_today_2",
+      "courtId": "court_cesme_1",
+      "businessId": "biz_cesme",
+      "ownerUserId": "u_2",
+      "startAt": "2026-09-10T19:30:00",
+      "endAt": "2026-09-10T21:00:00",
+      "durationMinutes": 90,
+      "totalPrice": 2700,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Orta-ileri seviye tempolu maç. Spin ve bandeja bilenler gelsin!",
+      "participantLimit": 4,
+      "minElo": 1350,
+      "maxElo": 1650,
+      "matchType": "COMPETITIVE",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.594Z",
+      "updatedAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "m_today_3",
+      "courtId": "court_karsiyaka_1",
+      "businessId": "biz_karsiyaka",
+      "ownerUserId": "u_4",
+      "startAt": "2026-09-10T20:00:00",
+      "endAt": "2026-09-10T21:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 2100,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Son 1 kişi aranıyor! Sağ kanat tercih edilir.",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_today_4",
+      "courtId": "court_alsancak_1",
+      "businessId": "biz_alsancak",
+      "ownerUserId": "u_7",
+      "startAt": "2026-09-10T21:00:00",
+      "endAt": "2026-09-10T22:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 2550,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Alsancak teras maçı. Dolu, ancak iptal olursa ilk yedek çağrılır.",
+      "participantLimit": 4,
+      "matchType": "COMPETITIVE",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_today_5",
+      "courtId": "court_bornova_1",
+      "businessId": "biz_bornova",
+      "ownerUserId": "u_13",
+      "startAt": "2026-09-10T17:30:00",
+      "endAt": "2026-09-10T19:00:00",
+      "durationMinutes": 90,
+      "totalPrice": 1650,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Organizatör onaylı maçtır. İstek gönderdikten sonra kısa sürede teyit edilecektir.",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "MIXED",
+      "approvalRequired": true,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_today_6",
+      "courtId": "court_urla_2",
+      "businessId": "biz_urla",
+      "ownerUserId": "u_5",
+      "startAt": "2026-09-10T21:30:00",
+      "endAt": "2026-09-10T23:00:00",
+      "durationMinutes": 90,
+      "totalPrice": 2400,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Yüksek Elo lig hazırlık maçı. Yalnızca 1600+ oyuncular kabul edilir.",
+      "participantLimit": 4,
+      "minElo": 1600,
+      "maxElo": 2000,
+      "matchType": "COMPETITIVE",
+      "genderPreference": "ANY",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_today_7",
+      "courtId": "court_urla_1",
+      "businessId": "biz_urla",
+      "ownerUserId": "user_player_demo",
+      "startAt": "2026-09-10T16:00:00",
+      "endAt": "2026-09-10T17:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 2100,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Baha Çavuşoğlu tarafından açılan dostluk maçı. Son 1 kişi!",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_tom_1",
+      "courtId": "court_guzelbahce_1",
+      "businessId": "biz_guzelbahce",
+      "ownerUserId": "u_18",
+      "startAt": "2026-09-11T10:00:00",
+      "endAt": "2026-09-11T11:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 1950,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Sabah kahvesi öncesi Güzelbahçe sabah maçı.",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_tom_2",
+      "courtId": "court_cesme_2",
+      "businessId": "biz_cesme",
+      "ownerUserId": "u_20",
+      "startAt": "2026-09-11T18:00:00",
+      "endAt": "2026-09-11T19:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 2700,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Kadınlar padel buluşması. 3 yer boş!",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "FEMALE",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_tom_3",
+      "courtId": "court_karsiyaka_2",
+      "businessId": "biz_karsiyaka",
+      "ownerUserId": "u_21",
+      "startAt": "2026-09-11T19:30:00",
+      "endAt": "2026-09-11T21:00:00",
+      "durationMinutes": 90,
+      "totalPrice": 2250,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Erkekler rekabetçi maç. Son 1 kişi!",
+      "participantLimit": 4,
+      "minElo": 1400,
+      "maxElo": 1750,
+      "matchType": "COMPETITIVE",
+      "genderPreference": "MALE",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_tom_4",
+      "courtId": "court_urla_4",
+      "businessId": "biz_urla",
+      "ownerUserId": "u_24",
+      "startAt": "2026-09-11T20:00:00",
+      "endAt": "2026-09-11T21:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 2250,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Teras kortta akşam maçı.",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_d2_1",
+      "courtId": "court_alsancak_2",
+      "businessId": "biz_alsancak",
+      "ownerUserId": "u_26",
+      "startAt": "2026-09-12T18:30:00",
+      "endAt": "2026-09-12T20:00:00",
+      "durationMinutes": 90,
+      "totalPrice": 2550,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Alsancak teras maçı, hafta ortası enerjisi.",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_d2_2",
+      "courtId": "court_bornova_2",
+      "businessId": "biz_bornova",
+      "ownerUserId": "u_27",
+      "startAt": "2026-09-12T20:00:00",
+      "endAt": "2026-09-12T21:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 1950,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Keyifli ve saygılı bir padel maçı!",
+      "participantLimit": 4,
+      "minElo": 1400,
+      "maxElo": 1700,
+      "matchType": "COMPETITIVE",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_d3_1",
+      "courtId": "court_urla_1",
+      "businessId": "biz_urla",
+      "ownerUserId": "u_30",
+      "startAt": "2026-09-13T19:00:00",
+      "endAt": "2026-09-13T20:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 2100,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Keyifli ve saygılı bir padel maçı!",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_ist_1",
+      "courtId": "court_maslak_1",
+      "businessId": "biz_ist_maslak",
+      "ownerUserId": "u_2",
+      "startAt": "2026-09-10T19:00:00",
+      "endAt": "2026-09-10T20:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 3300,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Maslak iş çıkışı tempolu padel maçı. 2 yer boş!",
+      "participantLimit": 4,
+      "minElo": 1400,
+      "maxElo": 1750,
+      "matchType": "COMPETITIVE",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_ist_2",
+      "courtId": "court_kadikoy_1",
+      "businessId": "biz_ist_kadikoy",
+      "ownerUserId": "u_6",
+      "startAt": "2026-09-10T20:30:00",
+      "endAt": "2026-09-10T22:00:00",
+      "durationMinutes": 90,
+      "totalPrice": 3000,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Moda sahilde akşam maçı, son 1 oyuncu aranıyor!",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_ist_3",
+      "courtId": "court_maslak_2",
+      "businessId": "biz_ist_maslak",
+      "ownerUserId": "u_12",
+      "startAt": "2026-09-11T18:30:00",
+      "endAt": "2026-09-11T20:00:00",
+      "durationMinutes": 90,
+      "totalPrice": 3600,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Kapalı klimalı kortta keyifli padel. Yeni başlayanlar ve orta seviye buyursun.",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_ist_4",
+      "courtId": "court_gokturk_1",
+      "businessId": "biz_ist_gokturk",
+      "ownerUserId": "u_14",
+      "startAt": "2026-09-11T11:00:00",
+      "endAt": "2026-09-11T12:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 3150,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Göktürk doğa içinde hafta sonu sabah maçı.",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_ank_1",
+      "courtId": "court_cankaya_1",
+      "businessId": "biz_ank_cankaya",
+      "ownerUserId": "u_4",
+      "startAt": "2026-09-10T18:30:00",
+      "endAt": "2026-09-10T20:00:00",
+      "durationMinutes": 90,
+      "totalPrice": 2700,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Çankaya Arjantin caddesi padel buluşması. 2 kişi aranıyor!",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_ank_2",
+      "courtId": "court_cayyolu_1",
+      "businessId": "biz_ank_cayyolu",
+      "ownerUserId": "u_9",
+      "startAt": "2026-09-11T20:00:00",
+      "endAt": "2026-09-11T21:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 2400,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Çayyolu akşam serinliğinde tempolu maç. Son 1 kişi!",
+      "participantLimit": 4,
+      "minElo": 1350,
+      "matchType": "COMPETITIVE",
+      "genderPreference": "MALE",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_ant_1",
+      "courtId": "court_lara_1",
+      "businessId": "biz_ant_lara",
+      "ownerUserId": "u_8",
+      "startAt": "2026-09-10T20:00:00",
+      "endAt": "2026-09-10T21:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 2550,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Lara falezlerde günbatımı maçı. Sonrasında dinlenme alanında sohbet!",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_ant_2",
+      "courtId": "court_konyaalti_1",
+      "businessId": "biz_ant_konyaalti",
+      "ownerUserId": "u_17",
+      "startAt": "2026-09-11T18:00:00",
+      "endAt": "2026-09-11T19:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 2250,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Konyaaltı sahil padel maçı. Son 1 kişi!",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_bod_1",
+      "courtId": "court_bodrum_1",
+      "businessId": "biz_mug_bodrum",
+      "ownerUserId": "u_21",
+      "startAt": "2026-09-10T19:00:00",
+      "endAt": "2026-09-10T20:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 3750,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Yalıkavak günbatımı manzaralı padel. 2 yer açık!",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "m_bur_1",
+      "courtId": "court_nilufer_1",
+      "businessId": "biz_bur_nilufer",
+      "ownerUserId": "u_23",
+      "startAt": "2026-09-10T19:30:00",
+      "endAt": "2026-09-10T21:00:00",
+      "durationMinutes": 90,
+      "totalPrice": 2100,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": true,
+      "openMatchNote": "Özlüce Nilüfer padel maçı. 2 kişi aranıyor!",
+      "participantLimit": 4,
+      "matchType": "CASUAL",
+      "genderPreference": "MIXED",
+      "approvalRequired": false,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "res_urla_1",
+      "courtId": "court_urla_1",
+      "businessId": "biz_urla",
+      "ownerUserId": "u_2",
+      "startAt": "2026-09-10T09:00:00",
+      "endAt": "2026-09-10T10:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 2100,
+      "source": "PANEL",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAID",
+      "isOpenMatch": false,
+      "participantLimit": 4,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "res_urla_2",
+      "courtId": "court_urla_2",
+      "businessId": "biz_urla",
+      "ownerUserId": "u_3",
+      "startAt": "2026-09-10T11:00:00",
+      "endAt": "2026-09-10T12:30:00",
+      "durationMinutes": 90,
+      "totalPrice": 2400,
+      "source": "ONLINE",
+      "status": "PENDING",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": false,
+      "participantLimit": 4,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "res_urla_3",
+      "courtId": "court_urla_3",
+      "businessId": "biz_urla",
+      "ownerUserId": "u_4",
+      "startAt": "2026-09-10T13:00:00",
+      "endAt": "2026-09-10T14:00:00",
+      "durationMinutes": 60,
+      "totalPrice": 1200,
+      "source": "ONLINE",
+      "status": "NO_SHOW",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": false,
+      "participantLimit": 4,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "res_urla_4",
+      "courtId": "court_urla_1",
+      "businessId": "biz_urla",
+      "ownerUserId": "u_6",
+      "startAt": "2026-09-10T14:30:00",
+      "endAt": "2026-09-10T16:00:00",
+      "durationMinutes": 90,
+      "totalPrice": 2100,
+      "source": "ONLINE",
+      "status": "CANCELLED",
+      "paymentStatus": "REFUNDED",
+      "isOpenMatch": false,
+      "participantLimit": 4,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    },
+    {
+      "id": "res_urla_5",
+      "courtId": "court_urla_3",
+      "businessId": "biz_urla",
+      "ownerUserId": "u_8",
+      "startAt": "2026-09-10T19:30:00",
+      "endAt": "2026-09-10T21:00:00",
+      "durationMinutes": 90,
+      "totalPrice": 1800,
+      "source": "ONLINE",
+      "status": "CONFIRMED",
+      "paymentStatus": "PAY_AT_VENUE",
+      "isOpenMatch": false,
+      "participantLimit": 4,
+      "createdAt": "2026-09-10T13:25:00.595Z",
+      "updatedAt": "2026-09-10T13:25:00.595Z"
+    }
+  ],
+  "reservation_slots": [
+    {
+      "id": "court_urla_1_2026-09-10_18:00",
+      "courtId": "court_urla_1",
+      "date": "2026-09-10",
+      "startTime": "18:00",
+      "durationMinutes": 90,
+      "reservationId": "m_today_1"
+    },
+    {
+      "id": "court_cesme_1_2026-09-10_19:30",
+      "courtId": "court_cesme_1",
+      "date": "2026-09-10",
+      "startTime": "19:30",
+      "durationMinutes": 90,
+      "reservationId": "m_today_2"
+    },
+    {
+      "id": "court_karsiyaka_1_2026-09-10_20:00",
+      "courtId": "court_karsiyaka_1",
+      "date": "2026-09-10",
+      "startTime": "20:00",
+      "durationMinutes": 90,
+      "reservationId": "m_today_3"
+    },
+    {
+      "id": "court_alsancak_1_2026-09-10_21:00",
+      "courtId": "court_alsancak_1",
+      "date": "2026-09-10",
+      "startTime": "21:00",
+      "durationMinutes": 90,
+      "reservationId": "m_today_4"
+    },
+    {
+      "id": "court_bornova_1_2026-09-10_17:30",
+      "courtId": "court_bornova_1",
+      "date": "2026-09-10",
+      "startTime": "17:30",
+      "durationMinutes": 90,
+      "reservationId": "m_today_5"
+    },
+    {
+      "id": "court_urla_2_2026-09-10_21:30",
+      "courtId": "court_urla_2",
+      "date": "2026-09-10",
+      "startTime": "21:30",
+      "durationMinutes": 90,
+      "reservationId": "m_today_6"
+    },
+    {
+      "id": "court_urla_1_2026-09-10_16:00",
+      "courtId": "court_urla_1",
+      "date": "2026-09-10",
+      "startTime": "16:00",
+      "durationMinutes": 90,
+      "reservationId": "m_today_7"
+    },
+    {
+      "id": "court_guzelbahce_1_2026-09-11_10:00",
+      "courtId": "court_guzelbahce_1",
+      "date": "2026-09-11",
+      "startTime": "10:00",
+      "durationMinutes": 90,
+      "reservationId": "m_tom_1"
+    },
+    {
+      "id": "court_cesme_2_2026-09-11_18:00",
+      "courtId": "court_cesme_2",
+      "date": "2026-09-11",
+      "startTime": "18:00",
+      "durationMinutes": 90,
+      "reservationId": "m_tom_2"
+    },
+    {
+      "id": "court_karsiyaka_2_2026-09-11_19:30",
+      "courtId": "court_karsiyaka_2",
+      "date": "2026-09-11",
+      "startTime": "19:30",
+      "durationMinutes": 90,
+      "reservationId": "m_tom_3"
+    },
+    {
+      "id": "court_urla_4_2026-09-11_20:00",
+      "courtId": "court_urla_4",
+      "date": "2026-09-11",
+      "startTime": "20:00",
+      "durationMinutes": 90,
+      "reservationId": "m_tom_4"
+    },
+    {
+      "id": "court_alsancak_2_2026-09-12_18:30",
+      "courtId": "court_alsancak_2",
+      "date": "2026-09-12",
+      "startTime": "18:30",
+      "durationMinutes": 90,
+      "reservationId": "m_d2_1"
+    },
+    {
+      "id": "court_bornova_2_2026-09-12_20:00",
+      "courtId": "court_bornova_2",
+      "date": "2026-09-12",
+      "startTime": "20:00",
+      "durationMinutes": 90,
+      "reservationId": "m_d2_2"
+    },
+    {
+      "id": "court_urla_1_2026-09-13_19:00",
+      "courtId": "court_urla_1",
+      "date": "2026-09-13",
+      "startTime": "19:00",
+      "durationMinutes": 90,
+      "reservationId": "m_d3_1"
+    },
+    {
+      "id": "court_maslak_1_2026-09-10_19:00",
+      "courtId": "court_maslak_1",
+      "date": "2026-09-10",
+      "startTime": "19:00",
+      "durationMinutes": 90,
+      "reservationId": "m_ist_1"
+    },
+    {
+      "id": "court_kadikoy_1_2026-09-10_20:30",
+      "courtId": "court_kadikoy_1",
+      "date": "2026-09-10",
+      "startTime": "20:30",
+      "durationMinutes": 90,
+      "reservationId": "m_ist_2"
+    },
+    {
+      "id": "court_maslak_2_2026-09-11_18:30",
+      "courtId": "court_maslak_2",
+      "date": "2026-09-11",
+      "startTime": "18:30",
+      "durationMinutes": 90,
+      "reservationId": "m_ist_3"
+    },
+    {
+      "id": "court_gokturk_1_2026-09-11_11:00",
+      "courtId": "court_gokturk_1",
+      "date": "2026-09-11",
+      "startTime": "11:00",
+      "durationMinutes": 90,
+      "reservationId": "m_ist_4"
+    },
+    {
+      "id": "court_cankaya_1_2026-09-10_18:30",
+      "courtId": "court_cankaya_1",
+      "date": "2026-09-10",
+      "startTime": "18:30",
+      "durationMinutes": 90,
+      "reservationId": "m_ank_1"
+    },
+    {
+      "id": "court_cayyolu_1_2026-09-11_20:00",
+      "courtId": "court_cayyolu_1",
+      "date": "2026-09-11",
+      "startTime": "20:00",
+      "durationMinutes": 90,
+      "reservationId": "m_ank_2"
+    },
+    {
+      "id": "court_lara_1_2026-09-10_20:00",
+      "courtId": "court_lara_1",
+      "date": "2026-09-10",
+      "startTime": "20:00",
+      "durationMinutes": 90,
+      "reservationId": "m_ant_1"
+    },
+    {
+      "id": "court_konyaalti_1_2026-09-11_18:00",
+      "courtId": "court_konyaalti_1",
+      "date": "2026-09-11",
+      "startTime": "18:00",
+      "durationMinutes": 90,
+      "reservationId": "m_ant_2"
+    },
+    {
+      "id": "court_bodrum_1_2026-09-10_19:00",
+      "courtId": "court_bodrum_1",
+      "date": "2026-09-10",
+      "startTime": "19:00",
+      "durationMinutes": 90,
+      "reservationId": "m_bod_1"
+    },
+    {
+      "id": "court_nilufer_1_2026-09-10_19:30",
+      "courtId": "court_nilufer_1",
+      "date": "2026-09-10",
+      "startTime": "19:30",
+      "durationMinutes": 90,
+      "reservationId": "m_bur_1"
+    },
+    {
+      "id": "court_urla_1_2026-09-10_09:00",
+      "courtId": "court_urla_1",
+      "date": "2026-09-10",
+      "startTime": "09:00",
+      "durationMinutes": 90,
+      "reservationId": "res_urla_1"
+    },
+    {
+      "id": "court_urla_2_2026-09-10_11:00",
+      "courtId": "court_urla_2",
+      "date": "2026-09-10",
+      "startTime": "11:00",
+      "durationMinutes": 90,
+      "reservationId": "res_urla_2"
+    },
+    {
+      "id": "court_urla_3_2026-09-10_13:00",
+      "courtId": "court_urla_3",
+      "date": "2026-09-10",
+      "startTime": "13:00",
+      "durationMinutes": 60,
+      "reservationId": "res_urla_3"
+    },
+    {
+      "id": "court_urla_3_2026-09-10_19:30",
+      "courtId": "court_urla_3",
+      "date": "2026-09-10",
+      "startTime": "19:30",
+      "durationMinutes": 90,
+      "reservationId": "res_urla_5"
+    }
+  ],
+  "open_match_participants": [
+    {
+      "id": "omp_m_today_1_u_1",
+      "reservationId": "m_today_1",
+      "userId": "u_1",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.594Z",
+      "userMaskedName": "Zeynep K.",
+      "userElo": 1520,
+      "userAvatar": "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_today_2_u_2",
+      "reservationId": "m_today_2",
+      "userId": "u_2",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Mert Y.",
+      "userElo": 1380,
+      "userAvatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_today_2_u_3",
+      "reservationId": "m_today_2",
+      "userId": "u_3",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Caner D.",
+      "userElo": 1475,
+      "userAvatar": "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "BOTH",
+      "userDominantHand": "LEFT"
+    },
+    {
+      "id": "omp_m_today_3_u_4",
+      "reservationId": "m_today_3",
+      "userId": "u_4",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Selin A.",
+      "userElo": 1290,
+      "userAvatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_today_3_u_5",
+      "reservationId": "m_today_3",
+      "userId": "u_5",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Barış T.",
+      "userElo": 1740,
+      "userAvatar": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_today_3_u_6",
+      "reservationId": "m_today_3",
+      "userId": "u_6",
+      "slotIndex": 2,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Ece G.",
+      "userElo": 1410,
+      "userAvatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_today_4_u_7",
+      "reservationId": "m_today_4",
+      "userId": "u_7",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Burak Ş.",
+      "userElo": 1650,
+      "userAvatar": "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_today_4_u_8",
+      "reservationId": "m_today_4",
+      "userId": "u_8",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Melis Ö.",
+      "userElo": 1330,
+      "userAvatar": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "BOTH",
+      "userDominantHand": "LEFT"
+    },
+    {
+      "id": "omp_m_today_4_u_9",
+      "reservationId": "m_today_4",
+      "userId": "u_9",
+      "slotIndex": 2,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Kaan E.",
+      "userElo": 1560,
+      "userAvatar": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_today_4_u_10",
+      "reservationId": "m_today_4",
+      "userId": "u_10",
+      "slotIndex": 3,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Derya A.",
+      "userElo": 1490,
+      "userAvatar": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_today_5_u_13",
+      "reservationId": "m_today_5",
+      "userId": "u_13",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Onur V.",
+      "userElo": 1390,
+      "userAvatar": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "BOTH",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_today_5_u_14",
+      "reservationId": "m_today_5",
+      "userId": "u_14",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Gamze U.",
+      "userElo": 1460,
+      "userAvatar": "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_today_6_u_5",
+      "reservationId": "m_today_6",
+      "userId": "u_5",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Barış T.",
+      "userElo": 1740,
+      "userAvatar": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_today_6_u_11",
+      "reservationId": "m_today_6",
+      "userId": "u_11",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Emre Ç.",
+      "userElo": 1820,
+      "userAvatar": "https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_today_6_u_15",
+      "reservationId": "m_today_6",
+      "userId": "u_15",
+      "slotIndex": 2,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Tolga K.",
+      "userElo": 1610,
+      "userAvatar": "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_today_7_user_player_demo",
+      "reservationId": "m_today_7",
+      "userId": "user_player_demo",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Baha Ç.",
+      "userElo": 1450,
+      "userAvatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "BOTH",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_today_7_u_16",
+      "reservationId": "m_today_7",
+      "userId": "u_16",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "İrem A.",
+      "userElo": 1340,
+      "userAvatar": "https://images.unsplash.com/photo-1548142813-c348350df52b?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_today_7_u_17",
+      "reservationId": "m_today_7",
+      "userId": "u_17",
+      "slotIndex": 2,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Alp T.",
+      "userElo": 1530,
+      "userAvatar": "https://images.unsplash.com/photo-1528892952291-009c663ce843?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "BOTH",
+      "userDominantHand": "LEFT"
+    },
+    {
+      "id": "omp_m_tom_1_u_18",
+      "reservationId": "m_tom_1",
+      "userId": "u_18",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Hazal K.",
+      "userElo": 1425,
+      "userAvatar": "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_tom_1_u_19",
+      "reservationId": "m_tom_1",
+      "userId": "u_19",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Okan P.",
+      "userElo": 1680,
+      "userAvatar": "https://images.unsplash.com/photo-1507591064344-4c6ce005b128?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_tom_2_u_20",
+      "reservationId": "m_tom_2",
+      "userId": "u_20",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Buse K.",
+      "userElo": 1295,
+      "userAvatar": "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_tom_3_u_21",
+      "reservationId": "m_tom_3",
+      "userId": "u_21",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Cem B.",
+      "userElo": 1770,
+      "userAvatar": "https://images.unsplash.com/photo-1463453091185-61582044d556?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_tom_3_u_22",
+      "reservationId": "m_tom_3",
+      "userId": "u_22",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Yasemin Y.",
+      "userElo": 1375,
+      "userAvatar": "https://images.unsplash.com/photo-1534751516642-a171ed2c2188?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "BOTH",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_tom_3_u_23",
+      "reservationId": "m_tom_3",
+      "userId": "u_23",
+      "slotIndex": 2,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Serdar G.",
+      "userElo": 1485,
+      "userAvatar": "https://images.unsplash.com/photo-1513956589380-bad6acb9b9d4?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_tom_4_u_24",
+      "reservationId": "m_tom_4",
+      "userId": "u_24",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Aslıhan K.",
+      "userElo": 1440,
+      "userAvatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "LEFT"
+    },
+    {
+      "id": "omp_m_tom_4_u_25",
+      "reservationId": "m_tom_4",
+      "userId": "u_25",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Yiğit A.",
+      "userElo": 1590,
+      "userAvatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_d2_1_u_26",
+      "reservationId": "m_d2_1",
+      "userId": "u_26",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Damla Ö.",
+      "userElo": 1315,
+      "userAvatar": "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_d2_2_u_27",
+      "reservationId": "m_d2_2",
+      "userId": "u_27",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Murat B.",
+      "userElo": 1665,
+      "userAvatar": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "BOTH",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_d2_2_u_28",
+      "reservationId": "m_d2_2",
+      "userId": "u_28",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Simge T.",
+      "userElo": 1405,
+      "userAvatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_d2_2_u_29",
+      "reservationId": "m_d2_2",
+      "userId": "u_29",
+      "slotIndex": 2,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Kerem B.",
+      "userElo": 1720,
+      "userAvatar": "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_d3_1_u_30",
+      "reservationId": "m_d3_1",
+      "userId": "u_30",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Tuğçe Y.",
+      "userElo": 1360,
+      "userAvatar": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "BOTH",
+      "userDominantHand": "LEFT"
+    },
+    {
+      "id": "omp_m_d3_1_u_1",
+      "reservationId": "m_d3_1",
+      "userId": "u_1",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Zeynep K.",
+      "userElo": 1520,
+      "userAvatar": "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_ist_1_u_2",
+      "reservationId": "m_ist_1",
+      "userId": "u_2",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Mert Y.",
+      "userElo": 1380,
+      "userAvatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_ist_1_u_3",
+      "reservationId": "m_ist_1",
+      "userId": "u_3",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Caner D.",
+      "userElo": 1475,
+      "userAvatar": "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "BOTH",
+      "userDominantHand": "LEFT"
+    },
+    {
+      "id": "omp_m_ist_2_u_6",
+      "reservationId": "m_ist_2",
+      "userId": "u_6",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Ece G.",
+      "userElo": 1410,
+      "userAvatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_ist_2_u_7",
+      "reservationId": "m_ist_2",
+      "userId": "u_7",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Burak Ş.",
+      "userElo": 1650,
+      "userAvatar": "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_ist_2_u_8",
+      "reservationId": "m_ist_2",
+      "userId": "u_8",
+      "slotIndex": 2,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Melis Ö.",
+      "userElo": 1330,
+      "userAvatar": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "BOTH",
+      "userDominantHand": "LEFT"
+    },
+    {
+      "id": "omp_m_ist_3_u_12",
+      "reservationId": "m_ist_3",
+      "userId": "u_12",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Elif S.",
+      "userElo": 1250,
+      "userAvatar": "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_ist_4_u_14",
+      "reservationId": "m_ist_4",
+      "userId": "u_14",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Gamze U.",
+      "userElo": 1460,
+      "userAvatar": "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_ist_4_u_15",
+      "reservationId": "m_ist_4",
+      "userId": "u_15",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Tolga K.",
+      "userElo": 1610,
+      "userAvatar": "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_ank_1_u_4",
+      "reservationId": "m_ank_1",
+      "userId": "u_4",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Selin A.",
+      "userElo": 1290,
+      "userAvatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_ank_1_u_5",
+      "reservationId": "m_ank_1",
+      "userId": "u_5",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Barış T.",
+      "userElo": 1740,
+      "userAvatar": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_ank_2_u_9",
+      "reservationId": "m_ank_2",
+      "userId": "u_9",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Kaan E.",
+      "userElo": 1560,
+      "userAvatar": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_ank_2_u_10",
+      "reservationId": "m_ank_2",
+      "userId": "u_10",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Derya A.",
+      "userElo": 1490,
+      "userAvatar": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_ank_2_u_11",
+      "reservationId": "m_ank_2",
+      "userId": "u_11",
+      "slotIndex": 2,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Emre Ç.",
+      "userElo": 1820,
+      "userAvatar": "https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_ant_1_u_8",
+      "reservationId": "m_ant_1",
+      "userId": "u_8",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Melis Ö.",
+      "userElo": 1330,
+      "userAvatar": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "BOTH",
+      "userDominantHand": "LEFT"
+    },
+    {
+      "id": "omp_m_ant_1_u_16",
+      "reservationId": "m_ant_1",
+      "userId": "u_16",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "İrem A.",
+      "userElo": 1340,
+      "userAvatar": "https://images.unsplash.com/photo-1548142813-c348350df52b?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_ant_2_u_17",
+      "reservationId": "m_ant_2",
+      "userId": "u_17",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Alp T.",
+      "userElo": 1530,
+      "userAvatar": "https://images.unsplash.com/photo-1528892952291-009c663ce843?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "BOTH",
+      "userDominantHand": "LEFT"
+    },
+    {
+      "id": "omp_m_ant_2_u_18",
+      "reservationId": "m_ant_2",
+      "userId": "u_18",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Hazal K.",
+      "userElo": 1425,
+      "userAvatar": "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_ant_2_u_19",
+      "reservationId": "m_ant_2",
+      "userId": "u_19",
+      "slotIndex": 2,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Okan P.",
+      "userElo": 1680,
+      "userAvatar": "https://images.unsplash.com/photo-1507591064344-4c6ce005b128?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_bod_1_u_21",
+      "reservationId": "m_bod_1",
+      "userId": "u_21",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Cem B.",
+      "userElo": 1770,
+      "userAvatar": "https://images.unsplash.com/photo-1463453091185-61582044d556?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_bod_1_u_22",
+      "reservationId": "m_bod_1",
+      "userId": "u_22",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Yasemin Y.",
+      "userElo": 1375,
+      "userAvatar": "https://images.unsplash.com/photo-1534751516642-a171ed2c2188?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "BOTH",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_bur_1_u_23",
+      "reservationId": "m_bur_1",
+      "userId": "u_23",
+      "slotIndex": 0,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Serdar G.",
+      "userElo": 1485,
+      "userAvatar": "https://images.unsplash.com/photo-1513956589380-bad6acb9b9d4?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "LEFT",
+      "userDominantHand": "RIGHT"
+    },
+    {
+      "id": "omp_m_bur_1_u_24",
+      "reservationId": "m_bur_1",
+      "userId": "u_24",
+      "slotIndex": 1,
+      "status": "ACTIVE",
+      "joinedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Aslıhan K.",
+      "userElo": 1440,
+      "userAvatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
+      "userPlaySide": "RIGHT",
+      "userDominantHand": "LEFT"
+    }
+  ],
+  "open_match_waitlists": [
+    {
+      "id": "omw_m_today_4_u_11",
+      "reservationId": "m_today_4",
+      "userId": "u_11",
+      "position": 1,
+      "requestedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Emre Ç.",
+      "userElo": 1820
+    },
+    {
+      "id": "omw_m_today_4_u_12",
+      "reservationId": "m_today_4",
+      "userId": "u_12",
+      "position": 2,
+      "requestedAt": "2026-09-10T13:25:00.595Z",
+      "userMaskedName": "Elif S.",
+      "userElo": 1250
+    }
+  ],
+  "court_blocks": [
+    {
+      "id": "block_urla_1",
+      "courtId": "court_urla_2",
+      "businessId": "biz_urla",
+      "startAt": "2026-09-10T14:00:00",
+      "endAt": "2026-09-10T16:30:00",
+      "reason": "BAKIM",
+      "reasonNote": "Cam paneller ve file gergi bakımı",
+      "createdByUserId": "user_owner_demo",
+      "createdAt": "2026-09-10T13:25:00.595Z"
+    }
+  ],
+  "staff_memberships": [
+    {
+      "id": "staff_1",
+      "businessId": "biz_urla",
+      "userId": "user_owner_demo",
+      "role": "ISLETME_SAHIBI",
+      "permissions": [
+        "ALL"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    },
+    {
+      "id": "staff_2",
+      "businessId": "biz_urla",
+      "userId": "user_staff_demo",
+      "role": "PERSONEL",
+      "permissions": [
+        "RESERVATION_MANAGE",
+        "PAYMENT_COLLECT",
+        "COURT_BLOCK"
+      ],
+      "createdAt": "2026-09-10T13:25:00.594Z"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_1",
+      "conversationId": "conv_1",
+      "senderUserId": "user_player_demo",
+      "senderName": "Baha Ç.",
+      "text": "Selamlar herkese, bugün 16:00 maçında görüşmek üzere!",
+      "createdAt": "2026-09-10T12:25:00.595Z"
+    },
+    {
+      "id": "msg_2",
+      "conversationId": "conv_1",
+      "senderUserId": "u_16",
+      "senderName": "İrem A.",
+      "text": "Selam Baha! Ben biraz erken gelip ısınacağım.",
+      "createdAt": "2026-09-10T12:55:00.595Z"
+    },
+    {
+      "id": "msg_3",
+      "conversationId": "conv_1",
+      "senderUserId": "u_17",
+      "senderName": "Alp T.",
+      "text": "Raketleri getirmeyen varsa tesisten kiralayabiliriz.",
+      "createdAt": "2026-09-10T13:15:00.595Z"
+    }
+  ],
+  "conversations": [
+    {
+      "id": "conv_1",
+      "matchId": "m_today_7",
+      "title": "Padel Arena Urla - Dostluk Maçı",
+      "lastMessage": "Raketleri getirmeyen varsa tesisten kiralayabiliriz.",
+      "updatedAt": "2026-09-10T13:25:00.595Z",
+      "participantIds": [
+        "user_player_demo",
+        "u_16",
+        "u_17"
+      ]
+    }
+  ],
+  "notifications": [
+    {
+      "id": "notif_1",
+      "userId": "user_player_demo",
+      "title": "Maçınız Onaylandı",
+      "message": "Bugün 16:00 Padel Arena Urla maçınız onaylandı.",
+      "read": false,
+      "type": "MATCH_APPROVED",
+      "createdAt": "2026-09-10T11:25:00.595Z"
+    },
+    {
+      "id": "notif_2",
+      "userId": "user_player_demo",
+      "title": "Yeni Oyuncu Katıldı",
+      "message": "Alp T. maçınıza 3. oyuncu olarak katıldı.",
+      "read": true,
+      "type": "MATCH_JOIN",
+      "createdAt": "2026-09-10T12:25:00.595Z"
+    }
+  ],
+  "feed_posts": [
+    {
+      "id": "post_1",
+      "userId": "u_17",
+      "authorName": "Alp Turgut",
+      "authorAvatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+      "authorElo": 1520,
+      "authorPlaySide": "BOTH",
+      "category": "OYUNCU_ARIYORUM",
+      "content": "Urla Padel Arena'da bu akşam 19:30 maçı için 4. oyuncu arıyoruz! 1350-1550 Elo arası seviyesi denk keyifli bir dostluk maçı olacak. Katılmak isteyen varsa açık maçlar listesinden veya buradan yazabilir 🎾",
+      "venueName": "Padel Arena Urla",
+      "likes": [
+        "user_player_demo",
+        "u_14",
+        "u_12"
+      ],
+      "replies": [
+        {
+          "id": "rep_1",
+          "postId": "post_1",
+          "userId": "u_14",
+          "authorName": "Caner S.",
+          "authorAvatar": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
+          "authorElo": 1420,
+          "content": "Ben sol kanatta oynuyorum, kadroda yer varsa katıldım!",
+          "createdAt": "2026-09-10T12:55:00.595Z"
+        },
+        {
+          "id": "rep_2",
+          "postId": "post_1",
+          "userId": "u_17",
+          "authorName": "Alp Turgut",
+          "authorAvatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+          "authorElo": 1520,
+          "content": "Süper Caner, açık maç sayfasında koltuğun açık, oradan rezervasyona dahil olabilirsin!",
+          "createdAt": "2026-09-10T13:05:00.595Z"
+        }
+      ],
+      "createdAt": "2026-09-10T11:25:00.595Z"
+    },
+    {
+      "id": "post_2",
+      "userId": "u_11",
+      "authorName": "Deniz Vural",
+      "authorAvatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
+      "authorElo": 1380,
+      "authorPlaySide": "RIGHT",
+      "category": "SOHBET",
+      "content": "İzmir'de rüzgarlı günlerde açık panoramik kortta lob atmak gerçekten cesaret istiyor 😄 Rüzgar arkadayken lob yerine ayak ucuna alçak vuruş (chiquita) taktiğini deneyen var mı?",
+      "venueName": "Alaçatı Padel Club",
+      "likes": [
+        "user_player_demo",
+        "u_10",
+        "u_15"
+      ],
+      "replies": [
+        {
+          "id": "rep_3",
+          "postId": "post_2",
+          "userId": "user_player_demo",
+          "authorName": "Baha Çavuşoğlu",
+          "authorAvatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+          "authorElo": 1450,
+          "content": "Kesinlikle! Rüzgara karşı oynarken yüksek top intihar gibi, hızlı bandeja veya alçak dilim vuruşlar camdan çok daha zor dönüyor.",
+          "createdAt": "2026-09-10T12:25:00.595Z"
+        }
+      ],
+      "createdAt": "2026-09-10T09:25:00.595Z"
+    },
+    {
+      "id": "post_3",
+      "userId": "user_owner_demo",
+      "authorName": "Kemal Demir (Padel Arena Urla)",
+      "authorAvatar": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
+      "authorElo": 1620,
+      "authorPlaySide": "BOTH",
+      "category": "MAC_DUYURUSU",
+      "content": "Bu Cumartesi Padel Arena Urla'da 16 çiftlik dostluk turnuvası düzenliyoruz! İkramlar, müzik ve kort başı özel ödüllerimiz olacak. Katılmak isteyen çiftler kayıt yaptırabilir 🏆🎾",
+      "venueName": "Padel Arena Urla",
+      "likes": [
+        "user_player_demo",
+        "u_12",
+        "u_13",
+        "u_16",
+        "u_17"
+      ],
+      "replies": [],
+      "createdAt": "2026-09-10T07:25:00.595Z"
+    },
+    {
+      "id": "post_4",
+      "userId": "u_10",
+      "authorName": "Selin Kaya",
+      "authorAvatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+      "authorElo": 1290,
+      "authorPlaySide": "LEFT",
+      "category": "EKIPMAN",
+      "content": "Nox ML10 Pro Cup ile Bullpadel Vertex arasında kaldım. Orta seviye kontrol odaklı oynayan biri için hangi raket daha affedici olur? Tavsiyelerinize açığım.",
+      "likes": [
+        "u_14",
+        "u_11"
+      ],
+      "replies": [
+        {
+          "id": "rep_4",
+          "postId": "post_4",
+          "userId": "u_12",
+          "authorName": "Murat Berk",
+          "authorAvatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+          "authorElo": 1480,
+          "content": "ML10 yuvarlak kafa yapısı ve geniş tatlı noktası ile kesinlikle daha kontrollü ve dirseği yormayan bir raket Selin.",
+          "createdAt": "2026-09-10T08:25:00.595Z"
+        }
+      ],
+      "createdAt": "2026-09-10T05:25:00.595Z"
+    }
+  ]
+}
