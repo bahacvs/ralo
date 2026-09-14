@@ -21,6 +21,27 @@ export const COLLECTIONS = [
 
 type Snapshot = Record<string, Array<{ id: string }>>;
 
+// Verifies the database TLS certificate. Supabase's CA is not in Node's default
+// trust store, so provide it (PEM) via DATABASE_SSL_CA.
+function buildSslOptions(): pg.PoolConfig['ssl'] {
+  if (process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === 'false') {
+    console.warn('DATABASE_SSL_REJECT_UNAUTHORIZED=false: the database TLS certificate is NOT verified.');
+    return { rejectUnauthorized: false };
+  }
+  const ca = process.env.DATABASE_SSL_CA?.replace(/\\n/g, '\n');
+  return ca ? { ca, rejectUnauthorized: true } : { rejectUnauthorized: true };
+}
+
+function withoutSslMode(connectionString: string): string {
+  try {
+    const url = new URL(connectionString);
+    url.searchParams.delete('sslmode');
+    return url.toString();
+  } catch {
+    return connectionString;
+  }
+}
+
 const FLUSH_DELAY_MS = 20;
 const RETRY_DELAY_MS = 2000;
 
@@ -35,8 +56,9 @@ export class Persistence {
   constructor(connectionString: string) {
     const isLocal = /@(localhost|127\.0\.0\.1)(:\d+)?\//.test(connectionString);
     this.pool = new pg.Pool({
-      connectionString,
-      ssl: isLocal ? false : { rejectUnauthorized: false },
+      // sslmode in the URL would override the ssl option below, so it is removed
+      connectionString: isLocal ? connectionString : withoutSslMode(connectionString),
+      ssl: isLocal ? false : buildSslOptions(),
       max: 5
     });
     this.pool.on('error', err => console.error('Postgres pool error:', err.message));

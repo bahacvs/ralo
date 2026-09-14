@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import helmet from 'helmet';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { todayLocal, nowLocal, formatLocalDate, addMinutesToLocal, parseClientDateTime } from './server/time.js';
@@ -10,6 +11,7 @@ import {
   normalizePhone, issueOtp, verifyOtp
 } from './server/auth.js';
 import { sendOtpSms } from './server/sms.js';
+import { rateLimit, byIp, byUser, global } from './server/rateLimit.js';
 import { Persistence } from './server/persistence.js';
 import { User, Reservation, Court, FeedPost, FeedReply, FeedCategory, CourtOccupancyInfo, CourtWeatherInfo } from './src/types/index.js';
 
@@ -19,8 +21,45 @@ const PORT = Number(process.env.PORT) || 3000;
 const DEMO_MODE = process.env.DEMO_MODE === 'true';
 
 const MAX_AVATAR_LENGTH = 900_000;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+const MINUTE = 60 * 1000;
+const HOUR = 60 * MINUTE;
+
+// Abuse and cost controls (SMS pumping, Gemini spend, spam)
+const otpSendIpLimit = rateLimit({ name: 'otp-send-ip', limit: 10, windowMs: HOUR, key: byIp, message: 'Bu cihazdan çok fazla doğrulama kodu istendi. Lütfen bir saat sonra tekrar deneyin.' });
+const otpSendGlobalLimit = rateLimit({ name: 'otp-send-global', limit: Number(process.env.OTP_GLOBAL_LIMIT_PER_10MIN) || 300, windowMs: 10 * MINUTE, key: global, message: 'Şu anda çok yoğun talep var. Lütfen birkaç dakika sonra tekrar deneyin.' });
+const otpVerifyIpLimit = rateLimit({ name: 'otp-verify-ip', limit: 30, windowMs: 15 * MINUTE, key: byIp, message: 'Çok fazla doğrulama denemesi yapıldı. Lütfen 15 dakika sonra tekrar deneyin.' });
+const shareCardUserLimit = rateLimit({ name: 'share-card', limit: 10, windowMs: HOUR, key: byUser, message: 'Paylaşım kartı için saatlik sınıra ulaştınız. Lütfen daha sonra tekrar deneyin.' });
+const feedPostLimit = rateLimit({ name: 'feed-post', limit: 5, windowMs: 10 * MINUTE, key: byUser, message: 'Çok sık paylaşım yapıyorsunuz. Lütfen birkaç dakika bekleyin.' });
+const feedReplyLimit = rateLimit({ name: 'feed-reply', limit: 20, windowMs: 10 * MINUTE, key: byUser, message: 'Çok sık yanıt yazıyorsunuz. Lütfen birkaç dakika bekleyin.' });
+const feedLikeLimit = rateLimit({ name: 'feed-like', limit: 60, windowMs: MINUTE, key: byUser, message: 'Çok hızlı işlem yapıyorsunuz. Lütfen biraz bekleyin.' });
+const messageSendLimit = rateLimit({ name: 'message-send', limit: 30, windowMs: MINUTE, key: byUser, message: 'Çok hızlı mesaj gönderiyorsunuz. Lütfen biraz bekleyin.' });
+const conversationStartLimit = rateLimit({ name: 'conversation-start', limit: 15, windowMs: HOUR, key: byUser, message: 'Saatlik yeni sohbet sınırına ulaştınız. Lütfen daha sonra tekrar deneyin.' });
+
+const shareCaptionCache = new Map<string, { caption: string; expiresAt: number }>();
 
 app.set('trust proxy', 1);
+app.use(helmet({
+  // Vite's dev server injects inline scripts, so the CSP only applies to the production build
+  contentSecurityPolicy: IS_PRODUCTION ? {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https://images.unsplash.com'],
+      // The service worker caches fonts and Unsplash images at runtime
+      connectSrc: ["'self'", 'https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'https://images.unsplash.com'],
+      mediaSrc: ["'self'", 'blob:'],
+      workerSrc: ["'self'"],
+      manifestSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"]
+    }
+  } : false,
+  crossOriginEmbedderPolicy: false
+}));
 app.use(express.json({ limit: '1mb' }));
 
 // Helper to validate internal paths for safe returnTo
@@ -97,6 +136,7 @@ function requireBusiness(permission?: string) {
     }
 
     (req as any).businessId = membership.businessId;
+    (req as any).membership = membership;
     next();
   };
 }
@@ -106,7 +146,7 @@ function requireBusiness(permission?: string) {
 // -------------------------------------------------------------
 
 // OTP Send API with Rate Limiting
-app.post('/api/auth/otp/send', async (req: Request, res: Response) => {
+app.post('/api/auth/otp/send', otpSendIpLimit, otpSendGlobalLimit, async (req: Request, res: Response) => {
   const phone = normalizePhone(req.body?.phone);
   if (!phone) {
     return res.status(400).json({ error: 'Geçerli bir cep telefonu numarası giriniz (örn: 0532 100 2030).' });
@@ -133,7 +173,7 @@ app.post('/api/auth/otp/send', async (req: Request, res: Response) => {
 });
 
 // OTP Verify API
-app.post('/api/auth/otp/verify', (req: Request, res: Response) => {
+app.post('/api/auth/otp/verify', otpVerifyIpLimit, (req: Request, res: Response) => {
   const phone = normalizePhone(req.body?.phone);
   const { code, returnTo } = req.body || {};
   if (!phone || typeof code !== 'string') {
@@ -961,7 +1001,7 @@ app.post('/api/open-matches/:id/invite', authMiddleware, (req: Request, res: Res
 });
 
 // AI Match Social Share Card Generator
-app.post('/api/open-matches/:id/generate-share-card', authMiddleware, async (req: Request, res: Response) => {
+app.post('/api/open-matches/:id/generate-share-card', authMiddleware, shareCardUserLimit, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { theme = 'SUNSET', format = 'STORY' } = req.body || {};
@@ -1012,8 +1052,12 @@ app.post('/api/open-matches/:id/generate-share-card', authMiddleware, async (req
     let aiHeadline = `${business?.name || 'ArenaMate'} • ${availableSpots > 0 ? `${availableSpots} Oyuncu Aranıyor! 🎾` : 'Kadro Dolu! 🔥'}`;
     let aiCaption = `${new Date(match.startAt).toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })} saat ${match.startAt.split('T')[1].slice(0, 5)}'te ${business?.name || 'Padel Kortu'} (${business?.district || 'İzmir'}) açık maçımızda ${availableSpots > 0 ? `son ${availableSpots} koltuk boş!` : 'kadro hazır!'} 🎾 Seviye: Elo ${match.minElo || 1200}-${match.maxElo || 1600}. Maça hemen katıl:`;
 
-    // Attempt Gemini enhancement if API key exists
-    if (process.env.GEMINI_API_KEY) {
+    // Reuse a recent caption so repeated requests don't call Gemini again
+    const captionKey = `${id}:${theme}:${format}:${availableSpots}`;
+    const cachedCaption = shareCaptionCache.get(captionKey);
+    if (cachedCaption && cachedCaption.expiresAt > Date.now()) {
+      aiCaption = cachedCaption.caption;
+    } else if (process.env.GEMINI_API_KEY) {
       try {
         const { GoogleGenAI } = await import('@google/genai');
         const ai = new GoogleGenAI({
@@ -1030,6 +1074,7 @@ app.post('/api/open-matches/:id/generate-share-card', authMiddleware, async (req
 
         if (response && response.text) {
           aiCaption = response.text.trim();
+          shareCaptionCache.set(captionKey, { caption: aiCaption, expiresAt: Date.now() + HOUR });
         }
       } catch (geminiErr: any) {
         console.warn('Gemini caption generation fallback:', geminiErr?.message);
@@ -1082,7 +1127,8 @@ app.post('/api/open-matches/:id/generate-share-card', authMiddleware, async (req
 app.get('/api/friends', authMiddleware, (req: Request, res: Response) => {
   const user = (req as any).user as User;
   const friends = dbStore.getFriends(user.id).map(toPublicUser);
-  const allPlayers = dbStore.getUsers().filter(u => u.role === 'OYUNCU' && u.id !== user.id).map(toPublicUser);
+  // Capped so a single account cannot enumerate the whole user base
+  const allPlayers = dbStore.getUsers().filter(u => u.role === 'OYUNCU' && u.id !== user.id).slice(0, 100).map(toPublicUser);
   return res.json({ friends, allPlayers });
 });
 
@@ -1149,7 +1195,7 @@ app.get('/api/messages', authMiddleware, (req: Request, res: Response) => {
   return res.json({ conversations, messages });
 });
 
-app.post('/api/messages/start-direct', authMiddleware, (req: Request, res: Response) => {
+app.post('/api/messages/start-direct', authMiddleware, conversationStartLimit, (req: Request, res: Response) => {
   const user = (req as any).user as User;
   const { targetUserId } = req.body;
   if (!targetUserId) {
@@ -1186,7 +1232,7 @@ app.post('/api/messages/start-direct', authMiddleware, (req: Request, res: Respo
   return res.json({ success: true, conversation: conv });
 });
 
-app.post('/api/messages', authMiddleware, (req: Request, res: Response) => {
+app.post('/api/messages', authMiddleware, messageSendLimit, (req: Request, res: Response) => {
   const user = (req as any).user as User;
   const { conversationId, text } = req.body;
   if (!conversationId || typeof text !== 'string' || !text.trim()) {
@@ -1248,7 +1294,7 @@ app.get('/api/feed', (req: Request, res: Response) => {
   return res.json({ posts });
 });
 
-app.post('/api/feed', authMiddleware, (req: Request, res: Response) => {
+app.post('/api/feed', authMiddleware, feedPostLimit, (req: Request, res: Response) => {
   const user = (req as any).user as User;
   const { content, category = 'SOHBET', venueName } = req.body;
 
@@ -1280,7 +1326,7 @@ app.post('/api/feed', authMiddleware, (req: Request, res: Response) => {
   return res.status(201).json({ success: true, post: newPost });
 });
 
-app.post('/api/feed/:id/like', authMiddleware, (req: Request, res: Response) => {
+app.post('/api/feed/:id/like', authMiddleware, feedLikeLimit, (req: Request, res: Response) => {
   const user = (req as any).user as User;
   const { id } = req.params;
 
@@ -1302,7 +1348,7 @@ app.post('/api/feed/:id/like', authMiddleware, (req: Request, res: Response) => 
   return res.json({ success: true, isLiked, likesCount: post.likes.length });
 });
 
-app.post('/api/feed/:id/reply', authMiddleware, (req: Request, res: Response) => {
+app.post('/api/feed/:id/reply', authMiddleware, feedReplyLimit, (req: Request, res: Response) => {
   const user = (req as any).user as User;
   const { id } = req.params;
   const { content } = req.body;
@@ -1358,6 +1404,11 @@ app.get('/api/panel/business', authMiddleware, requireBusiness(), (req: Request,
 
 app.get('/api/panel/schedule', authMiddleware, requireBusiness(), (req: Request, res: Response) => {
   const businessId = (req as any).businessId as string;
+  const membership = (req as any).membership;
+  // Customer phone numbers are only for owners and staff who manage reservations
+  const canSeePhones = membership.role === 'ISLETME_SAHIBI'
+    || membership.permissions.includes('ALL')
+    || membership.permissions.includes('RESERVATION_MANAGE');
   const { date = todayLocal(), days = '1' } = req.query;
 
   const courts = dbStore.getCourts().filter(c => c.businessId === businessId);
@@ -1384,7 +1435,7 @@ app.get('/api/panel/schedule', authMiddleware, requireBusiness(), (req: Request,
       return {
         ...r,
         ownerMaskedName: owner ? owner.maskedName : 'Misafir',
-        ownerPhone: owner ? owner.phone : '',
+        ownerPhone: canSeePhones && owner ? owner.phone : '',
         participantsCount: parts.length
       };
     });
@@ -1542,10 +1593,8 @@ app.patch('/api/panel/reservations/:id/status', authMiddleware, requireBusiness(
 
   // If cancelled, free slot
   if (status === 'CANCELLED') {
-    const slotIdx = dbStore.getReservationSlots().findIndex(s => s.reservationId === id);
-    if (slotIdx >= 0) {
-      dbStore.getReservationSlots().splice(slotIdx, 1);
-    }
+    const data = dbStore.getData();
+    data.reservation_slots = data.reservation_slots.filter(s => s.reservationId !== id);
   }
 
   dbStore.save();

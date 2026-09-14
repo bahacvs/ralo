@@ -58,7 +58,8 @@ export const MyMatchesView: React.FC = () => {
     typeof m.business?.cancellationWindowHours === 'number' ? m.business.cancellationWindowHours : 24;
 
   const isCancellable = (m: any): boolean =>
-    new Date(m.startAt).getTime() - Date.now() > getWindowHours(m) * 60 * 60 * 1000;
+    // startAt is Istanbul local time (fixed UTC+3), independent of the device's time zone
+    new Date(`${m.startAt}+03:00`).getTime() - Date.now() > getWindowHours(m) * 60 * 60 * 1000;
 
   const handleCancel = async (m: any) => {
     setCancelFeedback(null);

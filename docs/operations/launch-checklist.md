@@ -51,7 +51,8 @@ announced. Details for each item are in [runbook.md](runbook.md).
 - [ ] Production database contains **no seeded demo data**. Both queries return 0:
       ```sql
       SELECT count(*) FROM users      WHERE id LIKE '%_demo';
-      SELECT count(*) FROM businesses WHERE id IN ('biz_urla','biz_cesme','biz_karsiyaka','biz_bornova','biz_alsancak','biz_guzelbahce','biz_ist_maslak','biz_ist_kadikoy','biz_ist_gokturk');
+      -- every seeded demo club id starts with biz_; real clubs added through the admin panel do not
+      SELECT count(*) FROM businesses WHERE id LIKE 'biz\_%';
       ```
 - [ ] Boot log did **not** contain `seeding demo data` or `Seed data successfully generated`.
 - [ ] Test accounts and test reservations created during verification removed (through the app, so

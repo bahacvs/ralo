@@ -25,6 +25,8 @@ services:
       # Secrets: set these in the Render dashboard
       - key: DATABASE_URL
         sync: false
+      - key: DATABASE_SSL_CA
+        sync: false
       - key: NETGSM_USERCODE
         sync: false
       - key: NETGSM_PASSWORD
