@@ -102,6 +102,13 @@ export class ArenaStore {
   }
 
   private ensureFreshSeedData() {
+    // Refreshing wipes users and reservations, so it only runs in explicit demo mode
+    if (process.env.DEMO_MODE !== 'true') {
+      if (!this.data.feed_posts) this.data.feed_posts = [];
+      if (!this.data.open_match_waitlists) this.data.open_match_waitlists = [];
+      return;
+    }
+
     // If no reservations or no future open matches or missing expanded Istanbul courts, reseed
     const nowIso = new Date().toISOString();
     const futureMatches = this.data.reservations.filter(r => r.isOpenMatch && r.startAt > nowIso);
