@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
+import { todayLocal, nowLocal, formatLocalDate, addMinutesToLocal, parseClientDateTime } from './server/time.js';
 import { dbStore } from './server/store.js';
 import {
   createSession, getSessionUserId, deleteSession, deleteUserSessions, extractToken,
@@ -367,7 +368,7 @@ app.get('/api/courts', (req: Request, res: Response) => {
   }
 
   // Compute availability summary for each court
-  const targetDate = (date as string) || new Date().toISOString().split('T')[0];
+  const targetDate = (date as string) || todayLocal();
   const durNum = Number(duration) || 90;
 
   let results = courts.map(c => {
@@ -379,8 +380,7 @@ app.get('/api/courts', (req: Request, res: Response) => {
 
     for (const h of possibleHours) {
       const sAt = `${targetDate}T${h}:00`;
-      const endD = new Date(new Date(sAt).getTime() + durNum * 60000);
-      const eAt = `${targetDate}T${String(endD.getHours()).padStart(2, '0')}:${String(endD.getMinutes()).padStart(2, '0')}:00`;
+      const eAt = addMinutesToLocal(sAt, durNum);
       const available = dbStore.isSlotAvailable(c.id, sAt, eAt);
       if (available) {
         if (!firstAvailableTime || firstAvailableTime === '18:00') {
@@ -483,7 +483,10 @@ app.get('/api/courts', (req: Request, res: Response) => {
 // Court Detail & Schedule Slots
 app.get('/api/courts/:courtId', (req: Request, res: Response) => {
   const { courtId } = req.params;
-  const { date = new Date().toISOString().split('T')[0], duration = '90' } = req.query;
+  const { date = todayLocal(), duration = '90' } = req.query;
+  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: 'Geçersiz tarih.' });
+  }
 
   const court = dbStore.getCourts().find(c => c.id === courtId);
   if (!court) {
@@ -497,16 +500,17 @@ app.get('/api/courts/:courtId', (req: Request, res: Response) => {
   const slots: Array<{ time: string; endTime: string; isAvailable: boolean; reason?: string }> = [];
   const hours = ['08:30', '10:00', '11:30', '13:00', '14:30', '16:00', '17:30', '19:00', '20:30', '22:00'];
 
+  const now = nowLocal();
   for (const h of hours) {
     const sAt = `${date}T${h}:00`;
-    const endD = new Date(new Date(sAt).getTime() + durMinutes * 60000);
-    const eAt = `${date}T${String(endD.getHours()).padStart(2, '0')}:${String(endD.getMinutes()).padStart(2, '0')}:00`;
-    const available = dbStore.isSlotAvailable(court.id, sAt, eAt);
+    const eAt = addMinutesToLocal(sAt, durMinutes);
+    const isPast = sAt <= now;
+    const available = !isPast && dbStore.isSlotAvailable(court.id, sAt, eAt);
     slots.push({
       time: h,
-      endTime: `${String(endD.getHours()).padStart(2, '0')}:${String(endD.getMinutes()).padStart(2, '0')}`,
+      endTime: eAt.slice(11, 16),
       isAvailable: available,
-      reason: available ? undefined : 'Dolu veya Blokajlı'
+      reason: available ? undefined : isPast ? 'Geçmiş saat' : 'Dolu veya Blokajlı'
     });
   }
 
@@ -586,7 +590,7 @@ app.post('/api/reservations', authMiddleware, (req: Request, res: Response) => {
   const user = (req as any).user as User;
   const {
     courtId,
-    startAt, // "2026-09-09T18:00:00"
+    startAt: rawStartAt, // "2026-09-09T18:00:00" (local)
     durationMinutes = 90,
     isOpenMatch = false,
     openMatchNote,
@@ -598,7 +602,7 @@ app.post('/api/reservations', authMiddleware, (req: Request, res: Response) => {
     approvalRequired = false
   } = req.body;
 
-  if (!courtId || !startAt) {
+  if (!courtId || !rawStartAt) {
     return res.status(400).json({ error: 'Kort ve başlama tarihi zorunludur.' });
   }
 
@@ -607,10 +611,22 @@ app.post('/api/reservations', authMiddleware, (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Kort bulunamadı.' });
   }
 
+  if (!court.isActive) {
+    return res.status(409).json({ error: 'Bu kort şu anda rezervasyona kapalıdır.' });
+  }
+
   const dur = Number(durationMinutes) as (60 | 90 | 120);
-  const startD = new Date(startAt);
-  const endD = new Date(startD.getTime() + dur * 60000);
-  const endAt = `${startAt.split('T')[0]}T${String(endD.getHours()).padStart(2, '0')}:${String(endD.getMinutes()).padStart(2, '0')}:00`;
+  const startAt = parseClientDateTime(rawStartAt);
+  if (![60, 90, 120].includes(dur) || !startAt) {
+    return res.status(400).json({ error: 'Geçersiz başlama saati veya süre.' });
+  }
+  if (startAt <= nowLocal()) {
+    return res.status(400).json({ error: 'Geçmiş bir saat için rezervasyon yapılamaz.' });
+  }
+  if (openMatchNote !== undefined && (typeof openMatchNote !== 'string' || openMatchNote.length > 300)) {
+    return res.status(400).json({ error: 'Maç notu en fazla 300 karakter olabilir.' });
+  }
+  const endAt = addMinutesToLocal(startAt, dur);
 
   const totalPrice = Math.round(court.pricePerHour * (dur / 60));
 
@@ -1083,7 +1099,7 @@ app.get('/api/my-matches', authMiddleware, (req: Request, res: Response) => {
   const userMatchIds = new Set(participants.filter(p => p.userId === user.id).map(p => p.reservationId));
   const userReservations = reservations.filter(r => r.ownerUserId === user.id || userMatchIds.has(r.id));
 
-  const nowIso = new Date().toISOString();
+  const nowIso = nowLocal();
 
   const enriched = userReservations.map(r => {
     const court = courts.find(c => c.id === r.courtId);
@@ -1306,7 +1322,7 @@ app.post('/api/feed/:id/reply', authMiddleware, (req: Request, res: Response) =>
 // Schedule View (All courts on timeline or list)
 app.get('/api/panel/schedule', authMiddleware, requireBusiness(), (req: Request, res: Response) => {
   const businessId = (req as any).businessId as string;
-  const { date = new Date().toISOString().split('T')[0], days = '1' } = req.query;
+  const { date = todayLocal(), days = '1' } = req.query;
 
   const courts = dbStore.getCourts().filter(c => c.businessId === businessId);
   const reservations = dbStore.getReservations().filter(r => r.businessId === businessId);
@@ -1316,12 +1332,12 @@ app.get('/api/panel/schedule', authMiddleware, requireBusiness(), (req: Request,
 
   const numDays = Math.min(7, Math.max(1, Number(days) || 1));
   const targetDates: string[] = [];
-  const baseD = new Date(date as string);
+  const baseD = new Date(`${date}T00:00:00`);
 
   for (let i = 0; i < numDays; i++) {
     const cur = new Date(baseD);
     cur.setDate(baseD.getDate() + i);
-    targetDates.push(cur.toISOString().split('T')[0]);
+    targetDates.push(formatLocalDate(cur));
   }
 
   const scheduleReservations = reservations
@@ -1379,8 +1395,7 @@ app.post('/api/panel/reservations/manual', authMiddleware, requireBusiness('RESE
     return res.status(400).json({ error: 'Geçersiz ödeme durumu.' });
   }
   const startAt = `${date}T${startTime}:00`;
-  const endD = new Date(new Date(startAt).getTime() + dur * 60000);
-  const endAt = `${date}T${String(endD.getHours()).padStart(2, '0')}:${String(endD.getMinutes()).padStart(2, '0')}:00`;
+  const endAt = addMinutesToLocal(startAt, dur);
 
   const totalPrice = Math.round(court.pricePerHour * (dur / 60));
 
@@ -1440,6 +1455,11 @@ app.post('/api/panel/blocks', authMiddleware, requireBusiness('COURT_BLOCK'), (r
   const blockCourt = dbStore.getCourts().find(c => c.id === courtId);
   if (!blockCourt || blockCourt.businessId !== businessId) {
     return res.status(404).json({ error: 'Kort bulunamadı.' });
+  }
+
+  const timePattern = /^\d{2}:\d{2}$/;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || !timePattern.test(String(startTime)) || !timePattern.test(String(endTime)) || endTime <= startTime) {
+    return res.status(400).json({ error: 'Geçersiz tarih veya saat aralığı.' });
   }
 
   const startAt = `${date}T${startTime}:00`;
@@ -1521,7 +1541,7 @@ app.patch('/api/panel/reservations/:id/payment', authMiddleware, requireBusiness
 app.get('/api/panel/courts', authMiddleware, requireBusiness(), (req: Request, res: Response) => {
   const businessId = (req as any).businessId as string;
   const { date } = req.query;
-  const targetDate = (date as string) || new Date().toISOString().split('T')[0];
+  const targetDate = (date as string) || todayLocal();
   const courts = dbStore.getCourts().filter(c => c.businessId === businessId);
   const reservationSlots = dbStore.getReservationSlots();
   const blocks = dbStore.getCourtBlocks().filter(b => b.businessId === businessId);

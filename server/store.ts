@@ -1,3 +1,4 @@
+import { formatLocalDate, nowLocal } from './time.js';
 import fs from 'fs';
 import path from 'path';
 import { 
@@ -27,13 +28,8 @@ const DATA_DIR = path.resolve(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'ralo_db.json');
 const LEGACY_DB_FILE = path.join(DATA_DIR, 'arenamate_db.json');
 
-// Helper to format ISO date in YYYY-MM-DD
-export function formatDateKey(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
+// Local (Europe/Istanbul) YYYY-MM-DD
+export const formatDateKey = formatLocalDate;
 
 export function addDays(d: Date, days: number): Date {
   const result = new Date(d);
@@ -110,7 +106,7 @@ export class ArenaStore {
     }
 
     // If no reservations or no future open matches or missing expanded Istanbul courts, reseed
-    const nowIso = new Date().toISOString();
+    const nowIso = nowLocal();
     const futureMatches = this.data.reservations.filter(r => r.isOpenMatch && r.startAt > nowIso);
     const hasExpandedIstanbul = this.data.courts.some(c => c.id === 'court_etiler_1');
     if (futureMatches.length < 10 || !hasExpandedIstanbul) {
@@ -1440,7 +1436,7 @@ export class ArenaStore {
     if (!targetRes) {
       // Find user's upcoming match
       const userMatchIds = new Set(participants.filter(p => p.userId === userId).map(p => p.reservationId));
-      const nowIso = new Date().toISOString();
+      const nowIso = nowLocal();
       const userUpcoming = reservations
         .filter(r => (r.ownerUserId === userId || userMatchIds.has(r.id)) && r.status !== 'CANCELLED' && r.startAt >= nowIso)
         .sort((a, b) => a.startAt.localeCompare(b.startAt));

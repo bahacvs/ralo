@@ -8,6 +8,7 @@
  */
 
 import { dbStore, addDays, formatDateKey } from './store.js';
+import { addMinutesToLocal, parseClientDateTime } from './time.js';
 
 let passed = 0;
 let failed = 0;
@@ -37,8 +38,8 @@ async function runTests() {
   try {
     const courtId = 'court_urla_1';
     const businessId = 'biz_urla';
-    const startAt = `${testDate}T10:00:00.000Z`;
-    const endAt = `${testDate}T11:30:00.000Z`;
+    const startAt = `${testDate}T10:00:00`;
+    const endAt = `${testDate}T11:30:00`;
 
     // 1. Create first reservation
     const result1 = dbStore.createReservationAtomic({
@@ -60,8 +61,8 @@ async function runTests() {
     assert(result1.success && !!result1.reservation, 'Test 1.1: İlk rezervasyon başarıyla oluşturuldu', result1.error);
 
     // 2. Try creating overlapping reservation on the same court (e.g. 10:30 - 12:00)
-    const overlapStart = `${testDate}T10:30:00.000Z`;
-    const overlapEnd = `${testDate}T12:00:00.000Z`;
+    const overlapStart = `${testDate}T10:30:00`;
+    const overlapEnd = `${testDate}T12:00:00`;
 
     const result2 = dbStore.createReservationAtomic({
       courtId,
@@ -101,8 +102,8 @@ async function runTests() {
   // TEST 3: Open Match 4-Player Capacity & Waitlist Redirect
   try {
     // 1. Create a fresh test open match on a distinct court/time
-    const matchStartAt = `${testDate}T18:00:00.000Z`;
-    const matchEndAt = `${testDate}T19:30:00.000Z`;
+    const matchStartAt = `${testDate}T18:00:00`;
+    const matchEndAt = `${testDate}T19:30:00`;
 
     const matchRes = dbStore.createReservationAtomic({
       courtId: 'court_urla_2',
@@ -170,6 +171,12 @@ async function runTests() {
       dbStore.save();
     }
   }
+
+  // TEST 4: Local time helpers (Europe/Istanbul, midnight rollover)
+  assert(addMinutesToLocal('2026-03-01T23:00:00', 120) === '2026-03-02T01:00:00', 'Test 4.1: Gece yarısını geçen maçın bitişi ertesi güne taşındı');
+  assert(new Date('2026-03-01T18:00:00').toISOString() === '2026-03-01T15:00:00.000Z', 'Test 4.2: Yerel saatler Europe/Istanbul (UTC+3) olarak yorumlanıyor');
+  assert(parseClientDateTime('2026-03-01T15:00:00.000Z') === '2026-03-01T18:00:00', 'Test 4.3: UTC gelen istemci saati yerel saate çevrildi');
+  assert(parseClientDateTime('dün akşam') === null, 'Test 4.4: Geçersiz tarih metni reddedildi');
 
   console.log(`\n🏁 Test Özeti: ${passed} Başarılı, ${failed} Hatalı\n`);
 
