@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Type check, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          # Pinned to the version that produced bun.lock, so --frozen-lockfile stays stable
+          bun-version: 1.4.0
+
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type check
+        run: node node_modules/typescript/bin/tsc --noEmit
+
+      # The runner is deliberately on UTC: server/time.ts must pin the process
+      # to Europe/Istanbul, and test 4.x fails if that pinning breaks.
+      - name: Server tests (TZ=UTC)
+        run: npx tsx server/tests.ts
+        env:
+          TZ: UTC
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_DEMO_MODE: "false"
