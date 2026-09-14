@@ -31,6 +31,23 @@ function toMaskedName(displayName: string): string {
   return last ? `${first} ${last[0]}.` : first;
 }
 
+/** Profile fields other players may see: no phone number or notification settings. */
+function toPublicUser(u: User) {
+  return {
+    id: u.id,
+    role: u.role,
+    displayName: u.displayName,
+    maskedName: u.maskedName,
+    avatarUrl: u.avatarUrl,
+    elo: u.elo,
+    matchesCount: u.matchesCount,
+    playSide: u.playSide,
+    dominantHand: u.dominantHand,
+    preferredDays: u.preferredDays,
+    preferredHours: u.preferredHours
+  };
+}
+
 function getCurrentUser(req: Request): User | undefined {
   const userId = getSessionUserId(extractToken(req));
   return userId ? dbStore.getUsers().find(u => u.id === userId) : undefined;
@@ -891,6 +908,9 @@ app.post('/api/open-matches/:id/invite', authMiddleware, (req: Request, res: Res
   if (!friendUserId) {
     return res.status(400).json({ error: 'Davet edilecek arkadaş seçilmelidir.' });
   }
+  if (friendUserId === user.id || !dbStore.getUsers().some(u => u.id === friendUserId)) {
+    return res.status(404).json({ error: 'Davet edilecek kullanıcı bulunamadı.' });
+  }
 
   const result = dbStore.inviteFriendToMatch(user, friendUserId, id);
   if (!result.success) {
@@ -1024,9 +1044,9 @@ app.post('/api/open-matches/:id/generate-share-card', authMiddleware, async (req
 // Friends API
 app.get('/api/friends', authMiddleware, (req: Request, res: Response) => {
   const user = (req as any).user as User;
-  const friends = dbStore.getFriends(user.id);
-  const allUsers = dbStore.getUsers().filter(u => u.role === 'OYUNCU' && u.id !== user.id);
-  return res.json({ friends, allPlayers: allUsers });
+  const friends = dbStore.getFriends(user.id).map(toPublicUser);
+  const allPlayers = dbStore.getUsers().filter(u => u.role === 'OYUNCU' && u.id !== user.id).map(toPublicUser);
+  return res.json({ friends, allPlayers });
 });
 
 app.post('/api/friends/toggle', authMiddleware, (req: Request, res: Response) => {
@@ -1087,7 +1107,8 @@ app.get('/api/my-matches', authMiddleware, (req: Request, res: Response) => {
 app.get('/api/messages', authMiddleware, (req: Request, res: Response) => {
   const user = (req as any).user as User;
   const conversations = dbStore.getConversations().filter(c => c.participantIds.includes(user.id));
-  const messages = dbStore.getMessages();
+  const conversationIds = new Set(conversations.map(c => c.id));
+  const messages = dbStore.getMessages().filter(m => conversationIds.has(m.conversationId));
   return res.json({ conversations, messages });
 });
 
@@ -1096,6 +1117,9 @@ app.post('/api/messages/start-direct', authMiddleware, (req: Request, res: Respo
   const { targetUserId } = req.body;
   if (!targetUserId) {
     return res.status(400).json({ error: 'Hedef kullanıcı belirtilmelidir.' });
+  }
+  if (targetUserId === user.id) {
+    return res.status(400).json({ error: 'Kendinizle sohbet başlatamazsınız.' });
   }
   const targetUser = dbStore.getUsers().find(u => u.id === targetUserId);
   if (!targetUser) {
@@ -1128,12 +1152,20 @@ app.post('/api/messages/start-direct', authMiddleware, (req: Request, res: Respo
 app.post('/api/messages', authMiddleware, (req: Request, res: Response) => {
   const user = (req as any).user as User;
   const { conversationId, text } = req.body;
-  if (!conversationId || !text || !text.trim()) {
+  if (!conversationId || typeof text !== 'string' || !text.trim()) {
     return res.status(400).json({ error: 'Mesaj metni zorunludur.' });
+  }
+  if (text.trim().length > 2000) {
+    return res.status(400).json({ error: 'Mesaj en fazla 2000 karakter olabilir.' });
+  }
+
+  const conv = dbStore.getConversations().find(c => c.id === conversationId);
+  if (!conv || !conv.participantIds.includes(user.id)) {
+    return res.status(404).json({ error: 'Sohbet bulunamadı.' });
   }
 
   const newMsg = {
-    id: `msg_${Date.now()}`,
+    id: `msg_${crypto.randomUUID()}`,
     conversationId,
     senderUserId: user.id,
     senderName: user.displayName || user.maskedName,
@@ -1142,8 +1174,7 @@ app.post('/api/messages', authMiddleware, (req: Request, res: Response) => {
   };
 
   dbStore.getMessages().push(newMsg);
-  const conv = dbStore.getConversations().find(c => c.id === conversationId);
-  if (conv) {
+  {
     conv.lastMessage = text.trim();
     conv.updatedAt = new Date().toISOString();
 
@@ -1184,8 +1215,11 @@ app.post('/api/feed', authMiddleware, (req: Request, res: Response) => {
   const user = (req as any).user as User;
   const { content, category = 'SOHBET', venueName } = req.body;
 
-  if (!content || !content.trim()) {
+  if (typeof content !== 'string' || !content.trim()) {
     return res.status(400).json({ error: 'Paylaşım içeriği boş olamaz.' });
+  }
+  if (content.trim().length > 1000 || (venueName !== undefined && (typeof venueName !== 'string' || venueName.length > 100))) {
+    return res.status(400).json({ error: 'Paylaşım en fazla 1000 karakter olabilir.' });
   }
 
   const newPost: FeedPost = {
@@ -1236,8 +1270,11 @@ app.post('/api/feed/:id/reply', authMiddleware, (req: Request, res: Response) =>
   const { id } = req.params;
   const { content } = req.body;
 
-  if (!content || !content.trim()) {
+  if (typeof content !== 'string' || !content.trim()) {
     return res.status(400).json({ error: 'Yanıt metni boş olamaz.' });
+  }
+  if (content.trim().length > 1000) {
+    return res.status(400).json({ error: 'Yanıt en fazla 1000 karakter olabilir.' });
   }
 
   const post = dbStore.getFeedPosts().find(p => p.id === id);

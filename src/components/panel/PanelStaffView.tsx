@@ -110,7 +110,7 @@ export const PanelStaffView: React.FC = () => {
                     <h2 className="text-sm font-bold text-slate-900">{member.displayName}</h2>
                     <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
                       <Phone className="w-3 h-3 text-slate-400" />
-                      <span>{member.phone}</span>
+                      <span>{member.userPhone}</span>
                     </p>
                   </div>
                 </div>
