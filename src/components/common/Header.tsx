@@ -314,7 +314,7 @@ export const Header: React.FC = () => {
             )}
 
             {/* Dedicated Mesajlar Button (Desktop/tablet; on mobile BottomNav includes Mesajlar) */}
-            {!isPanel && (
+            {!isPanel && user && (
               <button
                 type="button"
                 onClick={() => navigate('/mesajlar')}

@@ -356,7 +356,7 @@ export const OpenMatchesView: React.FC = () => {
               />
               <span className="flex items-center gap-1">
                 <Trophy className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
-                <span>Sadece Seviyeme (Elo) Uygun Olanlar ({user?.elo || 1450} Elo)</span>
+                <span>Sadece Seviyeme (Elo) Uygun Olanlar{user ? ` (${user.elo} Elo)` : ''}</span>
               </span>
             </label>
 

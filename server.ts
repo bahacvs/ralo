@@ -48,23 +48,37 @@ function authMiddleware(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-// Business Role & Id verification middleware
-function businessAuthMiddleware(req: Request, res: Response, next: NextFunction) {
-  const user = (req as any).user as User;
-  if (!user) {
-    return res.status(401).json({ error: 'Yetkilendirme gerekli.' });
-  }
+// Permissions an owner can grant to staff. Owners (role ISLETME_SAHIBI or 'ALL') additionally
+// hold the owner-only COURT_MANAGE, STAFF_MANAGE and REPORTS_VIEW capabilities.
+const STAFF_PERMISSIONS = ['RESERVATION_MANAGE', 'PAYMENT_COLLECT', 'COURT_BLOCK'];
+const RESERVATION_STATUSES = ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'NO_SHOW'];
+const PAYMENT_STATUSES = ['PAY_AT_VENUE', 'PAID', 'REFUNDED'];
 
-  if (user.role !== 'ISLETME_SAHIBI' && user.role !== 'PERSONEL') {
-    return res.status(403).json({ error: 'Bu işlem için işletme yetkisi gerekmektedir.' });
-  }
+/**
+ * Resolves the caller's business from their staff membership (never from the request)
+ * and exposes it as req.businessId. Rejects a mismatching businessId in the request.
+ */
+function requireBusiness(permission?: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = (req as any).user as User;
+    const membership = dbStore.getStaffMemberships().find(s => s.userId === user.id);
+    if (!membership) {
+      return res.status(403).json({ error: 'Bu işlem için işletme yetkisi gerekmektedir.' });
+    }
 
-  const businessId = (req.query.businessId || req.body.businessId || req.params.businessId) as string;
-  if (businessId && user.businessId && user.businessId !== businessId) {
-    return res.status(403).json({ error: 'Bu işletme verilerine erişim izniniz bulunmamaktadır.' });
-  }
+    const requestedBusinessId = req.query.businessId || req.body?.businessId || req.params.businessId;
+    if (requestedBusinessId && requestedBusinessId !== membership.businessId) {
+      return res.status(403).json({ error: 'Bu işletme verilerine erişim izniniz bulunmamaktadır.' });
+    }
 
-  next();
+    const isOwner = membership.role === 'ISLETME_SAHIBI' || membership.permissions.includes('ALL');
+    if (permission && !isOwner && !membership.permissions.includes(permission)) {
+      return res.status(403).json({ error: 'Bu işlem için yetkiniz bulunmamaktadır.' });
+    }
+
+    (req as any).businessId = membership.businessId;
+    next();
+  };
 }
 
 // -------------------------------------------------------------
@@ -1253,8 +1267,9 @@ app.post('/api/feed/:id/reply', authMiddleware, (req: Request, res: Response) =>
 // -------------------------------------------------------------
 
 // Schedule View (All courts on timeline or list)
-app.get('/api/panel/schedule', authMiddleware, businessAuthMiddleware, (req: Request, res: Response) => {
-  const { businessId = 'biz_urla', date = new Date().toISOString().split('T')[0], days = '1' } = req.query;
+app.get('/api/panel/schedule', authMiddleware, requireBusiness(), (req: Request, res: Response) => {
+  const businessId = (req as any).businessId as string;
+  const { date = new Date().toISOString().split('T')[0], days = '1' } = req.query;
 
   const courts = dbStore.getCourts().filter(c => c.businessId === businessId);
   const reservations = dbStore.getReservations().filter(r => r.businessId === businessId);
@@ -1297,11 +1312,10 @@ app.get('/api/panel/schedule', authMiddleware, businessAuthMiddleware, (req: Req
 });
 
 // Create Manual Reservation from Panel
-app.post('/api/panel/reservations/manual', authMiddleware, businessAuthMiddleware, (req: Request, res: Response) => {
-  const user = (req as any).user as User;
+app.post('/api/panel/reservations/manual', authMiddleware, requireBusiness('RESERVATION_MANAGE'), (req: Request, res: Response) => {
+  const businessId = (req as any).businessId as string;
   const {
     courtId,
-    businessId,
     customerName,
     customerPhone,
     date,
@@ -1316,11 +1330,17 @@ app.post('/api/panel/reservations/manual', authMiddleware, businessAuthMiddlewar
   }
 
   const court = dbStore.getCourts().find(c => c.id === courtId);
-  if (!court) {
+  if (!court || court.businessId !== businessId) {
     return res.status(404).json({ error: 'Kort bulunamadı.' });
   }
 
   const dur = Number(durationMinutes) as (60 | 90 | 120);
+  if (![60, 90, 120].includes(dur) || !/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || !/^\d{2}:\d{2}$/.test(String(startTime))) {
+    return res.status(400).json({ error: 'Geçersiz tarih, saat veya süre.' });
+  }
+  if (!PAYMENT_STATUSES.includes(paymentStatus)) {
+    return res.status(400).json({ error: 'Geçersiz ödeme durumu.' });
+  }
   const startAt = `${date}T${startTime}:00`;
   const endD = new Date(new Date(startAt).getTime() + dur * 60000);
   const endAt = `${date}T${String(endD.getHours()).padStart(2, '0')}:${String(endD.getMinutes()).padStart(2, '0')}:00`;
@@ -1328,12 +1348,13 @@ app.post('/api/panel/reservations/manual', authMiddleware, businessAuthMiddlewar
   const totalPrice = Math.round(court.pricePerHour * (dur / 60));
 
   // Find or create customer
-  let custUser = dbStore.getUsers().find(u => u.phone.replace(/\s+/g, '') === (customerPhone || '').replace(/\s+/g, ''));
+  const custPhone = normalizePhone(customerPhone);
+  let custUser = custPhone ? dbStore.getUsers().find(u => normalizePhone(u.phone) === custPhone) : undefined;
   if (!custUser) {
     custUser = {
-      id: `user_manual_${Date.now()}`,
+      id: `user_${crypto.randomUUID()}`,
       role: 'OYUNCU',
-      phone: customerPhone || '+90 500 000 0000',
+      phone: custPhone ? `+${custPhone}` : '',
       displayName: customerName || 'Manuel Müşteri',
       maskedName: customerName ? `${customerName.split(' ')[0]} ${customerName.split(' ')[1]?.[0] || ''}.` : 'Misafir M.',
       avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
@@ -1370,12 +1391,18 @@ app.post('/api/panel/reservations/manual', authMiddleware, businessAuthMiddlewar
 });
 
 // Create Court Block
-app.post('/api/panel/blocks', authMiddleware, businessAuthMiddleware, (req: Request, res: Response) => {
+app.post('/api/panel/blocks', authMiddleware, requireBusiness('COURT_BLOCK'), (req: Request, res: Response) => {
   const user = (req as any).user as User;
-  const { courtId, businessId, date, startTime, endTime, reason, reasonNote } = req.body;
+  const businessId = (req as any).businessId as string;
+  const { courtId, date, startTime, endTime, reason, reasonNote } = req.body;
 
   if (!courtId || !date || !startTime || !endTime || !reason) {
     return res.status(400).json({ error: 'Kort, tarih, saat aralığı ve blokaj sebebi zorunludur.' });
+  }
+
+  const blockCourt = dbStore.getCourts().find(c => c.id === courtId);
+  if (!blockCourt || blockCourt.businessId !== businessId) {
+    return res.status(404).json({ error: 'Kort bulunamadı.' });
   }
 
   const startAt = `${date}T${startTime}:00`;
@@ -1390,8 +1417,12 @@ app.post('/api/panel/blocks', authMiddleware, businessAuthMiddleware, (req: Requ
 });
 
 // Delete Court Block
-app.delete('/api/panel/blocks/:id', authMiddleware, businessAuthMiddleware, (req: Request, res: Response) => {
+app.delete('/api/panel/blocks/:id', authMiddleware, requireBusiness('COURT_BLOCK'), (req: Request, res: Response) => {
   const { id } = req.params;
+  const block = dbStore.getCourtBlocks().find(b => b.id === id);
+  if (!block || block.businessId !== (req as any).businessId) {
+    return res.status(404).json({ error: 'Blokaj kaydı bulunamadı.' });
+  }
   const ok = dbStore.deleteCourtBlock(id);
   if (!ok) {
     return res.status(404).json({ error: 'Blokaj kaydı bulunamadı.' });
@@ -1400,12 +1431,16 @@ app.delete('/api/panel/blocks/:id', authMiddleware, businessAuthMiddleware, (req
 });
 
 // Update Reservation Status (CONFIRMED, CANCELLED, NO_SHOW, COMPLETED)
-app.patch('/api/panel/reservations/:id/status', authMiddleware, businessAuthMiddleware, (req: Request, res: Response) => {
+app.patch('/api/panel/reservations/:id/status', authMiddleware, requireBusiness('RESERVATION_MANAGE'), (req: Request, res: Response) => {
   const { id } = req.params;
   const { status } = req.body;
 
+  if (!RESERVATION_STATUSES.includes(status)) {
+    return res.status(400).json({ error: 'Geçersiz rezervasyon durumu.' });
+  }
+
   const resItem = dbStore.getReservations().find(r => r.id === id);
-  if (!resItem) {
+  if (!resItem || resItem.businessId !== (req as any).businessId) {
     return res.status(404).json({ error: 'Rezervasyon bulunamadı.' });
   }
 
@@ -1425,12 +1460,16 @@ app.patch('/api/panel/reservations/:id/status', authMiddleware, businessAuthMidd
 });
 
 // Update Payment Status (PAID, REFUNDED)
-app.patch('/api/panel/reservations/:id/payment', authMiddleware, businessAuthMiddleware, (req: Request, res: Response) => {
+app.patch('/api/panel/reservations/:id/payment', authMiddleware, requireBusiness('PAYMENT_COLLECT'), (req: Request, res: Response) => {
   const { id } = req.params;
   const { paymentStatus } = req.body;
 
+  if (!PAYMENT_STATUSES.includes(paymentStatus)) {
+    return res.status(400).json({ error: 'Geçersiz ödeme durumu.' });
+  }
+
   const resItem = dbStore.getReservations().find(r => r.id === id);
-  if (!resItem) {
+  if (!resItem || resItem.businessId !== (req as any).businessId) {
     return res.status(404).json({ error: 'Rezervasyon bulunamadı.' });
   }
 
@@ -1442,8 +1481,9 @@ app.patch('/api/panel/reservations/:id/payment', authMiddleware, businessAuthMid
 });
 
 // Business Courts Management with Occupancy Analytics
-app.get('/api/panel/courts', authMiddleware, businessAuthMiddleware, (req: Request, res: Response) => {
-  const { businessId = 'biz_urla', date } = req.query;
+app.get('/api/panel/courts', authMiddleware, requireBusiness(), (req: Request, res: Response) => {
+  const businessId = (req as any).businessId as string;
+  const { date } = req.query;
   const targetDate = (date as string) || new Date().toISOString().split('T')[0];
   const courts = dbStore.getCourts().filter(c => c.businessId === businessId);
   const reservationSlots = dbStore.getReservationSlots();
@@ -1539,10 +1579,14 @@ app.get('/api/panel/courts', authMiddleware, businessAuthMiddleware, (req: Reque
   });
 });
 
-app.post('/api/panel/courts', authMiddleware, businessAuthMiddleware, (req: Request, res: Response) => {
-  const { businessId = 'biz_urla', name, type, surface, pricePerHour, isActive = true, photos = [] } = req.body;
-  if (!name || !pricePerHour) {
+app.post('/api/panel/courts', authMiddleware, requireBusiness('COURT_MANAGE'), (req: Request, res: Response) => {
+  const businessId = (req as any).businessId as string;
+  const { name, type, surface, pricePerHour, isActive = true, photos = [] } = req.body;
+  if (typeof name !== 'string' || !name.trim() || name.length > 60 || !(Number(pricePerHour) > 0)) {
     return res.status(400).json({ error: 'Kort adı ve saatlik ücret zorunludur.' });
+  }
+  if (!Array.isArray(photos) || photos.some((p: unknown) => typeof p !== 'string' || !/^https:\/\//.test(p))) {
+    return res.status(400).json({ error: 'Geçersiz kort fotoğrafı.' });
   }
 
   const newCourt: Court = {
@@ -1562,14 +1606,20 @@ app.post('/api/panel/courts', authMiddleware, businessAuthMiddleware, (req: Requ
   return res.status(201).json({ success: true, court: newCourt });
 });
 
-app.patch('/api/panel/courts/:id', authMiddleware, businessAuthMiddleware, (req: Request, res: Response) => {
+app.patch('/api/panel/courts/:id', authMiddleware, requireBusiness('COURT_MANAGE'), (req: Request, res: Response) => {
   const { id } = req.params;
   const court = dbStore.getCourts().find(c => c.id === id);
-  if (!court) {
+  if (!court || court.businessId !== (req as any).businessId) {
     return res.status(404).json({ error: 'Kort bulunamadı.' });
   }
 
   const { name, type, surface, pricePerHour, isActive, photos } = req.body;
+  if (pricePerHour !== undefined && !(Number(pricePerHour) > 0)) {
+    return res.status(400).json({ error: 'Saatlik ücret pozitif bir sayı olmalıdır.' });
+  }
+  if (name !== undefined && (typeof name !== 'string' || !name.trim() || name.length > 60)) {
+    return res.status(400).json({ error: 'Kort adı 1 ile 60 karakter arasında olmalıdır.' });
+  }
   if (name !== undefined) court.name = name;
   if (type !== undefined) court.type = type;
   if (surface !== undefined) court.surface = surface;
@@ -1582,8 +1632,8 @@ app.patch('/api/panel/courts/:id', authMiddleware, businessAuthMiddleware, (req:
 });
 
 // Business Staff Management
-app.get('/api/panel/staff', authMiddleware, businessAuthMiddleware, (req: Request, res: Response) => {
-  const { businessId = 'biz_urla' } = req.query;
+app.get('/api/panel/staff', authMiddleware, requireBusiness('STAFF_MANAGE'), (req: Request, res: Response) => {
+  const businessId = (req as any).businessId as string;
   const staff = dbStore.getStaffMemberships().filter(s => s.businessId === businessId);
   const users = dbStore.getUsers();
 
@@ -1599,41 +1649,56 @@ app.get('/api/panel/staff', authMiddleware, businessAuthMiddleware, (req: Reques
   return res.json({ staff: enriched });
 });
 
-app.post('/api/panel/staff', authMiddleware, businessAuthMiddleware, (req: Request, res: Response) => {
-  const { businessId = 'biz_urla', name, phone, role = 'PERSONEL', permissions = ['RESERVATION_MANAGE'] } = req.body;
-  if (!name || !phone) {
-    return res.status(400).json({ error: 'Personel adı ve telefon numarası zorunludur.' });
+app.post('/api/panel/staff', authMiddleware, requireBusiness('STAFF_MANAGE'), (req: Request, res: Response) => {
+  const businessId = (req as any).businessId as string;
+  const { name, phone: rawPhone, permissions = ['RESERVATION_MANAGE'] } = req.body || {};
+  const phone = normalizePhone(rawPhone);
+  if (typeof name !== 'string' || !name.trim() || name.trim().length > 60 || !phone) {
+    return res.status(400).json({ error: 'Geçerli bir personel adı ve cep telefonu numarası zorunludur.' });
+  }
+  const grantedPermissions: string[] = Array.isArray(permissions)
+    ? permissions.filter((p: unknown): p is string => typeof p === 'string' && STAFF_PERMISSIONS.includes(p))
+    : [];
+
+  // Staff always join as PERSONEL; ownership cannot be granted from the panel
+  let staffUser = dbStore.getUsers().find(u => normalizePhone(u.phone) === phone);
+  if (staffUser && dbStore.getStaffMemberships().some(s => s.userId === staffUser!.id)) {
+    return res.status(409).json({ error: 'Bu telefon numarası zaten bir işletmede personel olarak kayıtlı.' });
   }
 
-  const newUserId = `user_staff_${Date.now()}`;
-  const newUser: User = {
-    id: newUserId,
-    role: role as any,
-    phone,
-    displayName: name,
-    maskedName: `${name.split(' ')[0]} ${name.split(' ')[1]?.[0] || ''}.`,
-    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    elo: 1300,
-    matchesCount: 0,
-    playSide: 'RIGHT',
-    dominantHand: 'RIGHT',
-    preferredDays: [],
-    preferredHours: [],
-    businessId,
-    createdAt: new Date().toISOString()
-  };
-
-  dbStore.getUsers().push(newUser);
+  const staffName = name.trim();
+  if (staffUser) {
+    staffUser.role = 'PERSONEL';
+    staffUser.businessId = businessId;
+  } else {
+    staffUser = {
+      id: `user_${crypto.randomUUID()}`,
+      role: 'PERSONEL',
+      phone: `+${phone}`,
+      displayName: staffName,
+      maskedName: toMaskedName(staffName),
+      avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+      elo: 1300,
+      matchesCount: 0,
+      playSide: 'RIGHT',
+      dominantHand: 'RIGHT',
+      preferredDays: [],
+      preferredHours: [],
+      businessId,
+      createdAt: new Date().toISOString()
+    };
+    dbStore.getUsers().push(staffUser);
+  }
 
   const membership = {
-    id: `staff_${Date.now()}`,
+    id: `staff_${crypto.randomUUID()}`,
     businessId,
-    userId: newUserId,
-    role: role as any,
-    permissions,
+    userId: staffUser.id,
+    role: 'PERSONEL' as const,
+    permissions: grantedPermissions,
     createdAt: new Date().toISOString(),
-    userName: name,
-    userPhone: phone
+    userName: staffName,
+    userPhone: `+${phone}`
   };
 
   dbStore.getStaffMemberships().push(membership);
@@ -1643,8 +1708,8 @@ app.post('/api/panel/staff', authMiddleware, businessAuthMiddleware, (req: Reque
 });
 
 // Business Reports (7-Day occupancy, revenue, no-show rate)
-app.get('/api/panel/reports', authMiddleware, businessAuthMiddleware, (req: Request, res: Response) => {
-  const { businessId = 'biz_urla' } = req.query;
+app.get('/api/panel/reports', authMiddleware, requireBusiness('REPORTS_VIEW'), (req: Request, res: Response) => {
+  const businessId = (req as any).businessId as string;
   const reservations = dbStore.getReservations().filter(r => r.businessId === businessId);
   const courts = dbStore.getCourts().filter(c => c.businessId === businessId);
 

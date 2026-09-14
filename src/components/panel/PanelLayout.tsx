@@ -15,13 +15,14 @@ export const PanelLayout: React.FC<PanelLayoutProps> = ({ children }) => {
 
   const businessId = user?.businessId || 'biz_urla';
 
+  const isOwner = user?.role === 'ISLETME_SAHIBI';
   const menuItems = [
     { label: 'Günlük Takvim', path: `/panel/${businessId}/takvim`, icon: Calendar },
     { label: 'Rezervasyonlar', path: `/panel/${businessId}/rezervasyonlar`, icon: ListFilter },
     { label: 'Kort Yönetimi', path: `/panel/${businessId}/kortlar`, icon: LayoutGrid },
-    { label: 'Personel & Yetkiler', path: `/panel/${businessId}/personel`, icon: Users2 },
-    { label: 'Raporlar & Doluluk', path: `/panel/${businessId}/raporlar`, icon: BarChart3 },
-  ];
+    { label: 'Personel & Yetkiler', path: `/panel/${businessId}/personel`, icon: Users2, ownerOnly: true },
+    { label: 'Raporlar & Doluluk', path: `/panel/${businessId}/raporlar`, icon: BarChart3, ownerOnly: true },
+  ].filter(item => isOwner || !item.ownerOnly);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">

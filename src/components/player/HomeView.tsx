@@ -22,7 +22,9 @@ export const HomeView: React.FC = () => {
     setError(null);
     try {
       const [matchesRes, openMatchesRes] = await Promise.all([
-        api.getMyMatches().catch(() => ({ upcoming: [], past: [] })),
+        user
+          ? api.getMyMatches().catch(() => ({ upcoming: [], past: [] }))
+          : Promise.resolve({ upcoming: [], past: [] }),
         api.getOpenMatches({ minAvailableSpots: 1 }).catch(() => ({ matches: [], total: 0 }))
       ]);
 
@@ -42,7 +44,7 @@ export const HomeView: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user?.id]);
 
   if (loading) return <LoadingState message="RALO ana sayfası yükleniyor..." />;
   if (error) return <ErrorState message={error} onRetry={loadData} />;
@@ -64,17 +66,23 @@ export const HomeView: React.FC = () => {
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white font-serif">
                   Merhaba, {user?.displayName?.split(' ')[0] || 'Oyuncu'}!
                 </h1>
-                <span className="bg-amber-950/80 text-amber-300 text-xs px-2.5 py-0.5 rounded-full font-bold border border-amber-500/40">
-                  {user?.role === 'OYUNCU' ? 'Oyuncu' : 'İşletme'}
-                </span>
+                {user && (
+                  <span className="bg-amber-950/80 text-amber-300 text-xs px-2.5 py-0.5 rounded-full font-bold border border-amber-500/40">
+                    {user.role === 'OYUNCU' ? 'Oyuncu' : 'İşletme'}
+                  </span>
+                )}
               </div>
-              <p className="text-xs sm:text-sm text-slate-300 mt-1 flex items-center gap-2">
-                <span className="font-bold text-amber-400">Elo: {user?.elo || 1450}</span>
-                <span className="text-slate-500">•</span>
-                <span>{user?.playSide === 'BOTH' ? 'Çift Yön (Sol/Sağ)' : user?.playSide === 'LEFT' ? 'Sol Kanat' : 'Sağ Kanat'}</span>
-                <span className="text-slate-500">•</span>
-                <span>İzmir</span>
-              </p>
+              {user ? (
+                <p className="text-xs sm:text-sm text-slate-300 mt-1 flex items-center gap-2">
+                  <span className="font-bold text-amber-400">Elo: {user.elo}</span>
+                  <span className="text-slate-500">•</span>
+                  <span>{user.playSide === 'BOTH' ? 'Çift Yön (Sol/Sağ)' : user.playSide === 'LEFT' ? 'Sol Kanat' : 'Sağ Kanat'}</span>
+                </p>
+              ) : (
+                <p className="text-xs sm:text-sm text-slate-300 mt-1">
+                  Kort ayır, açık maçlara katıl, oyuncularla tanış.
+                </p>
+              )}
             </div>
           </div>
 
@@ -89,10 +97,10 @@ export const HomeView: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => navigate('/profil')}
+              onClick={() => navigate(user ? '/profil' : '/giris')}
               className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 font-black text-xs transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 shadow-lg shadow-amber-950/40 border border-amber-400/40"
             >
-              <span>Profilim</span>
+              <span>{user ? 'Profilim' : 'Giriş Yap'}</span>
               <ChevronRight className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
