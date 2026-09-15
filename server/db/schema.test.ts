@@ -537,6 +537,277 @@ async function main() {
     assertEqual(voided.void_reason, 'lesson_session_cancelled', 'void reason');
   });
 
+  // --- No-show fee settlement ---------------------------------------------------
+
+  const clubBPolicy = await one<{ id: string }>(
+    `INSERT INTO app.billing_policies (club_id, effective_from, charge_no_show, amounts_include_vat, created_by)
+     VALUES ($1, now(), false, false, $2) RETURNING id`,
+    [clubB, admin]
+  );
+
+  await test('no-show with charge_no_show = true keeps the fee', async () => {
+    const u = await createUser('Gelmeyen');
+    const r = await createAppReservation(clubA, courtA1, u, '2030-11-14T19:00:00+03:00', '2030-11-14T20:00:00+03:00');
+    await expectSqlError(() => db.query(`SELECT app.settle_no_show_fee($1)`, [r.reservationId]), '23514', 'not a no-show');
+    await db.query(`UPDATE app.reservations SET status = 'no_show' WHERE id = $1`, [r.reservationId]);
+    const result = await one<{ s: string }>(`SELECT app.settle_no_show_fee($1, $2) AS s`, [r.reservationId, admin]);
+    assertEqual(result.s, 'kept', 'platform policy charges no-shows');
+    const c = await one(`SELECT status, policy_id FROM app.fee_ledger_entries WHERE id = $1`, [r.chargeId]);
+    assertEqual(c.status, 'accrued', 'charge kept');
+    assertEqual(c.policy_id, null, 'no waiver policy stamped');
+  });
+
+  await test('no-show with charge_no_show = false voids an accrued fee and reverses a billed one', async () => {
+    const u = await createUser('Gelmeyen2');
+    const accrued = await createAppReservation(clubB, courtB1, u, '2030-11-12T19:00:00+03:00', '2030-11-12T20:00:00+03:00');
+    await db.query(`UPDATE app.reservations SET status = 'no_show' WHERE id = $1`, [accrued.reservationId]);
+    const first = JSON.parse((await one<{ s: string }>(
+      `SELECT app.settle_no_show_fee($1, $2) AS s`, [accrued.reservationId, admin])).s);
+    assertEqual(first.voided, 1, 'accrued charge voided');
+    assertEqual(first.reversed, 0, 'nothing to reverse');
+    const c = await one(
+      `SELECT status, void_reason, policy_id, voided_by FROM app.fee_ledger_entries WHERE id = $1`, [accrued.chargeId]
+    );
+    assertEqual(c.status, 'voided', 'status');
+    assertEqual(c.void_reason, 'no_show_waived', 'void reason');
+    assertEqual(c.policy_id, clubBPolicy.id, 'club policy that waived the fee');
+    assertEqual(c.voided_by, admin, 'actor');
+    const again = JSON.parse((await one<{ s: string }>(`SELECT app.settle_no_show_fee($1) AS s`, [accrued.reservationId])).s);
+    assertEqual(again.voided + again.reversed, 0, 'settling twice changes nothing');
+
+    const billed = await createAppReservation(clubB, courtB1, u, '2030-11-13T19:00:00+03:00', '2030-11-13T20:00:00+03:00');
+    const stmt = await one<{ id: string }>(
+      `INSERT INTO app.monthly_statements (statement_no, club_id, period_start, period_end, reservation_fee_count,
+         reservation_fee_kurus, subtotal_kurus, vat_rate_bps, vat_kurus, total_kurus, due_date)
+       VALUES ('RALO-203011-000002', $1, '2030-11-01', '2030-12-01', 1, 10000, 10000, 2000, 2000, 12000, '2030-12-16')
+       RETURNING id`,
+      [clubB]
+    );
+    await db.query(`UPDATE app.fee_ledger_entries SET status = 'billed', statement_id = $2 WHERE id = $1`, [billed.chargeId, stmt.id]);
+    await db.query(`UPDATE app.reservations SET status = 'no_show' WHERE id = $1`, [billed.reservationId]);
+    const second = JSON.parse((await one<{ s: string }>(`SELECT app.settle_no_show_fee($1) AS s`, [billed.reservationId])).s);
+    assertEqual(second.voided, 0, 'billed charge is not voided');
+    assertEqual(second.reversed, 1, 'billed charge reversed');
+    const { rows } = await db.query<{ entry_type: string; status: string; amount_kurus: number; void_reason: string | null;
+                                      reverses_entry_id: string | null }>(
+      `SELECT entry_type, status, amount_kurus, void_reason, reverses_entry_id FROM app.fee_ledger_entries
+       WHERE reservation_id = $1 ORDER BY entry_type`,
+      [billed.reservationId]
+    );
+    assertEqual(rows.length, 2, 'charge + reversal');
+    assertEqual(rows[0].status, 'billed', 'charge stays on its statement');
+    assertEqual(rows[1].reverses_entry_id, billed.chargeId, 'reversal points at the charge');
+    assertEqual(rows[1].void_reason, 'no_show_waived', 'reversal reason');
+    assertEqual(rows[0].amount_kurus + rows[1].amount_kurus, 0, 'net fee is zero');
+  });
+
+  // --- Capacity: waitlist promotion ----------------------------------------------
+
+  await test('reservation waitlist fills a freed slot in position order; an empty waitlist is a no-op', async () => {
+    const users: string[] = [];
+    for (const name of ['Kurucu', 'Oyuncu1', 'Oyuncu2', 'Oyuncu3', 'Bekleyen1', 'Bekleyen2']) users.push(await createUser(name));
+    const [owner, p1, p2, p3, w1, w2] = users;
+    const r = await createAppReservation(clubA, courtA2, owner, '2030-11-10T19:00:00+03:00', '2030-11-10T20:00:00+03:00');
+    await tx(async () => {
+      await db.query(`UPDATE app.reservations SET is_open_match = true, active_participant_count = 4 WHERE id = $1`, [r.reservationId]);
+      await db.query(
+        `INSERT INTO app.reservation_participants (reservation_id, user_id, status, slot_index)
+         VALUES ($1, $2, 'active', 1), ($1, $3, 'active', 2), ($1, $4, 'active', 3)`,
+        [r.reservationId, p1, p2, p3]
+      );
+      await db.query(
+        `INSERT INTO app.reservation_waitlist (reservation_id, user_id, position) VALUES ($1, $2, 1), ($1, $3, 2)`,
+        [r.reservationId, w1, w2]
+      );
+    });
+    const promote = async () =>
+      (await one<{ u: string | null }>(`SELECT app.promote_reservation_waitlist($1) AS u`, [r.reservationId])).u;
+    const leave = (userId: string) => tx(async () => {
+      await db.query(`DELETE FROM app.reservation_participants WHERE reservation_id = $1 AND user_id = $2`, [r.reservationId, userId]);
+      await db.query(`UPDATE app.reservations SET active_participant_count = active_participant_count - 1 WHERE id = $1`, [r.reservationId]);
+      return promote();
+    });
+    const state = async () => ({
+      count: (await one<{ n: number }>(`SELECT active_participant_count AS n FROM app.reservations WHERE id = $1`, [r.reservationId])).n,
+      slots: Object.fromEntries((await db.query<{ slot_index: number; user_id: string }>(
+        `SELECT slot_index, user_id FROM app.reservation_participants WHERE reservation_id = $1 AND status = 'active'`,
+        [r.reservationId])).rows.map(p => [p.slot_index, p.user_id])),
+      waitlist: (await db.query<{ user_id: string }>(
+        `SELECT user_id FROM app.reservation_waitlist WHERE reservation_id = $1 ORDER BY position`,
+        [r.reservationId])).rows.map(w => w.user_id)
+    });
+
+    assertEqual(await promote(), null, 'a full match promotes nobody');
+    assertEqual((await state()).waitlist.length, 2, 'waitlist untouched while full');
+
+    assertEqual(await leave(p2), w1, 'position 1 promoted');
+    let s = await state();
+    assertEqual(s.count, 4, 'counter back to full');
+    assertEqual(s.slots[2], w1, 'promoted into the freed slot');
+    assertEqual(JSON.stringify(s.waitlist), JSON.stringify([w2]), 'promoted waitlist row removed');
+
+    assertEqual(await leave(p3), w2, 'position 2 promoted next');
+    s = await state();
+    assertEqual(s.slots[3], w2, 'second freed slot');
+    assertEqual(s.waitlist.length, 0, 'waitlist empty');
+
+    assertEqual(await leave(p1), null, 'empty waitlist promotes nobody');
+    s = await state();
+    assertEqual(s.count, 3, 'counter reflects the free slot');
+    assertEqual(Object.keys(s.slots).length, 3, 'no participant added');
+    assertEqual(s.slots[1], undefined, 'slot stays free');
+  });
+
+  await test('lesson waitlist: cancel_lesson_enrollment frees a place and promotes the lowest position', async () => {
+    const users: string[] = [];
+    for (const name of ['Ogrenci1', 'Ogrenci2', 'Sirada1', 'Sirada2']) users.push(await createUser(name));
+    const [s1, s2, w1, w2] = users;
+    const lesson = await one<{ id: string }>(
+      `INSERT INTO app.lessons (club_id, coach_user_id, contract_id, kind, title, capacity)
+       VALUES ($1, $2, $3, 'group', 'Dolu Grup', 2) RETURNING id`,
+      [clubA, coach, contract.id]
+    );
+    const enroll = async (userId: string, position: number | null) =>
+      (await one<{ id: string }>(
+        `INSERT INTO app.lesson_enrollments (lesson_id, user_id, status, waitlist_position, enrolled_at)
+         VALUES ($1, $2, CASE WHEN $3::int IS NULL THEN 'enrolled' ELSE 'waitlisted' END, $3::int,
+                 CASE WHEN $3::int IS NULL THEN now() END) RETURNING id`,
+        [lesson.id, userId, position]
+      )).id;
+    const e1 = await enroll(s1, null);
+    const e2 = await enroll(s2, null);
+    await db.query(`UPDATE app.lessons SET enrolled_count = 2 WHERE id = $1`, [lesson.id]);
+    const ew1 = await enroll(w1, 1);
+    const ew2 = await enroll(w2, 2);
+    const enrolledCount = async () =>
+      (await one<{ n: number }>(`SELECT enrolled_count AS n FROM app.lessons WHERE id = $1`, [lesson.id])).n;
+    const enrollment = (id: string) => one<{ status: string; waitlist_position: number | null; enrolled_at: string | null;
+                                             cancelled_at: string | null }>(
+      `SELECT status, waitlist_position, enrolled_at, cancelled_at FROM app.lesson_enrollments WHERE id = $1`, [id]
+    );
+    const cancel = async (id: string, status = 'cancelled') =>
+      (await one<{ u: string | null }>(`SELECT app.cancel_lesson_enrollment($1, $2) AS u`, [id, status])).u;
+
+    assertEqual((await one<{ u: string | null }>(`SELECT app.promote_lesson_waitlist($1) AS u`, [lesson.id])).u, null,
+      'a full lesson promotes nobody');
+
+    assertEqual(await cancel(e1), w1, 'cancelling an enrolled student promotes position 1');
+    assertEqual(await enrolledCount(), 2, 'lesson full again');
+    const cancelled = await enrollment(e1);
+    assertEqual(cancelled.status, 'cancelled', 'cancelled status');
+    assert(cancelled.cancelled_at !== null, 'cancelled_at set');
+    const promoted = await enrollment(ew1);
+    assertEqual(promoted.status, 'enrolled', 'promoted status');
+    assertEqual(promoted.waitlist_position, null, 'waitlist position cleared');
+    assert(promoted.enrolled_at !== null, 'enrolled_at set');
+    assertEqual((await enrollment(ew2)).waitlist_position, 2, 'position 2 still waiting');
+
+    assertEqual(await cancel(ew2), null, 'cancelling a waitlisted entry promotes nobody');
+    assertEqual(await enrolledCount(), 2, 'waitlist cancellation keeps the counter');
+    assertEqual((await enrollment(ew2)).status, 'cancelled', 'waitlist entry cancelled');
+
+    assertEqual(await cancel(e2, 'removed'), null, 'no waitlist left to promote');
+    assertEqual(await enrolledCount(), 1, 'counter decremented');
+    assertEqual((await enrollment(e2)).status, 'removed', 'coach removal status');
+    assertEqual(await cancel(e2), null, 'cancelling twice is a no-op');
+    assertEqual(await enrolledCount(), 1, 'counter not decremented twice');
+    await expectSqlError(() => cancel(ew1, 'enrolled'), '23514', 'invalid enrollment status');
+  });
+
+  // --- Lesson fee: per enrolled student per session ---------------------------------
+
+  await test('per_enrolled_student_session bills one charge per enrolled student, idempotently; a waived no-show voids them', async () => {
+    const clubC = await createClub('club-c', admin, district.id);
+    const courtC1 = await createCourt(clubC, 'Kort 1');
+    const rate = await one<{ id: string }>(
+      `INSERT INTO app.platform_fee_rates (fee_type, club_id, amount_kurus, lesson_fee_basis, effective_from, created_by)
+       VALUES ('lesson', $1, 2500, 'per_enrolled_student_session', now(), $2) RETURNING id`,
+      [clubC, admin]
+    );
+    const policy = await one<{ id: string }>(
+      `INSERT INTO app.billing_policies (club_id, effective_from, charge_no_show, amounts_include_vat, created_by)
+       VALUES ($1, now(), false, false, $2) RETURNING id`,
+      [clubC, admin]
+    );
+    const contractC = await one<{ id: string }>(
+      `INSERT INTO app.coach_club_contracts (coach_user_id, club_id, status, starts_on, created_by)
+       VALUES ($1, $2, 'active', '2026-01-01', $3) RETURNING id`,
+      [coach, clubC, admin]
+    );
+    const lesson = await one<{ id: string; fee_basis: string }>(
+      `INSERT INTO app.lessons (club_id, coach_user_id, contract_id, kind, title, capacity)
+       VALUES ($1, $2, $3, 'group', 'Kişi Başı Ders', 4) RETURNING id, fee_basis`,
+      [clubC, coach, contractC.id]
+    );
+    assertEqual(lesson.fee_basis, 'per_enrolled_student_session', 'basis snapshot');
+
+    const enrolled: string[] = [];
+    for (const name of ['Kisi1', 'Kisi2', 'Kisi3']) {
+      const u = await createUser(name);
+      enrolled.push((await one<{ id: string }>(
+        `INSERT INTO app.lesson_enrollments (lesson_id, user_id, status, enrolled_at) VALUES ($1, $2, 'enrolled', now()) RETURNING id`,
+        [lesson.id, u])).id);
+    }
+    await db.query(`UPDATE app.lessons SET enrolled_count = 3 WHERE id = $1`, [lesson.id]);
+    await db.query(
+      `INSERT INTO app.lesson_enrollments (lesson_id, user_id, status, cancelled_at) VALUES ($1, $2, 'cancelled', now())`,
+      [lesson.id, await createUser('Vazgecen')]
+    );
+    await db.query(
+      `INSERT INTO app.lesson_enrollments (lesson_id, user_id, status, waitlist_position) VALUES ($1, $2, 'waitlisted', 1)`,
+      [lesson.id, await createUser('Bekleyen')]
+    );
+
+    const session = await tx(async () => {
+      const booking = await insertBooking(clubC, courtC1, '2030-11-15T10:00:00+03:00', '2030-11-15T11:30:00+03:00');
+      const res = await one<{ id: string }>(
+        `INSERT INTO app.reservations (booking_id, source, owner_user_id, total_price_kurus) VALUES ($1, 'lesson', $2, 0) RETURNING id`,
+        [booking.id, coach]
+      );
+      const s = await one<{ id: string }>(
+        `INSERT INTO app.lesson_sessions (lesson_id, reservation_id, session_no) VALUES ($1, $2, 1) RETURNING id`,
+        [lesson.id, res.id]
+      );
+      return { id: s.id, reservationId: res.id };
+    });
+
+    const n = await one<{ n: number }>(`SELECT app.charge_lesson_session($1) AS n`, [session.id]);
+    assertEqual(n.n, 3, 'one charge per enrolled student');
+    const entries = async () => (await db.query<{ idempotency_key: string; lesson_enrollment_id: string; amount_kurus: number;
+                                                  club_id: string; rate_id: string; service_date: string; billing_period: string;
+                                                  status: string; void_reason: string | null; policy_id: string | null }>(
+      `SELECT idempotency_key, lesson_enrollment_id, amount_kurus, club_id, rate_id, service_date::text,
+              billing_period::text, status, void_reason, policy_id
+       FROM app.fee_ledger_entries WHERE lesson_session_id = $1 AND entry_type = 'charge' ORDER BY lesson_enrollment_id`,
+      [session.id])).rows;
+    let rows = await entries();
+    assertEqual(rows.length, 3, 'three ledger rows');
+    assertEqual(JSON.stringify(rows.map(r => r.lesson_enrollment_id)), JSON.stringify([...enrolled].sort()),
+      'exactly the enrolled students (not cancelled or waitlisted)');
+    for (const r of rows) {
+      assertEqual(r.idempotency_key, `ls:${session.id}:enr:${r.lesson_enrollment_id}:charge`, 'idempotency key');
+      assertEqual(r.amount_kurus, 2500, 'club C lesson fee');
+      assertEqual(r.club_id, clubC, 'club');
+      assertEqual(r.rate_id, rate.id, 'snapshotted rate');
+      assertEqual(r.service_date, '2030-11-15', 'Istanbul play date');
+      assertEqual(r.billing_period, '2030-11-01', 'billing period');
+    }
+
+    const retry = await one<{ n: number }>(`SELECT app.charge_lesson_session($1) AS n`, [session.id]);
+    assertEqual(retry.n, 0, 'second call creates nothing');
+    assertEqual((await entries()).length, 3, 'no duplicates');
+
+    await db.query(`UPDATE app.reservations SET status = 'no_show' WHERE id = $1`, [session.reservationId]);
+    const settled = JSON.parse((await one<{ s: string }>(`SELECT app.settle_no_show_fee($1) AS s`, [session.reservationId])).s);
+    assertEqual(settled.voided, 3, 'every student charge of the session voided');
+    rows = await entries();
+    for (const r of rows) {
+      assertEqual(r.status, 'voided', 'voided');
+      assertEqual(r.void_reason, 'no_show_waived', 'void reason');
+      assertEqual(r.policy_id, policy.id, 'waiving policy stamped on lesson charges');
+    }
+  });
+
   // --- KVKK --------------------------------------------------------------------
 
   await test('anonymizing a user keeps ledger history intact; hard delete is refused', async () => {
@@ -644,19 +915,21 @@ async function main() {
     assert(rows.length === 0, `tables without RLS or ralo_app policy: ${rows.map(r => r.relname).join(', ')}`);
   });
 
+  /** Runs `fn` as ralo_app with the given request scope, always rolling back. */
+  const asApp = async <T>(scope: string | null, fn: () => Promise<T>) => {
+    await db.exec('BEGIN');
+    try {
+      await db.exec('SET LOCAL ROLE ralo_app');
+      if (scope) await db.query(`SELECT set_config('app.scope', $1, true)`, [scope]);
+      return await fn();
+    } finally {
+      await db.exec('ROLLBACK').catch(() => {});
+    }
+  };
+  const count = (sql: string, params: unknown[] = []) => one<{ n: number }>(sql, params).then(r => r.n);
+
   await test('RLS tenant backstop: club scope hides and blocks other clubs, unset scope fails closed', async () => {
     const b = await createAppReservation(clubB, courtB1, player, '2030-10-11T19:00:00+03:00', '2030-10-11T20:00:00+03:00');
-    const asApp = async <T>(scope: string | null, fn: () => Promise<T>) => {
-      await db.exec('BEGIN');
-      try {
-        await db.exec('SET LOCAL ROLE ralo_app');
-        if (scope) await db.query(`SELECT set_config('app.scope', $1, true)`, [scope]);
-        return await fn();
-      } finally {
-        await db.exec('ROLLBACK').catch(() => {});
-      }
-    };
-    const count = (sql: string) => one<{ n: number }>(sql).then(r => r.n);
 
     const clubAView = await asApp(`club:${clubA}`, async () => ({
       reservationsOfB: await count(`SELECT count(*)::int AS n FROM app.reservations WHERE club_id = '${clubB}'`),
@@ -686,6 +959,94 @@ async function main() {
 
     const anon = await asApp(`club:${clubA}`, () => count(`SELECT count(*)::int AS n FROM app.users`));
     assert(anon > 0, 'non-tenant tables stay readable for ralo_app');
+  });
+
+  await test('RLS tenant backstop covers staff, invites, courts, coach contracts and club catalogue rows', async () => {
+    const staffA = await createUser('PersonelA');
+    const staffB = await createUser('PersonelB');
+    await db.query(
+      `INSERT INTO app.club_memberships (club_id, user_id, role) VALUES ($1, $3, 'staff'), ($2, $4, 'staff')`,
+      [clubA, clubB, staffA, staffB]
+    );
+    await db.query(
+      `INSERT INTO app.club_staff_invites (club_id, phone, display_name, invited_by, expires_at)
+       VALUES ($1, '905329990001', 'Davetli A', $3, now() + interval '7 days'),
+              ($2, '905329990002', 'Davetli B', $3, now() + interval '7 days')`,
+      [clubA, clubB, admin]
+    );
+    await db.query(
+      `INSERT INTO app.coach_club_contracts (coach_user_id, club_id, status, starts_on, created_by)
+       VALUES ($1, $2, 'pending', '2026-01-01', $3)`,
+      [coach, clubB, admin]
+    );
+    await db.query(
+      `INSERT INTO app.club_opening_hours (club_id, weekday, open_minute, close_minute) VALUES ($1, 1, 480, 1380), ($2, 1, 480, 1380)`,
+      [clubA, clubB]
+    );
+    await db.query(`INSERT INTO app.club_amenities (club_id, amenity_code) VALUES ($1, 'wifi'), ($2, 'wifi')`, [clubA, clubB]);
+
+    const cases: { table: string; update: string; insert: string; insertParams: unknown[] }[] = [
+      { table: 'club_memberships', update: `SET permissions = '{STAFF_MANAGE}'`,
+        insert: `INSERT INTO app.club_memberships (club_id, user_id, role) VALUES ($1, $2, 'owner')`, insertParams: [clubB, staffA] },
+      { table: 'club_staff_invites', update: `SET display_name = 'Ele geçirildi'`,
+        insert: `INSERT INTO app.club_staff_invites (club_id, phone, display_name, invited_by, expires_at)
+                 VALUES ($1, '905329990003', 'Sızma', $2, now() + interval '1 day')`, insertParams: [clubB, staffA] },
+      { table: 'courts', update: `SET hourly_price_kurus = 1`,
+        insert: `INSERT INTO app.courts (club_id, name, court_type, surface, hourly_price_kurus)
+                 VALUES ($1, 'Sızma', 'indoor_standard', 'artificial_grass', 1)`, insertParams: [clubB] },
+      { table: 'coach_club_contracts', update: `SET status = 'suspended'`,
+        insert: `INSERT INTO app.coach_club_contracts (coach_user_id, club_id, status, starts_on, created_by)
+                 VALUES ($2, $1, 'active', '2026-01-01', $2)`, insertParams: [clubB, coach] },
+      { table: 'club_opening_hours', update: `SET is_closed = true`,
+        insert: `INSERT INTO app.club_opening_hours (club_id, weekday, is_closed) VALUES ($1, 2, true)`, insertParams: [clubB] },
+      { table: 'club_amenities', update: `SET amenity_code = 'parking'`,
+        insert: `INSERT INTO app.club_amenities (club_id, amenity_code) VALUES ($1, 'cafe')`, insertParams: [clubB] }
+    ];
+
+    for (const c of cases) {
+      const snapshot = () => db.query(`SELECT * FROM app.${c.table} WHERE club_id = $1 ORDER BY 1, 2`, [clubB])
+        .then(r => JSON.stringify(r.rows));
+      const before = await snapshot();
+      assert(before !== '[]', `${c.table}: club B fixture row exists`);
+
+      const view = await asApp(`club:${clubA}`, async () => ({
+        own: await count(`SELECT count(*)::int AS n FROM app.${c.table} WHERE club_id = $1`, [clubA]),
+        other: await count(`SELECT count(*)::int AS n FROM app.${c.table} WHERE club_id = $1`, [clubB]),
+        unfiltered: await count(`SELECT count(DISTINCT club_id)::int AS n FROM app.${c.table}`),
+        updated: (await db.query(`UPDATE app.${c.table} ${c.update} WHERE club_id = $1`, [clubB])).affectedRows ?? 0
+      }));
+      assert(view.own > 0, `${c.table}: club A scope sees its own rows`);
+      assertEqual(view.other, 0, `${c.table}: club B rows hidden from club A scope`);
+      assertEqual(view.unfiltered, 1, `${c.table}: a query without WHERE club_id sees only club A`);
+      assertEqual(view.updated, 0, `${c.table}: club A scope updates no club B row`);
+
+      let blocked: any;
+      await asApp(`club:${clubA}`, async () => {
+        try {
+          await db.query(c.insert, c.insertParams);
+        } catch (err) {
+          blocked = err;
+        }
+      });
+      assertEqual(blocked?.code, '42501', `${c.table}: writing a club B row from club A scope is refused`);
+
+      let moved: any;
+      await asApp(`club:${clubA}`, async () => {
+        try {
+          await db.query(`UPDATE app.${c.table} SET club_id = $2 WHERE club_id = $1`, [clubA, clubB]);
+        } catch (err) {
+          moved = err;
+        }
+      });
+      assertEqual(moved?.code, '42501', `${c.table}: moving a row to club B from club A scope is refused`);
+
+      assertEqual(await snapshot(), before, `${c.table}: club B rows unchanged`);
+      const globalView = await asApp('global', () =>
+        count(`SELECT count(*)::int AS n FROM app.${c.table} WHERE club_id = $1`, [clubB]));
+      assert(globalView > 0, `${c.table}: global scope (player search, admin) still reads club B`);
+      assertEqual(await asApp(null, () => count(`SELECT count(*)::int AS n FROM app.${c.table}`)), 0,
+        `${c.table}: unset scope fails closed`);
+    }
   });
 
   console.log(`\n${passed} passed, ${failures.length} failed`);

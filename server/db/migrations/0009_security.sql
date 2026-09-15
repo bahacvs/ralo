@@ -26,8 +26,15 @@ BEGIN
     EXECUTE format('CREATE POLICY ralo_app_access ON app.%I AS PERMISSIVE FOR ALL TO ralo_app USING (true) WITH CHECK (true)', t.relname);
   END LOOP;
 
+  -- Every table with a direct club_id that holds one club's data. Club catalogue rows (courts, opening
+  -- hours, amenities) are included: player search and booking run under 'global', which
+  -- club_in_scope() allows, so only club-scoped panel/coach requests are narrowed to their own club.
+  -- Not scoped: clubs (keyed by id, public catalogue), court_photos (no club_id; reached via courts),
+  -- platform_fee_rates / billing_policies (club_id NULL = platform-wide rows every club must resolve).
   FOR t IN
-    SELECT unnest(ARRAY['court_bookings','court_blocks','reservations','lessons','coach_student_notes',
+    SELECT unnest(ARRAY['club_memberships','club_staff_invites','courts','coach_club_contracts',
+                        'club_opening_hours','club_amenities',
+                        'court_bookings','court_blocks','reservations','lessons','coach_student_notes',
                         'fee_ledger_entries','monthly_statements','audit_log']) AS relname
   LOOP
     EXECUTE format('DROP POLICY IF EXISTS tenant_scope ON app.%I', t.relname);
