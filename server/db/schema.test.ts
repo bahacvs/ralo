@@ -67,12 +67,12 @@ async function tx<T>(fn: () => Promise<T>): Promise<T> {
 // Fixtures
 // ---------------------------------------------------------------------------
 
-let phoneSeq = 1000;
+let userSeq = 1000;
 async function createUser(name: string): Promise<string> {
-  phoneSeq++;
+  userSeq++;
   const row = await one<{ id: string }>(
-    `INSERT INTO app.users (phone, display_name, masked_name) VALUES ($1, $2, $3) RETURNING id`,
-    [`90532000${phoneSeq}`, name, `${name.slice(0, 1)}.`]
+    `INSERT INTO app.users (email, display_name, masked_name) VALUES ($1, $2, $3) RETURNING id`,
+    [`user${userSeq}@test.ralo`, name, `${name.slice(0, 1)}.`]
   );
   return row.id;
 }
@@ -831,7 +831,9 @@ async function main() {
     });
     assertEqual(summary.s.status, 'anonymized', 'anonymize result');
 
-    const user = await one(`SELECT phone, display_name, status FROM app.users WHERE id = $1`, [player2]);
+    const user = await one(`SELECT email, password_hash, phone, display_name, status FROM app.users WHERE id = $1`, [player2]);
+    assertEqual(user.email, null, 'email removed');
+    assertEqual(user.password_hash, null, 'password hash removed');
     assertEqual(user.phone, null, 'phone removed');
     assertEqual(user.status, 'deleted', 'status');
     assertEqual(user.display_name, 'Silinmiş Kullanıcı', 'display name');
@@ -857,6 +859,28 @@ async function main() {
     assertEqual(audit.n, 1, 'audit entry');
   });
 
+  await test('email sign-in: lowercase unique addresses, required for active accounts, scrypt hashes, known link purposes', async () => {
+    await expectSqlError(() => db.query(
+      `INSERT INTO app.users (email, display_name, masked_name) VALUES ('Buyuk@Test.ralo', 'Büyük', 'B.')`), '23514');
+    await expectSqlError(() => db.query(
+      `INSERT INTO app.users (display_name, masked_name) VALUES ('E-postasız', 'E.')`), '23514');
+
+    const id = await createUser('Tekil');
+    const { email } = await one<{ email: string }>(`SELECT email FROM app.users WHERE id = $1`, [id]);
+    await expectSqlError(() => db.query(
+      `INSERT INTO app.users (email, display_name, masked_name) VALUES ($1, 'Kopya', 'K.')`, [email]), '23505');
+    await expectSqlError(() => db.query(`UPDATE app.users SET password_hash = 'duz-metin' WHERE id = $1`, [id]), '23514');
+    await db.query(
+      `UPDATE app.users SET password_hash = 'scrypt$32768$8$1$c2FsdA==$a2V5', email_verified_at = now() WHERE id = $1`, [id]);
+
+    await db.query(
+      `INSERT INTO app.auth_tokens (token_hash, user_id, purpose, email, expires_at)
+       VALUES (sha256('link'::bytea), $1, 'reset_password', $2, now() + interval '1 hour')`, [id, email]);
+    await expectSqlError(() => db.query(
+      `INSERT INTO app.auth_tokens (token_hash, user_id, purpose, email, expires_at)
+       VALUES (sha256('otp'::bytea), $1, 'sms_code', $2, now() + interval '1 hour')`, [id, email]), '23514');
+  });
+
   await test('every users(id) reference is handled by anonymize_user or declared retained history', async () => {
     // Personal rows removed, cancelled or rewritten by app.anonymize_user().
     const handled = new Set([
@@ -865,7 +889,8 @@ async function main() {
       'lesson_enrollments.user_id', 'coach_student_notes.student_user_id', 'conversation_participants.user_id',
       'messages.sender_user_id', 'notifications.user_id', 'notifications.actor_user_id', 'feed_posts.author_id',
       'feed_replies.author_id', 'feed_post_likes.user_id', 'friendships.user_id', 'friendships.friend_user_id',
-      'favorite_courts.user_id', 'sessions.user_id', 'consent_records.user_id', 'account_deletion_requests.user_id'
+      'favorite_courts.user_id', 'sessions.user_id', 'auth_tokens.user_id', 'consent_records.user_id',
+      'account_deletion_requests.user_id'
     ]);
     // Actor references and financial/history rows that legitimately keep pointing at the anonymous row.
     const retained = new Set([
@@ -969,9 +994,9 @@ async function main() {
       [clubA, clubB, staffA, staffB]
     );
     await db.query(
-      `INSERT INTO app.club_staff_invites (club_id, phone, display_name, invited_by, expires_at)
-       VALUES ($1, '905329990001', 'Davetli A', $3, now() + interval '7 days'),
-              ($2, '905329990002', 'Davetli B', $3, now() + interval '7 days')`,
+      `INSERT INTO app.club_staff_invites (club_id, email, display_name, invited_by, expires_at)
+       VALUES ($1, 'davetli.a@test.ralo', 'Davetli A', $3, now() + interval '7 days'),
+              ($2, 'davetli.b@test.ralo', 'Davetli B', $3, now() + interval '7 days')`,
       [clubA, clubB, admin]
     );
     await db.query(
@@ -989,8 +1014,8 @@ async function main() {
       { table: 'club_memberships', update: `SET permissions = '{STAFF_MANAGE}'`,
         insert: `INSERT INTO app.club_memberships (club_id, user_id, role) VALUES ($1, $2, 'owner')`, insertParams: [clubB, staffA] },
       { table: 'club_staff_invites', update: `SET display_name = 'Ele geçirildi'`,
-        insert: `INSERT INTO app.club_staff_invites (club_id, phone, display_name, invited_by, expires_at)
-                 VALUES ($1, '905329990003', 'Sızma', $2, now() + interval '1 day')`, insertParams: [clubB, staffA] },
+        insert: `INSERT INTO app.club_staff_invites (club_id, email, display_name, invited_by, expires_at)
+                 VALUES ($1, 'sizma@test.ralo', 'Sızma', $2, now() + interval '1 day')`, insertParams: [clubB, staffA] },
       { table: 'courts', update: `SET hourly_price_kurus = 1`,
         insert: `INSERT INTO app.courts (club_id, name, court_type, surface, hourly_price_kurus)
                  VALUES ($1, 'Sızma', 'indoor_standard', 'artificial_grass', 1)`, insertParams: [clubB] },

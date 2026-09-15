@@ -20,18 +20,22 @@ services:
         value: "false"
       - key: VITE_DEMO_MODE
         value: "false"
-      - key: SMS_PROVIDER
-        value: netgsm
+      - key: MAIL_PROVIDER
+        value: smtp
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "465"
       # Secrets: set these in the Render dashboard
       - key: DATABASE_URL
         sync: false
       - key: DATABASE_SSL_CA
         sync: false
-      - key: NETGSM_USERCODE
+      - key: SMTP_USER
         sync: false
-      - key: NETGSM_PASSWORD
+      - key: SMTP_PASS
         sync: false
-      - key: NETGSM_MSGHEADER
+      - key: MAIL_FROM
         sync: false
       - key: APP_URL
         sync: false

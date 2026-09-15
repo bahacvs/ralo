@@ -102,7 +102,7 @@ c) **RALO, Kulüp adına veri işleyendir:** Kulüp personelinin panele manuel o
 8.3. **Veri işleyen olarak RALO'nun taahhütleri:**
 a) Verileri yalnızca Kulübün talimatıyla ve Platform hizmetlerinin sunulması amacıyla işlemek,
 b) KVKK md. 12 kapsamında gerekli teknik ve idari tedbirleri almak (erişim yetkilendirmesi, oturum anahtarlarının özet olarak saklanması, şifreli bağlantı vb.),
-c) Alt veri işleyenleri (Supabase Inc. – veritabanı, Frankfurt; Render Services, Inc. – barındırma, Frankfurt; Netgsm – SMS) Ek-2'de listelemek ve değişiklikleri [30] gün önceden bildirmek,
+c) Alt veri işleyenleri (Supabase Inc. – veritabanı, Frankfurt; Render Services, Inc. – barındırma, Frankfurt; Google – e-posta gönderimi (Gmail)) Ek-2'de listelemek ve değişiklikleri [30] gün önceden bildirmek,
 ç) Yurt dışı aktarımlar için KVKK md. 9'daki uygun güvenceleri sağlamak,
 d) Veri ihlalini öğrenmesinden itibaren gecikmeksizin ve en geç [24 saat] içinde Kulübe bildirmek,
 e) İlgili kişi başvurularında Kulübe makul destek sağlamak,
@@ -182,5 +182,5 @@ c) Kulüp listesi Platformdan kaldırılır; Madde 8.3-f uyarınca veri iadesi v
 |---|---|---|
 | Supabase Inc. | PostgreSQL veritabanı | Frankfurt, Almanya |
 | Render Services, Inc. | Uygulama barındırma | Frankfurt, Almanya |
-| Netgsm İletişim ve Bilgi Teknolojileri A.Ş. | SMS doğrulama | Türkiye |
+| Google LLC / Google Ireland Ltd. (Gmail) | Hesap doğrulama, şifre sıfırlama ve personel daveti e-postaları | ABD / AB [TEYİT] |
 | Google (Gemini API) | Açık maç paylaşım metni üretimi (Kulüp adı, ilçe, maç saati; Kulüp müşteri verisi gönderilmez) | [TEYİT EDİLECEK] |

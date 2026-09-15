@@ -62,16 +62,39 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   // Auth
-  sendOtp: (phone: string) => 
-    request<{ success: boolean; message: string; demoOtp?: string }>('/api/auth/otp/send', {
+  register: (data: { displayName: string; email: string; password: string; acceptTerms: boolean }) =>
+    request<{ success: boolean; token: string; user: User; verificationEmailSent: boolean }>('/api/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ phone })
+      body: JSON.stringify(data)
     }),
 
-  verifyOtp: (phone: string, code: string, returnTo?: string) => 
-    request<{ success: boolean; token: string; user: User; returnTo: string }>('/api/auth/otp/verify', {
+  login: (email: string, password: string) =>
+    request<{ success: boolean; token: string; user: User }>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ phone, code, returnTo })
+      body: JSON.stringify({ email, password })
+    }),
+
+  verifyEmail: (token: string) =>
+    request<{ success: boolean; message: string }>('/api/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ token })
+    }),
+
+  resendVerification: () =>
+    request<{ success: boolean; message: string; alreadyVerified?: boolean }>('/api/auth/resend-verification', {
+      method: 'POST'
+    }),
+
+  forgotPassword: (email: string) =>
+    request<{ success: boolean; message: string }>('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    }),
+
+  resetPassword: (token: string, password: string) =>
+    request<{ success: boolean; token: string; user: User; message: string }>('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password })
     }),
 
   demoSwitch: (targetRole: 'OYUNCU' | 'ISLETME_SAHIBI' | 'PERSONEL') => 
@@ -391,7 +414,7 @@ export const api = {
     request<{ staff: any[] }>(`/api/panel/staff?businessId=${businessId}`),
 
   createPanelStaff: (data: any) => 
-    request<{ success: boolean; staff: any }>('/api/panel/staff', {
+    request<{ success: boolean; staff: any; invited: boolean; inviteEmailSent: boolean }>('/api/panel/staff', {
       method: 'POST',
       body: JSON.stringify(data)
     }),

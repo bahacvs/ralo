@@ -9,6 +9,7 @@
 
 import { dbStore, addDays, formatDateKey } from './store.js';
 import { addMinutesToLocal, parseClientDateTime } from './time.js';
+import { normalizeEmail, validatePassword, hashPassword, verifyPassword, createAuthToken, consumeAuthToken } from './auth.js';
 
 let passed = 0;
 let failed = 0;
@@ -233,6 +234,34 @@ async function runTests() {
   assert(board.length > 0 && board.length <= 50, 'Test 6.1: Sıralama en fazla 50 oyuncu döndürdü');
   assert(board.every((u, i) => i === 0 || board[i - 1].elo >= u.elo), 'Test 6.2: Sıralama Elo puanına göre azalan düzende');
   assert(board.every(u => u.role === 'OYUNCU'), 'Test 6.3: Sıralamada yalnızca oyuncular yer aldı');
+
+  // TEST 7: Email + password sign-in primitives
+  try {
+    assert(normalizeEmail('  Baha@Example.COM ') === 'baha@example.com', 'Test 7.1: E-posta adresi küçük harfe çevrildi ve boşlukları temizlendi');
+    assert(normalizeEmail('baha@') === null && normalizeEmail(42) === null, 'Test 7.2: Geçersiz e-posta adresi reddedildi');
+    assert(validatePassword('kisa1') !== null && validatePassword('sadeceharf') !== null && validatePassword('12345678') !== null, 'Test 7.3: Kısa, rakamsız veya harfsiz şifre reddedildi');
+    assert(validatePassword('padel2026') === null, 'Test 7.4: Kurallara uyan şifre kabul edildi');
+
+    const hash = await hashPassword('padel2026');
+    assert(hash.startsWith('scrypt$') && !hash.includes('padel2026'), 'Test 7.5: Şifre scrypt ile özetlendi, düz metin saklanmadı');
+    assert(await verifyPassword('padel2026', hash), 'Test 7.6: Doğru şifre doğrulandı');
+    assert(!(await verifyPassword('padel2027', hash)), 'Test 7.7: Yanlış şifre reddedildi');
+    assert((await hashPassword('padel2026')) !== hash, 'Test 7.8: Aynı şifre her seferinde farklı tuzla özetlendi');
+
+    const userId = 'test_auth_user';
+    const first = createAuthToken(userId, 'test@ralo.app', 'RESET_PASSWORD', 60_000);
+    const second = createAuthToken(userId, 'test@ralo.app', 'RESET_PASSWORD', 60_000);
+    assert(consumeAuthToken(first, 'RESET_PASSWORD') === null, 'Test 7.9: Yeni bağlantı istenince eski bağlantı geçersiz oldu');
+    assert(consumeAuthToken(second, 'VERIFY_EMAIL') === null, 'Test 7.10: Bağlantı başka bir amaç için kullanılamadı');
+    assert(consumeAuthToken(second, 'RESET_PASSWORD')?.userId === userId, 'Test 7.11: Geçerli bağlantı hesabı döndürdü');
+    assert(consumeAuthToken(second, 'RESET_PASSWORD') === null, 'Test 7.12: Bağlantı ikinci kez kullanılamadı');
+    const expired = createAuthToken(userId, 'test@ralo.app', 'VERIFY_EMAIL', -1000);
+    assert(consumeAuthToken(expired, 'VERIFY_EMAIL') === null, 'Test 7.13: Süresi dolmuş bağlantı reddedildi');
+  } catch (err: any) {
+    assert(false, 'Test 7: Kimlik doğrulama testi beklenmedik hata verdi', err.message);
+  } finally {
+    dbStore.removeAuthTokens(t => t.userId === 'test_auth_user');
+  }
 
   console.log(`\n🏁 Test Özeti: ${passed} Başarılı, ${failed} Hatalı\n`);
 

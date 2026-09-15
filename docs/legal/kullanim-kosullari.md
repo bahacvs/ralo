@@ -15,13 +15,13 @@
 
 ## 2. Hesap
 
-2.1. Üyelik, Türkiye'de kayıtlı bir cep telefonu numarası ve bu numaraya SMS ile gönderilen tek kullanımlık doğrulama kodu ile oluşturulur. Her telefon numarası için yalnızca bir hesap açılabilir.
+2.1. Üyelik, geçerli bir e-posta adresi ve Kullanıcının belirlediği şifre ile oluşturulur. Her e-posta adresi için yalnızca bir hesap açılabilir. Uygulama üzerinden kort rezervasyonu yapabilmek için e-posta adresinin, bu adrese gönderilen bağlantıyla doğrulanması gerekir.
 
 2.2. Uygulamayı kullanabilmek için [18] yaşını doldurmuş olmak gerekir. [AVUKAT KARARI: 18 yaş altı kullanıcılar için veli onayı mekanizması kurulacak mı?]
 
-2.3. Kullanıcı, verdiği bilgilerin (ad, telefon, profil fotoğrafı) doğru ve kendisine ait olduğunu kabul eder. Başkasının adını veya fotoğrafını kullanmak yasaktır.
+2.3. Kullanıcı, verdiği bilgilerin (ad, e-posta adresi, varsa telefon, profil fotoğrafı) doğru ve kendisine ait olduğunu kabul eder. Başkasının adını veya fotoğrafını kullanmak yasaktır.
 
-2.4. Hesabın ve telefon numarasının güvenliği Kullanıcının sorumluluğundadır. Doğrulama kodu hiç kimseyle paylaşılmamalıdır. Telefon numarasını değiştiren veya kaybeden Kullanıcı RALO'ya derhal bildirimde bulunmalıdır.
+2.4. Hesabın, şifrenin ve bağlı e-posta hesabının güvenliği Kullanıcının sorumluluğundadır. Şifre hiç kimseyle paylaşılmamalıdır. Şifresinin başkası tarafından öğrenildiğinden şüphelenen Kullanıcı şifresini derhal sıfırlamalı ve RALO'ya bildirimde bulunmalıdır.
 
 2.5. Oturumlar 30 gün geçerlidir; Kullanıcı dilediği zaman çıkış yapabilir.
 
@@ -43,7 +43,7 @@
 
 4.1. Kullanıcı, yaptığı rezervasyonu açık maça dönüştürerek diğer oyunculara açabilir; seviye (Elo) aralığı, maç türü, katılım onayı gibi tercihler belirleyebilir. Diğer Kullanıcılar boş yerlere katılabilir veya bekleme listesine girebilir. Bir oyuncu ayrıldığında bekleme listesindeki sıradaki oyuncuya yer açılabilir.
 
-4.2. Açık maçta diğer katılımcılar, Kullanıcının kısaltılmış adını, profil fotoğrafını, Elo puanını ve oyun tarafı/el tercihini görebilir. **Telefon numarası diğer oyunculara gösterilmez.**
+4.2. Açık maçta diğer katılımcılar, Kullanıcının kısaltılmış adını, profil fotoğrafını, Elo puanını ve oyun tarafı/el tercihini görebilir. **E-posta adresi ve telefon numarası diğer oyunculara gösterilmez.**
 
 4.3. **Kort ücretinin katılımcılar arasında paylaşımı** Kullanıcılar ile Kulüp arasındaki bir konudur. Uygulamada gösterilen "kişi başı ücret" bilgilendirme amaçlıdır; RALO paylaşımın tahsilatına aracılık etmez ve katılımcılar arasındaki ödeme anlaşmazlıklarından sorumlu değildir.
 

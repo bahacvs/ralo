@@ -8,9 +8,11 @@ import { todayLocal, nowLocal, formatLocalDate, addMinutesToLocal, parseClientDa
 import { dbStore } from './server/store.js';
 import {
   createSession, getSessionUserId, deleteSession, deleteUserSessions, extractToken,
-  normalizePhone, issueOtp, verifyOtp
+  normalizePhone, normalizeEmail, validatePassword, hashPassword, verifyPassword, burnPasswordCheck,
+  createAuthToken, consumeAuthToken, PASSWORD_MAX_LENGTH,
+  VERIFY_EMAIL_TTL_MS, RESET_PASSWORD_TTL_MS, STAFF_INVITE_TTL_MS
 } from './server/auth.js';
-import { sendOtpSms } from './server/sms.js';
+import { sendMail, assertMailConfigured, verificationEmail, passwordResetEmail, staffInviteEmail, type MailMessage } from './server/mailer.js';
 import { rateLimit, byIp, byUser, global } from './server/rateLimit.js';
 import { Persistence } from './server/persistence.js';
 import { User, Reservation, Court, FeedPost, FeedReply, FeedCategory, CourtOccupancyInfo, CourtWeatherInfo } from './src/types/index.js';
@@ -26,10 +28,15 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 
-// Abuse and cost controls (SMS pumping, Gemini spend, spam)
-const otpSendIpLimit = rateLimit({ name: 'otp-send-ip', limit: 10, windowMs: HOUR, key: byIp, message: 'Bu cihazdan çok fazla doğrulama kodu istendi. Lütfen bir saat sonra tekrar deneyin.' });
-const otpSendGlobalLimit = rateLimit({ name: 'otp-send-global', limit: Number(process.env.OTP_GLOBAL_LIMIT_PER_10MIN) || 300, windowMs: 10 * MINUTE, key: global, message: 'Şu anda çok yoğun talep var. Lütfen birkaç dakika sonra tekrar deneyin.' });
-const otpVerifyIpLimit = rateLimit({ name: 'otp-verify-ip', limit: 30, windowMs: 15 * MINUTE, key: byIp, message: 'Çok fazla doğrulama denemesi yapıldı. Lütfen 15 dakika sonra tekrar deneyin.' });
+// Abuse and cost controls (password guessing, email flooding, Gemini spend, spam)
+const byBodyEmail = (req: Request): string | undefined => normalizeEmail(req.body?.email) ?? undefined;
+const registerIpLimit = rateLimit({ name: 'register-ip', limit: 10, windowMs: HOUR, key: byIp, message: 'Bu cihazdan çok fazla hesap oluşturuldu. Lütfen bir saat sonra tekrar deneyin.' });
+const loginIpLimit = rateLimit({ name: 'login-ip', limit: 30, windowMs: 15 * MINUTE, key: byIp, message: 'Çok fazla giriş denemesi yapıldı. Lütfen 15 dakika sonra tekrar deneyin.' });
+const loginEmailLimit = rateLimit({ name: 'login-email', limit: 10, windowMs: 15 * MINUTE, key: byBodyEmail, message: 'Bu hesap için çok fazla giriş denemesi yapıldı. Lütfen 15 dakika sonra tekrar deneyin veya şifrenizi sıfırlayın.' });
+const passwordResetIpLimit = rateLimit({ name: 'password-reset-ip', limit: 10, windowMs: HOUR, key: byIp, message: 'Çok fazla şifre sıfırlama isteği yapıldı. Lütfen bir saat sonra tekrar deneyin.' });
+const passwordResetEmailLimit = rateLimit({ name: 'password-reset-email', limit: 3, windowMs: HOUR, key: byBodyEmail, message: 'Bu e-posta adresi için kısa sürede çok fazla bağlantı istendi. Lütfen bir saat sonra tekrar deneyin.' });
+const authLinkIpLimit = rateLimit({ name: 'auth-link-ip', limit: 30, windowMs: 15 * MINUTE, key: byIp, message: 'Çok fazla deneme yapıldı. Lütfen 15 dakika sonra tekrar deneyin.' });
+const resendVerificationLimit = rateLimit({ name: 'resend-verification', limit: 3, windowMs: HOUR, key: byUser, message: 'Doğrulama e-postası kısa sürede çok fazla istendi. Lütfen bir saat sonra tekrar deneyin.' });
 const shareCardUserLimit = rateLimit({ name: 'share-card', limit: 10, windowMs: HOUR, key: byUser, message: 'Paylaşım kartı için saatlik sınıra ulaştınız. Lütfen daha sonra tekrar deneyin.' });
 const feedPostLimit = rateLimit({ name: 'feed-post', limit: 5, windowMs: 10 * MINUTE, key: byUser, message: 'Çok sık paylaşım yapıyorsunuz. Lütfen birkaç dakika bekleyin.' });
 const feedReplyLimit = rateLimit({ name: 'feed-reply', limit: 20, windowMs: 10 * MINUTE, key: byUser, message: 'Çok sık yanıt yazıyorsunuz. Lütfen birkaç dakika bekleyin.' });
@@ -142,88 +149,174 @@ function requireBusiness(permission?: string) {
 }
 
 // -------------------------------------------------------------
-// 1. AUTHENTICATION & OTP APIS
+// 1. AUTHENTICATION (email + password)
 // -------------------------------------------------------------
 
-// OTP Send API with Rate Limiting
-app.post('/api/auth/otp/send', otpSendIpLimit, otpSendGlobalLimit, async (req: Request, res: Response) => {
-  const phone = normalizePhone(req.body?.phone);
-  if (!phone) {
-    return res.status(400).json({ error: 'Geçerli bir cep telefonu numarası giriniz (örn: 0532 100 2030).' });
-  }
+const DEFAULT_AVATAR_URL = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+const INVALID_CREDENTIALS = 'E-posta adresi veya şifre hatalı.';
 
-  const issued = issueOtp(phone);
-  if ('retryAfterSeconds' in issued) {
-    const minutes = Math.max(1, Math.ceil(issued.retryAfterSeconds / 60));
-    return res.status(429).json({ error: `Çok fazla kod istendi. Lütfen ${minutes} dakika sonra tekrar deneyiniz.` });
-  }
-
+/** Sends a transactional email; delivery problems are logged and reported as false. */
+async function deliverMail(message: MailMessage): Promise<boolean> {
   try {
-    await sendOtpSms(phone, issued.code);
+    await sendMail(message);
+    return true;
   } catch (err: any) {
-    console.error('OTP SMS delivery failed:', err?.message);
-    return res.status(502).json({ error: 'SMS gönderilemedi. Lütfen biraz sonra tekrar deneyiniz.' });
+    console.error(`Email delivery failed (${message.subject}):`, err?.message);
+    return false;
+  }
+}
+
+function markEmailVerified(user: User): void {
+  if (user.emailVerified) return;
+  user.emailVerified = true;
+  user.emailVerifiedAt = new Date().toISOString();
+  dbStore.save();
+}
+
+app.post('/api/auth/register', registerIpLimit, async (req: Request, res: Response) => {
+  const { displayName, password, acceptTerms } = req.body || {};
+  const email = normalizeEmail(req.body?.email);
+  const name = typeof displayName === 'string' ? displayName.trim() : '';
+
+  if (!name || name.length > 60) {
+    return res.status(400).json({ error: 'Ad soyad 1 ile 60 karakter arasında olmalıdır.' });
+  }
+  if (!email) {
+    return res.status(400).json({ error: 'Geçerli bir e-posta adresi giriniz.' });
+  }
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return res.status(400).json({ error: passwordError });
+  }
+  if (acceptTerms !== true) {
+    return res.status(400).json({ error: "Devam etmek için Kullanım Koşulları'nı ve KVKK Aydınlatma Metni'ni onaylamanız gerekir." });
   }
 
+  const emailTaken = 'Bu e-posta adresiyle kayıtlı bir hesap zaten var. Giriş yapın veya "Şifremi unuttum" ile şifrenizi sıfırlayın.';
+  if (dbStore.findUserByEmail(email)) {
+    return res.status(409).json({ error: emailTaken });
+  }
+  const passwordHash = await hashPassword(password);
+  // Hashing yields the event loop, so a parallel request may have taken the address meanwhile
+  if (dbStore.findUserByEmail(email)) {
+    return res.status(409).json({ error: emailTaken });
+  }
+
+  const now = new Date().toISOString();
+  const user: User = {
+    id: `user_${crypto.randomUUID()}`,
+    role: 'OYUNCU',
+    email,
+    emailVerified: false,
+    displayName: name,
+    maskedName: toMaskedName(name),
+    avatarUrl: DEFAULT_AVATAR_URL,
+    elo: 1400,
+    matchesCount: 0,
+    playSide: 'BOTH',
+    dominantHand: 'RIGHT',
+    preferredDays: [],
+    preferredHours: [],
+    termsAcceptedAt: now,
+    createdAt: now
+  };
+  dbStore.getUsers().push(user);
+  dbStore.setPassword(user.id, passwordHash);
+
+  const token = createSession(user.id);
+  const verificationEmailSent = await deliverMail(
+    verificationEmail(email, name, createAuthToken(user.id, email, 'VERIFY_EMAIL', VERIFY_EMAIL_TTL_MS))
+  );
+
+  return res.status(201).json({ success: true, token, user, verificationEmailSent });
+});
+
+app.post('/api/auth/login', loginIpLimit, loginEmailLimit, async (req: Request, res: Response) => {
+  const email = normalizeEmail(req.body?.email);
+  const password = req.body?.password;
+  if (!email || typeof password !== 'string' || !password) {
+    return res.status(400).json({ error: 'E-posta adresi ve şifre zorunludur.' });
+  }
+  if (password.length > PASSWORD_MAX_LENGTH) {
+    return res.status(401).json({ error: INVALID_CREDENTIALS });
+  }
+
+  const user = dbStore.findUserByEmail(email);
+  const credential = user ? dbStore.getCredential(user.id) : undefined;
+  if (!user || !credential) {
+    await burnPasswordCheck(password);
+    return res.status(401).json({ error: INVALID_CREDENTIALS });
+  }
+  if (!(await verifyPassword(password, credential.passwordHash))) {
+    return res.status(401).json({ error: INVALID_CREDENTIALS });
+  }
+
+  return res.json({ success: true, token: createSession(user.id), user });
+});
+
+app.post('/api/auth/verify-email', authLinkIpLimit, (req: Request, res: Response) => {
+  const link = consumeAuthToken(req.body?.token, 'VERIFY_EMAIL');
+  const user = link ? dbStore.getUsers().find(u => u.id === link.userId) : undefined;
+  // A link sent to an address the account no longer uses must not verify the current one
+  if (!link || !user || user.email !== link.email) {
+    return res.status(400).json({ error: 'Doğrulama bağlantısı geçersiz, kullanılmış veya süresi dolmuş. Lütfen yeni bağlantı isteyin.' });
+  }
+  markEmailVerified(user);
+  return res.json({ success: true, message: 'E-posta adresiniz doğrulandı. Artık kort rezervasyonu yapabilirsiniz.' });
+});
+
+app.post('/api/auth/resend-verification', authMiddleware, resendVerificationLimit, async (req: Request, res: Response) => {
+  const user = (req as any).user as User;
+  if (user.emailVerified) {
+    return res.json({ success: true, alreadyVerified: true, message: 'E-posta adresiniz zaten doğrulanmış.' });
+  }
+  if (!user.email) {
+    return res.status(400).json({ error: 'Hesabınızda kayıtlı bir e-posta adresi bulunmuyor.' });
+  }
+  const sent = await deliverMail(
+    verificationEmail(user.email, user.displayName, createAuthToken(user.id, user.email, 'VERIFY_EMAIL', VERIFY_EMAIL_TTL_MS))
+  );
+  if (!sent) {
+    return res.status(502).json({ error: 'E-posta gönderilemedi. Lütfen biraz sonra tekrar deneyin.' });
+  }
+  return res.json({ success: true, message: `Doğrulama bağlantısı ${user.email} adresine gönderildi.` });
+});
+
+app.post('/api/auth/forgot-password', passwordResetIpLimit, passwordResetEmailLimit, (req: Request, res: Response) => {
+  const email = normalizeEmail(req.body?.email);
+  if (!email) {
+    return res.status(400).json({ error: 'Geçerli bir e-posta adresi giriniz.' });
+  }
+  const user = dbStore.findUserByEmail(email);
+  if (user) {
+    // Not awaited: the response time must not reveal whether the account exists
+    void deliverMail(passwordResetEmail(email, user.displayName, createAuthToken(user.id, email, 'RESET_PASSWORD', RESET_PASSWORD_TTL_MS)));
+  }
   return res.json({
     success: true,
-    message: 'Doğrulama kodu telefonunuza SMS olarak iletildi.',
-    demoOtp: DEMO_MODE ? issued.code : undefined
+    message: 'Bu e-posta adresiyle kayıtlı bir hesap varsa şifre sıfırlama bağlantısı gönderildi. Gelen kutunuzu ve spam klasörünü kontrol edin.'
   });
 });
 
-// OTP Verify API
-app.post('/api/auth/otp/verify', otpVerifyIpLimit, (req: Request, res: Response) => {
-  const phone = normalizePhone(req.body?.phone);
-  const { code, returnTo } = req.body || {};
-  if (!phone || typeof code !== 'string') {
-    return res.status(400).json({ error: 'Telefon ve 6 haneli doğrulama kodu zorunludur.' });
+app.post('/api/auth/reset-password', authLinkIpLimit, async (req: Request, res: Response) => {
+  const { token, password } = req.body || {};
+  // Checked before the link is consumed so a rejected password does not burn it
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return res.status(400).json({ error: passwordError });
+  }
+  const passwordHash = await hashPassword(password);
+  const link = consumeAuthToken(token, 'RESET_PASSWORD');
+  const user = link ? dbStore.getUsers().find(u => u.id === link.userId) : undefined;
+  if (!link || !user || user.email !== link.email) {
+    return res.status(400).json({ error: 'Şifre bağlantısı geçersiz, kullanılmış veya süresi dolmuş. Lütfen yeni bağlantı isteyin.' });
   }
 
-  const result = verifyOtp(phone, code);
-  if (result === 'EXPIRED') {
-    return res.status(400).json({ error: 'Doğrulama kodu süresi dolmuş veya kod talep edilmemiş. Lütfen yeni kod isteyin.' });
-  }
-  if (result === 'TOO_MANY_ATTEMPTS') {
-    return res.status(429).json({ error: 'Çok fazla hatalı deneme yapıldı. Lütfen yeni kod isteyin.' });
-  }
-  if (result === 'INVALID') {
-    return res.status(400).json({ error: 'Hatalı 6 haneli doğrulama kodu. Lütfen kontrol edip tekrar deneyin.' });
-  }
+  dbStore.setPassword(user.id, passwordHash);
+  markEmailVerified(user); // opening the emailed link proves the address
+  deleteUserSessions(user.id);
 
-  // Find or create user
-  let user = dbStore.getUsers().find(u => normalizePhone(u.phone) === phone);
-  if (!user) {
-    const lastDigits = phone.slice(-4);
-    const displayName = `Oyuncu ${lastDigits}`;
-    user = {
-      id: `user_${crypto.randomUUID()}`,
-      role: 'OYUNCU',
-      phone: `+${phone}`,
-      displayName,
-      maskedName: displayName,
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      elo: 1400,
-      matchesCount: 0,
-      playSide: 'BOTH',
-      dominantHand: 'RIGHT',
-      preferredDays: ['Hafta Sonu'],
-      preferredHours: ['18:00 - 20:00'],
-      createdAt: new Date().toISOString()
-    };
-    dbStore.getUsers().push(user);
-    dbStore.save();
-  }
-
-  const sessionToken = createSession(user.id);
-  const safeReturnTo = isValidInternalPath(returnTo) ? returnTo : '/ana';
-
-  return res.json({
-    success: true,
-    token: sessionToken,
-    user,
-    returnTo: safeReturnTo
-  });
+  return res.json({ success: true, token: createSession(user.id), user, message: 'Şifreniz kaydedildi.' });
 });
 
 // Demo Fast Switcher (only in DEMO_MODE)
@@ -628,6 +721,13 @@ app.get('/api/user/favorites/courts', authMiddleware, (req: Request, res: Respon
 // Create Reservation (Both standard and open match)
 app.post('/api/reservations', authMiddleware, (req: Request, res: Response) => {
   const user = (req as any).user as User;
+  // App bookings are billed to the club, so they need an account with a proven email address
+  if (!user.emailVerified && !DEMO_MODE) {
+    return res.status(403).json({
+      code: 'EMAIL_NOT_VERIFIED',
+      error: 'Rezervasyon yapabilmek için önce e-posta adresinizi doğrulayın. Bağlantıyı sayfanın üstündeki uyarıdan tekrar isteyebilirsiniz.'
+    });
+  }
   const {
     courtId,
     startAt: rawStartAt, // "2026-09-09T18:00:00" (local)
@@ -1784,31 +1884,32 @@ app.get('/api/panel/staff', authMiddleware, requireBusiness('STAFF_MANAGE'), (re
     return {
       ...s,
       userName: u ? u.displayName : 'Personel',
-      userPhone: u ? u.phone : ''
+      userEmail: u ? u.email : ''
     };
   });
 
   return res.json({ staff: enriched });
 });
 
-app.post('/api/panel/staff', authMiddleware, requireBusiness('STAFF_MANAGE'), (req: Request, res: Response) => {
+app.post('/api/panel/staff', authMiddleware, requireBusiness('STAFF_MANAGE'), async (req: Request, res: Response) => {
   const businessId = (req as any).businessId as string;
-  const { name, phone: rawPhone, permissions = ['RESERVATION_MANAGE'] } = req.body || {};
-  const phone = normalizePhone(rawPhone);
-  if (typeof name !== 'string' || !name.trim() || name.trim().length > 60 || !phone) {
-    return res.status(400).json({ error: 'Geçerli bir personel adı ve cep telefonu numarası zorunludur.' });
+  const { name, permissions = ['RESERVATION_MANAGE'] } = req.body || {};
+  const email = normalizeEmail(req.body?.email);
+  if (typeof name !== 'string' || !name.trim() || name.trim().length > 60 || !email) {
+    return res.status(400).json({ error: 'Geçerli bir personel adı ve e-posta adresi zorunludur.' });
   }
   const grantedPermissions: string[] = Array.isArray(permissions)
     ? permissions.filter((p: unknown): p is string => typeof p === 'string' && STAFF_PERMISSIONS.includes(p))
     : [];
 
   // Staff always join as PERSONEL; ownership cannot be granted from the panel
-  let staffUser = dbStore.getUsers().find(u => normalizePhone(u.phone) === phone);
+  let staffUser = dbStore.findUserByEmail(email);
   if (staffUser && dbStore.getStaffMemberships().some(s => s.userId === staffUser!.id)) {
-    return res.status(409).json({ error: 'Bu telefon numarası zaten bir işletmede personel olarak kayıtlı.' });
+    return res.status(409).json({ error: 'Bu e-posta adresi zaten bir işletmede personel olarak kayıtlı.' });
   }
 
   const staffName = name.trim();
+  const invited = !staffUser;
   if (staffUser) {
     staffUser.role = 'PERSONEL';
     staffUser.businessId = businessId;
@@ -1816,7 +1917,8 @@ app.post('/api/panel/staff', authMiddleware, requireBusiness('STAFF_MANAGE'), (r
     staffUser = {
       id: `user_${crypto.randomUUID()}`,
       role: 'PERSONEL',
-      phone: `+${phone}`,
+      email,
+      emailVerified: false,
       displayName: staffName,
       maskedName: toMaskedName(staffName),
       avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
@@ -1840,13 +1942,22 @@ app.post('/api/panel/staff', authMiddleware, requireBusiness('STAFF_MANAGE'), (r
     permissions: grantedPermissions,
     createdAt: new Date().toISOString(),
     userName: staffName,
-    userPhone: `+${phone}`
+    userEmail: email
   };
 
   dbStore.getStaffMemberships().push(membership);
   dbStore.save();
 
-  return res.status(201).json({ success: true, staff: membership });
+  // New accounts get a link to choose their password; existing users simply sign in
+  let inviteEmailSent = false;
+  if (invited) {
+    const businessName = dbStore.getBusinesses().find(b => b.id === businessId)?.name || 'RALO işletmesi';
+    inviteEmailSent = await deliverMail(
+      staffInviteEmail(email, staffName, businessName, createAuthToken(staffUser.id, email, 'RESET_PASSWORD', STAFF_INVITE_TTL_MS))
+    );
+  }
+
+  return res.status(201).json({ success: true, staff: membership, invited, inviteEmailSent });
 });
 
 // Business Reports (7-Day occupancy, revenue, no-show rate)
@@ -1947,6 +2058,8 @@ app.get('/api/health', (_req: Request, res: Response) => {
 // -------------------------------------------------------------
 
 async function start() {
+  assertMailConfigured();
+
   if (process.env.DATABASE_URL) {
     const persistence = new Persistence(process.env.DATABASE_URL);
     await persistence.migrate();

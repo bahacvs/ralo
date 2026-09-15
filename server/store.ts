@@ -24,11 +24,32 @@ interface DatabaseSchema {
   notifications: Notification[];
   feed_posts: FeedPost[];
   sessions: StoredSession[];
+  credentials: StoredCredential[];
+  auth_tokens: StoredAuthToken[];
 }
 
 export interface StoredSession {
   id: string; // sha256 of the bearer token
   userId: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+/** Password hash, kept apart from User so it can never leak through a user response. */
+export interface StoredCredential {
+  id: string; // user id
+  passwordHash: string;
+  updatedAt: string;
+}
+
+export type AuthTokenPurpose = 'VERIFY_EMAIL' | 'RESET_PASSWORD';
+
+/** Single-use emailed link (verification, password reset, staff invitation). */
+export interface StoredAuthToken {
+  id: string; // sha256 of the emailed token
+  userId: string;
+  email: string; // address the link was sent to
+  purpose: AuthTokenPurpose;
   createdAt: string;
   expiresAt: string;
 }
@@ -63,7 +84,9 @@ export class ArenaStore {
     conversations: [],
     notifications: [],
     feed_posts: [],
-    sessions: []
+    sessions: [],
+    credentials: [],
+    auth_tokens: []
   };
 
   private persistence: Persistence | null = null;
@@ -120,6 +143,7 @@ export class ArenaStore {
 
     const now = new Date().toISOString();
     this.data.sessions = this.data.sessions.filter(s => s.expiresAt > now);
+    this.data.auth_tokens = this.data.auth_tokens.filter(t => t.expiresAt > now);
 
     this.persistence = persistence;
     this.isLoaded = true;
@@ -146,6 +170,39 @@ export class ArenaStore {
     const before = this.data.sessions.length;
     this.data.sessions = this.data.sessions.filter(s => !predicate(s));
     if (this.data.sessions.length !== before) {
+      this.save();
+    }
+  }
+
+  /** Emails are stored normalized (lowercase), see normalizeEmail() in server/auth.ts. */
+  public findUserByEmail(email: string): User | undefined {
+    return this.data.users.find(u => u.email === email);
+  }
+
+  public getCredential(userId: string): StoredCredential | undefined {
+    return this.data.credentials.find(c => c.id === userId);
+  }
+
+  public setPassword(userId: string, passwordHash: string): void {
+    const updatedAt = new Date().toISOString();
+    const existing = this.getCredential(userId);
+    if (existing) {
+      existing.passwordHash = passwordHash;
+      existing.updatedAt = updatedAt;
+    } else {
+      this.data.credentials.push({ id: userId, passwordHash, updatedAt });
+    }
+    this.save();
+  }
+
+  public getAuthTokens(): StoredAuthToken[] {
+    return this.data.auth_tokens;
+  }
+
+  public removeAuthTokens(predicate: (token: StoredAuthToken) => boolean): void {
+    const before = this.data.auth_tokens.length;
+    this.data.auth_tokens = this.data.auth_tokens.filter(t => !predicate(t));
+    if (this.data.auth_tokens.length !== before) {
       this.save();
     }
   }
@@ -184,6 +241,8 @@ export class ArenaStore {
     const demoPlayer: User = {
       id: 'user_player_demo',
       role: 'OYUNCU',
+      email: 'oyuncu@demo.ralo.app',
+      emailVerified: true,
       phone: '+90 532 100 2030',
       displayName: 'Baha Çavuşoğlu',
       maskedName: 'Baha Ç.',
@@ -202,6 +261,8 @@ export class ArenaStore {
     const demoOwner: User = {
       id: 'user_owner_demo',
       role: 'ISLETME_SAHIBI',
+      email: 'isletme@demo.ralo.app',
+      emailVerified: true,
       phone: '+90 532 200 4050',
       displayName: 'Kemal Demirbağ',
       maskedName: 'Kemal D.',
@@ -219,6 +280,8 @@ export class ArenaStore {
     const demoStaff: User = {
       id: 'user_staff_demo',
       role: 'PERSONEL',
+      email: 'personel@demo.ralo.app',
+      emailVerified: true,
       phone: '+90 532 300 6070',
       displayName: 'Gözde Yılmaz',
       maskedName: 'Gözde Y.',
@@ -2066,6 +2129,8 @@ export class ArenaStore {
       if (u.friends) u.friends = u.friends.filter(id => id !== userId);
     });
     this.data.staff_memberships = this.data.staff_memberships.filter(s => s.userId !== userId);
+    this.data.credentials = this.data.credentials.filter(c => c.id !== userId);
+    this.data.auth_tokens = this.data.auth_tokens.filter(t => t.userId !== userId);
     this.data.users = this.data.users.filter(u => u.id !== userId);
 
     this.save();

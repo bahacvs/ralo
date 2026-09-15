@@ -194,11 +194,13 @@ export const ProfileView: React.FC = () => {
                 <h1 className="text-xl font-bold text-slate-900 dark:text-white font-serif">
                   {user?.displayName}
                 </h1>
-                <span className="bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs px-2.5 py-0.5 rounded-full font-bold">
-                  Doğrulanmış Oyuncu
-                </span>
+                {user?.emailVerified && (
+                  <span className="bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs px-2.5 py-0.5 rounded-full font-bold">
+                    Doğrulanmış Oyuncu
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{user?.phone} • İzmir</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 break-all">{user?.email}</p>
               
               <div className="flex flex-wrap items-center gap-2 mt-1.5">
                 <span className="text-xs text-slate-600 dark:text-slate-400 font-mono">

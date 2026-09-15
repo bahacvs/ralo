@@ -37,7 +37,7 @@ Apply to a real database: `npm run db:migrate` with `DATABASE_MIGRATION_URL` (di
 | Lessons | `lessons`, `lesson_sessions`, `lesson_enrollments`, `lesson_attendance`, `coach_student_notes` | 0004 |
 | Billing | `platform_fee_rates`, `billing_policies`, `monthly_statements`, `fee_ledger_entries`, `statement_lines` | 0005 |
 | Social | `conversations`, `conversation_participants`, `messages`, `notifications`, `feed_posts`, `feed_replies`, `feed_post_likes`, `friendships`, `favorite_courts` | 0006 |
-| Auth, infra, KVKK, audit | `sessions`, `otp_challenges`, `rate_limit_counters` (UNLOGGED), `job_runs`, `legal_documents`, `consent_records`, `account_deletion_requests`, `audit_log` | 0007 |
+| Auth, infra, KVKK, audit | `sessions`, `auth_tokens` (0010), `rate_limit_counters` (UNLOGGED), `job_runs`, `legal_documents`, `consent_records`, `account_deletion_requests`, `audit_log` | 0007 |
 | Domain functions | rate/policy resolution, fee ledger writes and rules, waitlist promotion, `anonymize_user` | 0008 |
 | Security | RLS on every table, `ralo_app` policies and grants | 0009 |
 
@@ -168,18 +168,18 @@ Afterwards: a daily job marks `issued` statements past `due_date` as `overdue`. 
 2. Leaves other players' upcoming matches (counter decrement + waitlist promotion); removes waitlist rows and pending join requests.
 3. Removes lesson enrollments through the normal cancellation path.
 4. Cancels the user's upcoming app/panel reservations; fees are voided with `account_deleted`.
-5. Deletes messages, feed posts/replies/likes (recounting), friendships, favorites, notifications, sessions, OTP challenges, open staff invites, coach notes about the user; clears the coach profile and ends coach contracts.
+5. Deletes messages, feed posts/replies/likes (recounting), friendships, favorites, notifications, sessions, email link tokens, open staff invites, coach notes about the user; clears the coach profile and ends coach contracts.
 6. Leaves conversations; drops direct conversations left with fewer than two people.
 7. Revokes staff memberships.
-8. Rewrites the user row (`phone NULL`, `Silinmiş Kullanıcı`, preferences cleared, `status='deleted'`).
-9. Keeps past reservations, ledger, statements, venue payments, Elo history, `audit_log`; consent records keep only the phone HMAC.
+8. Rewrites the user row (`email`, `password_hash`, `phone` set to NULL, `Silinmiş Kullanıcı`, preferences cleared, `status='deleted'`).
+9. Keeps past reservations, ledger, statements, venue payments, Elo history, `audit_log`; consent records keep only the email HMAC.
 10. Completes the deletion request and writes an audit row.
 
 Hard `DELETE FROM users` is refused by the RESTRICT foreign keys on history rows. `schema.test.ts` introspects every foreign key to `users(id)` and fails when one is neither handled by `anonymize_user` (and named in its body) nor declared retained history, so a new personal-data table cannot be forgotten silently.
 
 ## 9. Multi-instance behaviour
 
-- Sessions, OTP challenges (HMAC with `OTP_PEPPER`, one live code per phone/purpose, atomic attempt counting), rate limits and job bookkeeping are shared tables; restarts lose nothing.
+- Accounts sign in with a lowercase, unique email and a scrypt password hash (0010); the phone is an optional contact field. Sessions, single-use email link tokens (`auth_tokens`: sha256 of the emailed token, only the newest link per user and purpose), rate limits and job bookkeeping are shared tables; restarts lose nothing.
 - Jobs take `pg_try_advisory_xact_lock(hashtext(job_name))` and record `job_runs`; reminders deduplicate through `notifications (user_id, dedupe_key)`.
 - Use only transaction-scoped advisory locks in the app (transaction pooler). The migration runner uses a session-level `pg_advisory_lock` and therefore refuses port 6543.
 - Retry transactions on `40001`/`40P01`. Map `23P01` to the court conflict 409 and capacity `23514` to "Maç dolu" / "Ders kontenjanı dolu".
@@ -195,7 +195,7 @@ Hard `DELETE FROM users` is refused by the RESTRICT foreign keys on history rows
 
 ## 11. Import from the jsonb mirror (next round)
 
-1. Users: normalize phones; rows without a phone (panel "ghosts") become `guest_name` on their reservations.
+1. Users: lowercase emails; rows without an email (panel "ghosts") become `guest_name`/`guest_phone` on their reservations; password hashes come from the `credentials` collection.
 2. Businesses → `clubs` + 7 `club_opening_hours` rows (`"24:00"` → 1440, `"01:00"` → 1500); `cancellation_window_hours` 24.
 3. Staff → `club_memberships`; courts `pricePerHour × 100`.
 4. Reservations: `($ts::timestamp AT TIME ZONE 'Europe/Istanbul')`, booking + reservation with `legacy_id` (exempt from the fee requirement); overlaps fail the EXCLUDE constraint and are resolved by hand.

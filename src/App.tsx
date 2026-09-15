@@ -26,6 +26,8 @@ import { ProfileView } from './components/player/ProfileView.js';
 import { AccountPrivacyView } from './components/player/AccountPrivacyView.js';
 import { LeaderboardView } from './components/player/LeaderboardView.js';
 import { LoginView } from './components/player/LoginView.js';
+import { VerifyEmailView, ResetPasswordView } from './components/player/AuthLinkViews.js';
+import { EmailVerificationBanner } from './components/common/EmailVerificationBanner.js';
 import { FeedView } from './components/player/FeedView.js';
 
 // Business Panel Views & Layout
@@ -90,6 +92,12 @@ const AppContent: React.FC = () => {
     if (currentRoute === '/giris') {
       return <LoginView />;
     }
+    if (currentRoute === '/eposta-dogrula') {
+      return <VerifyEmailView />;
+    }
+    if (currentRoute === '/sifre-sifirla') {
+      return <ResetPasswordView />;
+    }
     if (currentRoute.startsWith('/saha/')) {
       return <CourtDetailView />;
     }
@@ -146,6 +154,7 @@ const AppContent: React.FC = () => {
         <PushNotificationAlert />
         <PWAInstallBanner />
         <Header />
+        <EmailVerificationBanner />
         <main id="main-content" tabIndex={-1} className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-28 sm:pb-16 outline-none">
           {renderRoute()}
         </main>

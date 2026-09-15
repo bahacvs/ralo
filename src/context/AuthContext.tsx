@@ -2,6 +2,13 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { User, UserRole } from '../types/index.js';
 import { api, setApiToken, getApiToken, UNAUTHORIZED_EVENT } from '../services/api.js';
 
+export interface RegisterInput {
+  displayName: string;
+  email: string;
+  password: string;
+  acceptTerms: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
@@ -11,7 +18,9 @@ interface AuthContextType {
   routeParams: Record<string, string>;
   navigate: (to: string) => void;
   demoSwitch: (targetRole: 'OYUNCU' | 'ISLETME_SAHIBI' | 'PERSONEL') => Promise<void>;
-  loginWithOtp: (phone: string, code: string) => Promise<string>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (data: RegisterInput) => Promise<void>;
+  completeAuth: (sessionToken: string, authedUser: User) => void;
   logout: () => Promise<void>;
   returnTo: string | null;
   setReturnTo: (path: string | null) => void;
@@ -152,20 +161,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const loginWithOtp = async (phone: string, code: string): Promise<string> => {
-    const safeTarget = isValidInternalPath(returnTo) ? returnTo! : '/ana';
-    const res = await api.verifyOtp(phone, code, safeTarget);
-    setUser(res.user);
-    setToken(res.token);
-    setApiToken(res.token);
+  /** Stores a new session and routes club staff to their panel, everyone else back where they were. */
+  const completeAuth = (sessionToken: string, authedUser: User) => {
+    const target = isValidInternalPath(returnTo) ? returnTo! : '/ana';
+    setUser(authedUser);
+    setToken(sessionToken);
+    setApiToken(sessionToken);
     setReturnToState(null);
 
-    const destination = (res.user.role === 'ISLETME_SAHIBI' || res.user.role === 'PERSONEL')
-      ? `/panel/${res.user.businessId || 'biz_urla'}/takvim`
-      : res.returnTo || '/ana';
+    const isClubStaff = authedUser.role === 'ISLETME_SAHIBI' || authedUser.role === 'PERSONEL';
+    navigate(isClubStaff && authedUser.businessId ? `/panel/${authedUser.businessId}/takvim` : target);
+  };
 
-    navigate(destination);
-    return destination;
+  const login = async (email: string, password: string) => {
+    const res = await api.login(email, password);
+    completeAuth(res.token, res.user);
+  };
+
+  const register = async (data: RegisterInput) => {
+    const res = await api.register(data);
+    completeAuth(res.token, res.user);
   };
 
   const logout = async () => {
@@ -207,7 +222,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       routeParams,
       navigate,
       demoSwitch,
-      loginWithOtp,
+      login,
+      register,
+      completeAuth,
       logout,
       returnTo,
       setReturnTo,

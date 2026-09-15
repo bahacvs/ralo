@@ -11,7 +11,7 @@ KVKK md. 5/1 uyarınca açık rıza, md. 5/2'deki diğer hukuki sebeplerden hiç
 
 | İşlem | Neden rıza istenmiyor |
 |---|---|
-| Telefon ile üyelik, SMS doğrulama, oturum | Sözleşmenin ifası (md. 5/2-c) |
+| E-posta ve şifre ile üyelik, e-posta doğrulama, oturum | Sözleşmenin ifası (md. 5/2-c) |
 | Rezervasyon bilgilerinin kulübe iletilmesi | Sözleşmenin ifası |
 | Açık maçta kısaltılmış ad, fotoğraf, Elo, oyun tarafının diğer oyunculara gösterilmesi | Sözleşmenin ifası; özelliğin kendisi budur |
 | Mesajlaşma, akış gönderileri | Sözleşmenin ifası |

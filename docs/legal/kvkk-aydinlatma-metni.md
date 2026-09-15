@@ -28,7 +28,7 @@ Aşağıdaki liste, Uygulamanın fiilen topladığı verilere göre hazırlanmı
 | Veri kategorisi | Veriler | Kaynak |
 |---|---|---|
 | Kimlik | Ad soyad (görünen ad), kısaltılmış ad (ör. "Ahmet Y.") | Kullanıcı; kulüp paneline manuel rezervasyon girilirken kulüp personeli |
-| İletişim | Cep telefonu numarası | Kullanıcı; manuel rezervasyonda kulüp personeli |
+| İletişim | E-posta adresi; isteğe bağlı cep telefonu numarası | Kullanıcı; manuel rezervasyonda kulüp personeli (yalnızca telefon) |
 | Görsel | Profil fotoğrafı (kullanıcı yüklerse) | Kullanıcı |
 | Konum | Anlık konum koordinatları (yalnızca kullanıcı cihaz izni verirse) ve seçilen şehir/ilçe | Cihaz (tarayıcı konum izni) |
 | Oyuncu profili | Elo seviye puanı, maç sayısı, oyun tarafı (sağ/sol), baskın el, tercih edilen gün ve saatler, favori kortlar, arkadaş listesi | Kullanıcı ve Uygulama tarafından hesaplanan |
@@ -36,8 +36,8 @@ Aşağıdaki liste, Uygulamanın fiilen topladığı verilere göre hazırlanmı
 | İletişim içerikleri | Maç sohbetlerindeki ve doğrudan mesajlardaki metinler | Kullanıcı |
 | Kullanıcı içerikleri | Topluluk akışı gönderileri, yanıtlar, beğeniler | Kullanıcı |
 | Bildirim | Uygulama içi bildirimler ve bildirim tercihleri (hatırlatıcı, ses vb.) | Uygulama |
-| İşlem güvenliği | Tek kullanımlık SMS doğrulama kodunun özeti (hash; en fazla 5 dakika, yalnızca bellekte), oturum anahtarının özeti ve oturum başlangıç/bitiş tarihleri, IP adresi ve istek kayıtları (barındırma sağlayıcısı günlükleri) | Uygulama, barındırma altyapısı |
-| Kulüp personeli (İşletme kullanıcıları) | Ad, telefon, işletme rolü ve yetkileri | İşletme sahibi |
+| İşlem güvenliği | Şifrenin geri döndürülemez özeti (scrypt), e-posta doğrulama ve şifre sıfırlama bağlantılarının özeti, oturum anahtarının özeti ve oturum başlangıç/bitiş tarihleri, IP adresi ve istek kayıtları (barındırma sağlayıcısı günlükleri) | Uygulama, barındırma altyapısı |
+| Kulüp personeli (İşletme kullanıcıları) | Ad, e-posta adresi, işletme rolü ve yetkileri | İşletme sahibi |
 
 **Özel nitelikli kişisel veri:** Uygulama KVKK md. 6 kapsamında özel nitelikli kişisel veri (sağlık, biyometrik vb.) toplamayı amaçlamaz. Profil fotoğrafları yüz tanıma veya biyometrik eşleştirme amacıyla işlenmez. Kullanıcıların mesaj veya gönderi alanlarına kendi iradeleriyle özel nitelikli veri yazmamaları önerilir.
 
@@ -45,7 +45,7 @@ Aşağıdaki liste, Uygulamanın fiilen topladığı verilere göre hazırlanmı
 
 ## 3. İşleme Amaçları
 
-1. Telefon numarası ve SMS doğrulama kodu ile üyelik oluşturulması ve oturum yönetimi,
+1. E-posta adresi ve şifre ile üyelik oluşturulması, e-posta adresinin doğrulanması, şifre sıfırlama ve oturum yönetimi,
 2. Kort arama, listeleme, mesafeye göre sıralama ve kort rezervasyonu hizmetinin sunulması,
 3. Rezervasyonun ilgili kulübe iletilmesi, kulüp tarafından yönetilmesi ve tesiste ödeme durumunun takibi,
 4. Açık maç oluşturma, maça katılma, bekleme listesi, seviye (Elo) eşleştirmesi ve oyuncu profilinin diğer oyunculara sınırlı biçimde (kısaltılmış ad, fotoğraf, Elo, oyun tarafı) gösterilmesi,
@@ -53,7 +53,7 @@ Aşağıdaki liste, Uygulamanın fiilen topladığı verilere göre hazırlanmı
 6. Rezervasyon hatırlatmaları ve uygulama içi bildirimlerin gönderilmesi,
 7. Açık maç paylaşım kartı ve paylaşım metni oluşturulması,
 8. Kulüplere yönelik platform hizmet bedelinin (uygulama üzerinden yapılan rezervasyon başına ücret) hesaplanması ve faturalandırılması,
-9. Bilgi güvenliğinin sağlanması, kötüye kullanımın (ör. SMS kodu deneme saldırısı) önlenmesi,
+9. Bilgi güvenliğinin sağlanması, kötüye kullanımın (ör. şifre deneme saldırısı) önlenmesi,
 10. Hukuki yükümlülüklerin yerine getirilmesi, yetkili kurum taleplerinin karşılanması ve olası uyuşmazlıklarda hakların korunması.
 
 ## 4. Hukuki Sebepler (KVKK md. 5)
@@ -74,9 +74,8 @@ Aşağıdaki liste, Uygulamanın fiilen topladığı verilere göre hazırlanmı
 
 | Alıcı | Aktarılan veri | Amaç |
 |---|---|---|
-| Rezervasyon yapılan kulüp (İşletme) | Ad, telefon, rezervasyon ve ödeme durumu bilgileri, açık maç katılımcı bilgileri | Rezervasyonun ifası, tesiste ödeme ve kort yönetimi |
-| Netgsm İletişim ve Bilgi Teknolojileri A.Ş. (Türkiye) | Telefon numarası ve doğrulama kodu içeren SMS metni | SMS ile kimlik doğrulama |
-| Diğer kullanıcılar | Kısaltılmış ad, profil fotoğrafı, Elo, oyun tarafı/el tercihi, gönderiler, mesajlar (yalnızca ilgili sohbetin üyelerine) | Sosyal ve maç eşleştirme özellikleri. Telefon numaranız diğer oyunculara gösterilmez. |
+| Rezervasyon yapılan kulüp (İşletme) | Ad, varsa telefon, rezervasyon ve ödeme durumu bilgileri, açık maç katılımcı bilgileri | Rezervasyonun ifası, tesiste ödeme ve kort yönetimi |
+| Diğer kullanıcılar | Kısaltılmış ad, profil fotoğrafı, Elo, oyun tarafı/el tercihi, gönderiler, mesajlar (yalnızca ilgili sohbetin üyelerine) | Sosyal ve maç eşleştirme özellikleri. E-posta adresiniz ve telefon numaranız diğer oyunculara gösterilmez. |
 | Yetkili kamu kurum ve kuruluşları, mahkemeler | Talep edilen veriler | Hukuki yükümlülükler |
 | Hukuk, muhasebe, denetim danışmanları | Gerekli olduğu ölçüde | Hakların korunması, mali yükümlülükler |
 
@@ -88,7 +87,8 @@ Uygulamanın altyapısı yurt dışında bulunan hizmet sağlayıcılar üzerind
 |---|---|---|---|
 | Supabase Inc. (PostgreSQL veritabanı) | Veri merkezi: Frankfurt, Almanya (AB). Şirket merkezi ABD. | Bölüm 2'deki tüm hesap, rezervasyon, mesaj, gönderi, bildirim ve oturum verileri | Verilerin saklanması |
 | Render Services, Inc. (uygulama barındırma) | Sunucu bölgesi: Frankfurt, Almanya (AB). Şirket merkezi ABD. | Uygulamaya gelen tüm istekler ve bu isteklerdeki veriler, IP adresi ve teknik günlükler | Uygulamanın çalıştırılması |
-| Google LLC / Google Ireland Ltd. (Gemini API) | ABD ve/veya diğer ülkeler [SÖZLEŞME/BÖLGE TEYİDİ] | Açık maç paylaşım kartı oluşturulurken: kulüp adı, ilçe, maç tarihi ve saati, boş yer sayısı, Elo aralığı. **Oyuncu adı, telefonu veya fotoğrafı gönderilmez.** | Paylaşım metni önerisi üretilmesi |
+| Google LLC / Google Ireland Ltd. (Gemini API) | ABD ve/veya diğer ülkeler [SÖZLEŞME/BÖLGE TEYİDİ] | Açık maç paylaşım kartı oluşturulurken: kulüp adı, ilçe, maç tarihi ve saati, boş yer sayısı, Elo aralığı. **Oyuncu adı, e-posta adresi, telefonu veya fotoğrafı gönderilmez.** | Paylaşım metni önerisi üretilmesi |
+| Google LLC / Google Ireland Ltd. (Gmail e-posta hizmeti) | ABD ve/veya diğer ülkeler [SÖZLEŞME/BÖLGE TEYİDİ] | Doğrulama, şifre sıfırlama ve personel daveti e-postaları: alıcının e-posta adresi, adı ve tek kullanımlık bağlantı | Hesap güvenliği e-postalarının iletilmesi |
 
 1 Haziran 2024'te yürürlüğe giren değişiklikle KVKK md. 9 uyarınca yurt dışı aktarım; (i) Kurul tarafından yeterlilik kararı verilmiş ülkelere, (ii) yeterlilik kararı yoksa md. 9/4'teki uygun güvencelerden biri (ör. Kurulca ilan edilen standart sözleşmenin imzalanması ve 5 iş günü içinde Kurum'a bildirilmesi) sağlanarak, ya da (iii) arızi hallerde md. 9/6'daki istisnalarla yapılabilir.
 
@@ -104,12 +104,12 @@ Aşağıdaki süreler taslak niteliğindedir; Kişisel Veri Saklama ve İmha Pol
 
 | Veri | Saklama süresi |
 |---|---|
-| SMS doğrulama kodu (hash) | En fazla 5 dakika; yalnızca sunucu belleğinde tutulur, veritabanına yazılmaz |
+| E-posta doğrulama / şifre sıfırlama bağlantısı (özet) | Kullanılana kadar; en fazla 48 saat (e-posta doğrulama), 1 saat (şifre sıfırlama), 7 gün (personel daveti) |
 | Oturum kaydı (token hash) | 30 gün veya çıkış yapılana/hesap silinene kadar |
 | Hesap ve profil verileri | Hesap aktif olduğu sürece; hesap silindiğinde derhal silinir |
 | Mesajlar, gönderiler, yanıtlar, beğeniler, bildirimler, arkadaş listesi | Hesap silindiğinde derhal silinir |
 | Gelecek tarihli rezervasyonlar ve açık maç katılımları | Hesap silindiğinde iptal edilir ve katılım kayıtları silinir |
-| Geçmiş rezervasyon kayıtları | Kulübün ve platformun ticari/mali kayıt yükümlülükleri nedeniyle [SÜRE, ör. 10 yıl – TTK md. 82, VUK md. 253] saklanır; hesap silindikten sonra ad/telefon ile ilişkilendirilmeden tutulması hedeflenir [TEKNİK TEYİT: şu an geçmiş rezervasyonlarda kullanıcı kimliği referansı kalmaktadır] |
+| Geçmiş rezervasyon kayıtları | Kulübün ve platformun ticari/mali kayıt yükümlülükleri nedeniyle [SÜRE, ör. 10 yıl – TTK md. 82, VUK md. 253] saklanır; hesap silindikten sonra ad/e-posta ile ilişkilendirilmeden tutulması hedeflenir [TEKNİK TEYİT: şu an geçmiş rezervasyonlarda kullanıcı kimliği referansı kalmaktadır] |
 | Kulüp faturalandırma kayıtları | [SÜRE, ör. 10 yıl] |
 | Barındırma sağlayıcısı erişim günlükleri | [SÜRE – Render ve Supabase varsayılan saklama sürelerine göre doldurulacak] |
 | Tarayıcıda saklanan konum ve şehir tercihi | Kullanıcı tarayıcı verilerini temizleyene kadar (yalnızca cihazda) |
@@ -142,7 +142,7 @@ Haklarınıza ilişkin taleplerinizi, Veri Sorumlusuna Başvuru Usul ve Esaslar�
 
 - Islak imzalı dilekçe ile [ADRES] adresine şahsen veya noter aracılığıyla,
 - [KEP ADRESİ] adresine kayıtlı elektronik posta ile,
-- Güvenli elektronik imza veya mobil imza ile ya da Uygulamada kayıtlı telefon numaranızla ilişkilendirilmiş hesabınız üzerinden [KVKK İLETİŞİM E-POSTASI] adresine e-posta ile
+- Güvenli elektronik imza veya mobil imza ile ya da Uygulamada kayıtlı e-posta adresinizden [KVKK İLETİŞİM E-POSTASI] adresine e-posta ile
 
 iletebilirsiniz. Başvurunuzda ad soyad, T.C. kimlik numarası (yabancılar için uyruk ve pasaport/kimlik no), tebligata esas adres, varsa e-posta/telefon ve talep konusunun bulunması gerekir.
 

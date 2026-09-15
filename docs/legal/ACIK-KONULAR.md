@@ -7,15 +7,15 @@
 
 Soruların doğru yanıtlanabilmesi için kod tabanından tespit edilen işleyiş:
 
-- **Kimlik doğrulama:** Yalnızca Türk cep telefonu + Netgsm OTP SMS. Kod 5 dakika geçerli, sadece sunucu belleğinde hash olarak tutuluyor. 15 dakikada en fazla 3 SMS, 5 deneme hakkı.
+- **Kimlik doğrulama:** E-posta + şifre (şifre scrypt ile özetleniyor, düz metin saklanmıyor). Kayıtta e-posta doğrulama bağlantısı (48 saat), şifre sıfırlama bağlantısı (1 saat, tek kullanımlık). Uygulamadan rezervasyon için doğrulanmış e-posta şart. E-postalar şirket kurulana kadar RALO adına açılan kişisel bir Gmail hesabından SMTP ile gönderiliyor.
 - **Oturumlar:** 30 gün geçerli; veritabanında token'ın kendisi değil SHA-256 özeti tutuluyor.
-- **Kullanıcı kaydı:** Telefon, görünen ad, kısaltılmış ad, profil fotoğrafı (https URL veya base64 görsel, en fazla ~900 KB, veritabanında saklanıyor), Elo, maç sayısı, oyun tarafı, baskın el, tercih edilen gün/saatler, arkadaş listesi, favori kortlar, bildirim ayarları.
+- **Kullanıcı kaydı:** E-posta, şifre özeti, koşulların kabul zamanı, isteğe bağlı telefon, görünen ad, kısaltılmış ad, profil fotoğrafı (https URL veya base64 görsel, en fazla ~900 KB, veritabanında saklanıyor), Elo, maç sayısı, oyun tarafı, baskın el, tercih edilen gün/saatler, arkadaş listesi, favori kortlar, bildirim ayarları.
 - **Konum:** Tarayıcı konum izniyle alınıyor, cihazda (localStorage) saklanıyor, `/api/courts` ve `/api/open-matches` isteklerine sorgu parametresi (`userLat`, `userLng`) olarak ekleniyor. Sunucuda kullanıcıya bağlı kaydedilmiyor; ancak URL'de yer aldığı için barındırma sağlayıcısı erişim günlüklerine düşebilir.
 - **Mesajlar:** Yalnızca sohbet üyeleri görebiliyor. Akış gönderileri herkese açık (oturum açmadan da `/api/feed` okunabiliyor).
-- **Diğer oyunculara gösterilen veriler:** Kısaltılmış ad, fotoğraf, Elo, oyun tarafı. Telefon gizleniyor.
+- **Diğer oyunculara gösterilen veriler:** Kısaltılmış ad, fotoğraf, Elo, oyun tarafı. E-posta ve telefon gizleniyor.
 - **Hesap silme:** Gelecek rezervasyonlar iptal, mesaj/gönderi/bildirim/arkadaşlık silinir, kullanıcı kaydı silinir. Geçmiş rezervasyonlar kulüp kayıtları için kalıyor (kullanıcı kimliğine referans veriyor). İşletme sahibi hesabı uygulamadan silinemiyor.
 - **Manuel panel rezervasyonu:** Personel müşteri adı ve telefonu giriyor; numara mevcut bir oyuncuyla eşleşirse rezervasyon o hesaba bağlanıyor, yoksa yeni oyuncu kaydı oluşturuluyor.
-- **Altyapı:** Render (Frankfurt), Supabase Postgres (Frankfurt), Netgsm (Türkiye), Google Gemini `gemini-2.5-flash`.
+- **Altyapı:** Render (Frankfurt), Supabase Postgres (Frankfurt), Gmail (Google, e-posta gönderimi), Google Gemini `gemini-2.5-flash`.
 - **Gemini'ye giden veri:** Paylaşım kartı üretilirken istemde yalnızca kulüp adı, ilçe, maç tarihi/saati, boş yer sayısı, Elo aralığı var. Oyuncu adı/fotoğrafı istemde yok, ama kartın kendisinde (Gemini'den bağımsız olarak) katılımcıların kısaltılmış adı, fotoğrafı ve Elo'su gösteriliyor.
 
 ---
@@ -33,7 +33,7 @@ Soruların doğru yanıtlanabilmesi için kod tabanından tespit edilen işleyi�
    - Sağlayıcıların kendi DPA/SCC (AB GDPR) belgeleri yeterli mi, yoksa Kurul standart sözleşmesi ayrıca gerekli mi? Sağlayıcı imzalamazsa ne yapılmalı?
    - ABD'deki ana şirketin/destek ekiplerinin erişimi ayrı bir aktarım sayılır mı?
 5. **Türkiye'de barındırma:** Hukuki risk açısından veritabanını Türkiye'deki bir sağlayıcıya taşımak önerilir mi? Önerilmesi durumunda bu bir lansman engeli mi?
-6. **Netgsm:** Yurt içi sağlayıcı olarak veri işleyen sözleşmesi (KVKK md. 12/2) yeterli mi?
+6. **Gmail (kişisel Google hesabı):** Doğrulama e-postalarının Google üzerinden gönderilmesi yurt dışına aktarım (KVKK md. 9) sayılır mı, hangi aktarım aracı gerekir? Şirket kurulmadan kişisel hesapla gönderim ve kayıtta metinlere bağlantı verilmeden "okudum, kabul ediyorum" kutusu yeterli mi, yoksa metinlerin uygulama içinde yayınlanması mı gerekir?
 
 ## C. Google Gemini
 
@@ -54,7 +54,7 @@ Soruların doğru yanıtlanabilmesi için kod tabanından tespit edilen işleyi�
 
 ## E. İleti ve SMS mevzuatı
 
-15. **İYS:** OTP doğrulama SMS'leri ticari elektronik ileti değil, işlem iletisi sayılır mı? (Şu an yalnızca OTP gönderiliyor.) İYS kaydı ve marka hesabı lansmandan önce zorunlu mu?
+15. **İYS:** Doğrulama, şifre sıfırlama ve personel daveti e-postaları ticari elektronik ileti değil, işlem iletisi sayılır mı? (Şu an yalnızca bunlar gönderiliyor.) İYS kaydı ve marka hesabı lansmandan önce zorunlu mu?
 16. **Hatırlatma ve bildirimler:** Rezervasyon hatırlatmaları (şu an uygulama içi) ileride SMS/push olarak gönderilirse onay gerekir mi? "Boş yer açıldı", "arkadaşın maç açtı" gibi bildirimler ticari ileti sayılır mı?
 17. **Pazarlama:** İleride kampanya SMS'i gönderilecekse onay metni ve İYS entegrasyonu nasıl kurgulanmalı?
 

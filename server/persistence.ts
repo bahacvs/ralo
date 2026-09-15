@@ -16,7 +16,9 @@ export const COLLECTIONS = [
   'conversations',
   'notifications',
   'feed_posts',
-  'sessions'
+  'sessions',
+  'credentials',
+  'auth_tokens'
 ] as const;
 
 type Snapshot = Record<string, Array<{ id: string }>>;

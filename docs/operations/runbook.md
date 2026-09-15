@@ -18,7 +18,7 @@ database.
 |---|---|---|
 | App host | Render web service `ralo-staging` (Frankfurt, starter) | Render web service `ralo` (Frankfurt, `numInstances: 1`) |
 | Database | Separate Supabase project, Frankfurt (`eu-central-1`) | Separate Supabase project, Frankfurt, Pro plan (backups + PITR) |
-| SMS | Netgsm, same account is fine, or `SMS_PROVIDER=console` with `DEMO_MODE=true` for internal testing only | Netgsm, `SMS_PROVIDER=netgsm` |
+| Email | Same RALO Gmail account is fine, or `MAIL_PROVIDER=console` with `DEMO_MODE=true` for internal testing only | Gmail SMTP (`MAIL_PROVIDER=smtp`); a domain mailbox once there is a company and a domain |
 | Demo mode | May be `true` for internal demos | **Always `false`** |
 | Deploys | Auto-deploy from `main` | Manual deploy (or auto-deploy from a release branch) after staging is verified |
 
@@ -33,21 +33,21 @@ between staging and production.
 
 | Variable | Purpose | Where to set | Production value |
 |---|---|---|---|
-| `NODE_ENV` | `production` serves `dist/`, requires `DATABASE_URL`, makes Netgsm the default SMS provider | Render (plain) | `production` |
+| `NODE_ENV` | `production` serves `dist/`, requires `DATABASE_URL`, makes SMTP the default mail provider and refuses to boot without `SMTP_USER`/`SMTP_PASS` | Render (plain) | `production` |
 | `TZ` | Process timezone. `server/time.ts` also forces `Europe/Istanbul`; set it anyway so logs match | Render (plain) | `Europe/Istanbul` |
 | `PORT` | HTTP port (default 3000). Render injects it automatically | Render injects; `.env` locally | leave unset |
 | `DATABASE_URL` | Postgres connection string. Empty = JSON file store in `data/` (development only). Server refuses to start in production without it | Render (secret); `.env` locally | Supabase **session pooler** URL (see section 6) |
 | `DATABASE_SSL_CA` | PEM of the database CA certificate. Remote connections verify the TLS certificate; Supabase's CA is not in Node's trust store, so without it the connection fails. Newlines may be written as `\n` | Render (secret) | Supabase project CA certificate (section 6) |
 | `DATABASE_SSL_REJECT_UNAUTHORIZED` | `false` disables certificate verification. Emergency workaround only; logs a warning on boot | Render (plain), normally unset | unset (`true`) |
 | `DATABASE_MIGRATION_URL` | Connection used by `bun run db:migrate` for the SQL schema (section 12). Falls back to `DATABASE_URL` | local shell / CI job only | session pooler URL, port `5432` |
-| `OTP_GLOBAL_LIMIT_PER_10MIN` | Maximum OTP SMS sends across all clients per 10 minutes, protects the Netgsm bill. Per-IP limit (10/hour) is fixed in code | Render (plain) | `300`, raise only with evidence |
-| `APP_URL` | Public URL used in share links | Render (secret) | `https://<production domain>` |
-| `DEMO_MODE` | `true` exposes the role switcher API, echoes OTP codes to the client, seeds/refreshes demo data on boot, allows console SMS in production | Render (plain) | `false` |
+| `APP_URL` | Public URL used in share links and in verification, password reset and staff invitation emails. Must be the real domain in production or email links break | Render (secret) | `https://<production domain>` |
+| `DEMO_MODE` | `true` exposes the role switcher API, lets unverified accounts book, seeds/refreshes demo data on boot, allows console mail in production | Render (plain) | `false` |
 | `VITE_DEMO_MODE` | **Build-time** flag that shows the demo role switcher in the UI. Baked into the bundle, so changing it needs a rebuild/redeploy. Keep equal to `DEMO_MODE` | Render (plain) | `false` |
-| `SMS_PROVIDER` | `netgsm` or `console` (prints codes to the log) | Render (plain) | `netgsm` |
-| `NETGSM_USERCODE` | Netgsm API sub-user name | Render (secret) | from Netgsm |
-| `NETGSM_PASSWORD` | Netgsm API sub-user password | Render (secret) | from Netgsm |
-| `NETGSM_MSGHEADER` | Approved sender name (originator) | Render (secret) | approved header, exact spelling |
+| `MAIL_PROVIDER` | `smtp` or `console` (prints emails, including their one-time links, to the log) | Render (plain) | `smtp` |
+| `SMTP_HOST` / `SMTP_PORT` | SMTP server. Port 465 uses TLS directly, 587 uses STARTTLS | Render (plain) | `smtp.gmail.com` / `465` |
+| `SMTP_USER` | Sending account, the RALO Gmail address | Render (secret) | RALO Gmail address |
+| `SMTP_PASS` | Gmail **app password** (16 characters), not the account password | Render (secret) | see section 5 |
+| `MAIL_FROM` | Sender shown to users, e.g. `RALO <address>`. Gmail only sends as its own address | Render (secret) | `RALO <RALO Gmail address>` |
 | `GEMINI_API_KEY` | Optional. AI captions on match share cards; a local generator is used when empty | Render (secret) | optional |
 | `DISABLE_HMR` | Development only (Vite HMR off). Ignored in production | local only | unset |
 
@@ -58,35 +58,37 @@ Rules:
 ## 4. First deploy (per environment)
 
 1. **Supabase**: create the project (section 6), copy the session pooler connection string.
-2. **Netgsm**: complete the checklist in section 5.
+2. **Email**: complete the Gmail checklist in section 5.
 3. **Render**: New > Blueprint, select the repo, it reads `render.yaml`.
    Confirm region Frankfurt, plan starter or higher, instances = 1.
-4. Fill the secret env vars: `DATABASE_URL`, `DATABASE_SSL_CA`, `APP_URL`, `NETGSM_USERCODE`,
-   `NETGSM_PASSWORD`, `NETGSM_MSGHEADER`, optionally `GEMINI_API_KEY`.
+4. Fill the secret env vars: `DATABASE_URL`, `DATABASE_SSL_CA`, `APP_URL`, `SMTP_USER`,
+   `SMTP_PASS`, `MAIL_FROM`, optionally `GEMINI_API_KEY`.
 5. Deploy. Build command: `npm install --include=dev && npm run build`. Start: `npm start`.
 6. Tables are created automatically on boot (`CREATE TABLE IF NOT EXISTS`, one per collection).
 7. Verify (section 7). On an empty production database the log shows
    `Database is empty. Import data with "bun run db:import <file>" or add businesses before going live.`
    This is expected. Clubs are then added from the super-admin panel, or imported (section 8).
 8. Add the custom domain in Render, wait for TLS, then set `APP_URL` to it and redeploy.
-9. Log in with a real phone number and confirm the OTP SMS arrives.
+9. Sign up with a real email address, confirm the verification email arrives (check spam), open the
+   link, then test "Şifremi unuttum".
 
-## 5. Netgsm checklist
+## 5. Email (Gmail SMTP) checklist
 
-- [ ] Corporate Netgsm account, invoice details complete.
-- [ ] **API sub-user** created (Netgsm panel > Abonelik / Alt kullanıcılar) with API access enabled.
-      Use the sub-user credentials, not the main panel login.
-- [ ] **No IP restriction** on the sub-user. Render has no fixed outbound IP on the starter plan,
-      so an IP allowlist causes error code `30`.
-- [ ] **Sender name (msgheader) approved** by Netgsm/BTK. `NETGSM_MSGHEADER` must match it exactly
-      (error `40`/`41` otherwise).
-- [ ] **OTP SMS package** purchased and active (error `60` otherwise). The app uses the OTP endpoint
-      `https://api.netgsm.com.tr/sms/send/otp`. OTP messages cannot contain Turkish characters;
-      the template in `server/sms.ts` is already ASCII.
-- [ ] Rate limit is 100 OTP/minute (error `80`). Low balance alerts configured in the Netgsm panel.
-- [ ] Test send from staging to a real number succeeds.
+Until there is a company and a domain, transactional email (verification, password reset, staff
+invitation) goes out through a Gmail account opened for RALO.
 
-Failures are logged as `OTP SMS delivery failed: Netgsm OTP failed (code NN): <reason>`.
+- [ ] Dedicated Gmail account for RALO (not a personal inbox), recovery phone and email set.
+- [ ] **2-Step Verification** turned on (Google Account > Security). App passwords require it.
+- [ ] **App password** created (Google Account > Security > App passwords, named e.g. `RALO Render`).
+      It goes into `SMTP_PASS` only; never commit it. Revoke and recreate it if it leaks.
+- [ ] `SMTP_USER` is the Gmail address; `MAIL_FROM` uses the same address (`RALO <address>`).
+- [ ] Sending limit is about **500 emails per 24 hours** for a regular Gmail account. Beyond that
+      Google blocks sending for up to a day and new sign-ups cannot verify. Move to a domain mailbox
+      (Google Workspace, Brevo, Resend) well before approaching it.
+- [ ] Test from staging: sign up, verification email arrives (check spam), password reset email arrives.
+
+Failures are logged as `Email delivery failed (<subject>): <reason>`. `Invalid login` / `535` means a
+wrong or revoked app password; `Daily user sending limit exceeded` means the Gmail quota is used up.
 
 ## 6. Supabase settings
 
@@ -124,8 +126,8 @@ Failures are logged as `OTP SMS delivery failed: Netgsm OTP failed (code NN): <r
    `Final flush failed:` line after it. A `Final flush failed:` line means recent writes may be lost:
    check the last reservations in the DB against what users report.
 5. No repeating `Postgres flush failed, retrying:` or `Postgres pool error:` lines.
-6. Smoke test: open the app, log in via SMS OTP, view a club's courts, open the club panel.
-7. The demo role switcher is **not** visible and the login screen shows no demo OTP box.
+6. Smoke test: open the app, sign in with email and password, view a club's courts, open the club panel.
+7. The demo role switcher is **not** visible.
 
 ## 8. Importing data
 
@@ -187,15 +189,16 @@ Goal: prove we can restore production data and know how long it takes.
 3. **Logs** (Render > Logs), search for:
    - `Failed to start server` (boot failure: env var or database unreachable)
    - `Postgres flush failed, retrying` / `Postgres pool error` (database connectivity, writes at risk)
-   - `OTP SMS delivery failed` (Netgsm: see the code table in section 5; check balance and package)
+   - `Email delivery failed` (SMTP: wrong app password or Gmail daily limit, see section 5)
    - `Final flush failed` (data possibly lost on the last restart)
 4. **Database down**: do not restart the service repeatedly. The running instance keeps data in
    memory and retries flushing every 2 s; a restart while the DB is down loses unflushed writes and
    fails to boot. Wait for Supabase to recover and confirm the retry messages stop.
 5. **Bad deploy**: roll back (section 9).
 6. **Instance count**: confirm Render shows exactly 1 instance. Two instances corrupt data.
-7. **Logins failing**: check Netgsm balance, OTP package, sender name, and that `SMS_PROVIDER=netgsm`.
-8. **Security incident / data leak**: rotate `DATABASE_URL` password and Netgsm password, redeploy,
+7. **Sign-ups cannot verify / reset emails missing**: check `Email delivery failed` logs, the Gmail app
+   password and daily sending limit, and that `MAIL_PROVIDER=smtp` and `APP_URL` are correct.
+8. **Security incident / data leak**: rotate the `DATABASE_URL` password and the Gmail app password (`SMTP_PASS`), redeploy,
    preserve logs. KVKK requires notifying the Board within 72 hours of learning of a breach; involve
    the legal contact immediately.
 9. **Afterwards**: short written post-mortem (timeline, impact on clubs/reservations, fee

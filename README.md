@@ -37,20 +37,20 @@ ArenaMate, Türkiye'deki padel tutkunlarını ve padel kulübü işletmelerini a
 
 - **Önyüz (Frontend)**: React 19, TypeScript, Tailwind CSS, Lucide Icons.
 - **Sunucu (Backend)**: Node.js, Express REST API, Atomic In-Memory JSON Persistence (`server/store.ts`).
-- **Doğrulama & Oturum**: OTP (Tek Kullanımlık Kod) simülasyonu, role dayalı session yönetimi.
+- **Doğrulama & Oturum**: E-posta + şifre ile kayıt ve giriş (scrypt), e-posta doğrulama ve şifre sıfırlama bağlantıları, role dayalı oturum yönetimi.
 - **Geliştirici Rol Değiştirici (Demo Role Switcher)**: Ekranın üst çubuğunda yer alan araç ile `OYUNCU`, `İŞLETME SAHİBİ` ve `PERSONEL` hesapları arasında anında geçiş yapılabilir.
 
 ---
 
 ## 👥 Hazır Demo Hesapları
 
-| Rol | İsim | Telefon | Tesis / Açıklama |
+| Rol | İsim | E-posta | Tesis / Açıklama |
 |---|---|---|---|
-| **Oyuncu** | Baha Çavuşoğlu | `0532 100 2030` | 1.450 Elo, Doğrulanmış Oyuncu |
-| **İşletme Sahibi** | Kemal Demirbağ | `0532 200 4050` | Padel Arena Urla (3 Kort) |
-| **Personel** | Ece Çetin | `0532 300 6070` | Resepsiyonist Yetkisi |
+| **Oyuncu** | Baha Çavuşoğlu | `oyuncu@demo.ralo.app` | 1.450 Elo, Doğrulanmış Oyuncu |
+| **İşletme Sahibi** | Kemal Demirbağ | `isletme@demo.ralo.app` | Padel Arena Urla (3 Kort) |
+| **Personel** | Gözde Yılmaz | `personel@demo.ralo.app` | Resepsiyonist Yetkisi |
 
-*(Geliştirme ortamında OTP SMS kodu olarak `123456` kullanılabilir veya tek tıkla Demo Switcher üzerinden geçiş yapılabilir.)*
+*(Demo hesaplarının şifresi yoktur; `DEMO_MODE=true` ile çalışırken üst çubuktaki Demo Switcher ile geçiş yapılır. Geliştirme ortamında e-postalar (doğrulama ve şifre sıfırlama bağlantıları) sunucu konsoluna yazılır.)*
 
 ---
 

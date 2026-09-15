@@ -6,7 +6,11 @@ export type DominantHand = 'RIGHT' | 'LEFT';
 export interface User {
   id: string;
   role: UserRole;
-  phone: string;
+  email?: string; // sign-in address, lowercase; only shown to the user and their club's staff
+  emailVerified?: boolean;
+  emailVerifiedAt?: string;
+  phone?: string; // optional contact number, not verified
+  termsAcceptedAt?: string;
   displayName: string;
   maskedName: string;
   avatarUrl: string;
@@ -154,7 +158,7 @@ export interface StaffMembership {
   permissions: string[];
   createdAt: string;
   userName?: string;
-  userPhone?: string;
+  userEmail?: string;
 }
 
 export interface Conversation {
