@@ -152,7 +152,7 @@ Afterwards: a daily job marks `issued` statements past `due_date` as `overdue`. 
 
 - The migration role owns every table. The server connects as `ralo_app`: `NOSUPERUSER NOBYPASSRLS`, owns nothing (the test asserts all three). Operators run `ALTER ROLE ralo_app LOGIN PASSWORD '...'` per environment.
 - RLS is enabled on every table. `ralo_app` has one permissive policy per table; other roles see nothing.
-- **Tenant backstop:** `court_bookings`, `court_blocks`, `reservations`, `lessons`, `coach_student_notes`, `fee_ledger_entries`, `monthly_statements` and `audit_log` carry a RESTRICTIVE policy `app.club_in_scope(club_id)`. Each API transaction sets the scope:
+- **Tenant backstop:** `club_memberships`, `club_staff_invites`, `courts`, `coach_club_contracts`, `club_opening_hours`, `club_amenities`, `court_bookings`, `court_blocks`, `reservations`, `lessons`, `coach_student_notes`, `fee_ledger_entries`, `monthly_statements` and `audit_log` carry a RESTRICTIVE policy `app.club_in_scope(club_id)`. Each API transaction sets the scope:
   - `SET LOCAL app.scope = 'club:<uuid>'` for club panel and coach requests (another club's rows are invisible and cannot be written; `42501`);
   - `SET LOCAL app.scope = 'global'` for player, platform admin and background job requests;
   - unset scope sees no rows on those tables (fails closed).

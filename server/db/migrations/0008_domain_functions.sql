@@ -286,8 +286,12 @@ BEGIN
   IF v_policy.charge_no_show THEN
     RETURN 'kept';
   END IF;
+  -- Stamp the waiving policy on exactly the charges void_reservation_fees() voids: the app charge or
+  -- every lesson charge of the session played on this reservation.
   UPDATE fee_ledger_entries SET policy_id = v_policy.id
-  WHERE reservation_id = p_reservation AND entry_type = 'charge' AND status = 'accrued';
+  WHERE entry_type = 'charge' AND status = 'accrued'
+    AND (reservation_id = p_reservation
+         OR lesson_session_id IN (SELECT id FROM lesson_sessions WHERE reservation_id = p_reservation));
   RETURN void_reservation_fees(p_reservation, 'no_show_waived', p_actor)::text;
 END $$;
 
