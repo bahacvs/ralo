@@ -37,6 +37,10 @@ between staging and production.
 | `TZ` | Process timezone. `server/time.ts` also forces `Europe/Istanbul`; set it anyway so logs match | Render (plain) | `Europe/Istanbul` |
 | `PORT` | HTTP port (default 3000). Render injects it automatically | Render injects; `.env` locally | leave unset |
 | `DATABASE_URL` | Postgres connection string. Empty = JSON file store in `data/` (development only). Server refuses to start in production without it | Render (secret); `.env` locally | Supabase **session pooler** URL (see section 6) |
+| `DATABASE_SSL_CA` | PEM of the database CA certificate. Remote connections verify the TLS certificate; Supabase's CA is not in Node's trust store, so without it the connection fails. Newlines may be written as `\n` | Render (secret) | Supabase project CA certificate (section 6) |
+| `DATABASE_SSL_REJECT_UNAUTHORIZED` | `false` disables certificate verification. Emergency workaround only; logs a warning on boot | Render (plain), normally unset | unset (`true`) |
+| `DATABASE_MIGRATION_URL` | Connection used by `bun run db:migrate` for the SQL schema (section 12). Falls back to `DATABASE_URL` | local shell / CI job only | session pooler URL, port `5432` |
+| `OTP_GLOBAL_LIMIT_PER_10MIN` | Maximum OTP SMS sends across all clients per 10 minutes, protects the Netgsm bill. Per-IP limit (10/hour) is fixed in code | Render (plain) | `300`, raise only with evidence |
 | `APP_URL` | Public URL used in share links | Render (secret) | `https://<production domain>` |
 | `DEMO_MODE` | `true` exposes the role switcher API, echoes OTP codes to the client, seeds/refreshes demo data on boot, allows console SMS in production | Render (plain) | `false` |
 | `VITE_DEMO_MODE` | **Build-time** flag that shows the demo role switcher in the UI. Baked into the bundle, so changing it needs a rebuild/redeploy. Keep equal to `DEMO_MODE` | Render (plain) | `false` |
@@ -57,8 +61,8 @@ Rules:
 2. **Netgsm**: complete the checklist in section 5.
 3. **Render**: New > Blueprint, select the repo, it reads `render.yaml`.
    Confirm region Frankfurt, plan starter or higher, instances = 1.
-4. Fill the secret env vars: `DATABASE_URL`, `APP_URL`, `NETGSM_USERCODE`, `NETGSM_PASSWORD`,
-   `NETGSM_MSGHEADER`, optionally `GEMINI_API_KEY`.
+4. Fill the secret env vars: `DATABASE_URL`, `DATABASE_SSL_CA`, `APP_URL`, `NETGSM_USERCODE`,
+   `NETGSM_PASSWORD`, `NETGSM_MSGHEADER`, optionally `GEMINI_API_KEY`.
 5. Deploy. Build command: `npm install --include=dev && npm run build`. Start: `npm start`.
 6. Tables are created automatically on boot (`CREATE TABLE IF NOT EXISTS`, one per collection).
 7. Verify (section 7). On an empty production database the log shows
@@ -92,7 +96,13 @@ Failures are logged as `OTP SMS delivery failed: Netgsm OTP failed (code NN): <r
   - Do not use the direct connection (`db.<ref>.supabase.co`): it is IPv6-only and Render cannot reach it.
   - Do not use the transaction pooler (port `6543`): the app uses explicit `BEGIN/COMMIT` blocks on
     pooled clients, which want session semantics.
-  - SSL is enabled automatically for non-localhost URLs. URL-encode special characters in the password.
+  - TLS is required and the certificate is **verified** for every non-localhost URL. Download the
+    project CA certificate (Project settings > Database > SSL configuration > Download certificate)
+    and put its PEM content in `DATABASE_SSL_CA`. An `sslmode=...` parameter in the URL is ignored
+    (the app removes it so it cannot weaken verification).
+  - If boot fails with a certificate error, the CA value is wrong or missing. Fix `DATABASE_SSL_CA`;
+    use `DATABASE_SSL_REJECT_UNAUTHORIZED=false` only as a short emergency workaround.
+  - URL-encode special characters in the password.
 - **Pool size**: the app opens at most 5 connections (`max: 5`), well within the pooler limit.
 - **Backups**: Pro plan gives daily backups. Enable **Point-in-Time Recovery** add-on for production
   (Project settings > Add-ons) so you can restore to any second within the retention window.
@@ -190,3 +200,51 @@ Goal: prove we can restore production data and know how long it takes.
    the legal contact immediately.
 9. **Afterwards**: short written post-mortem (timeline, impact on clubs/reservations, fee
    statements affected, fixes).
+
+## 12. Production SQL schema (Phase 2, not yet used by the app)
+
+`server/db/migrations/0001-0009` define the relational schema that replaces the jsonb mirror:
+overlap-proof court bookings, the platform fee ledger, monthly statements, lessons, KVKK
+anonymization and club-scoped row-level security. **The running app does not read or write these
+tables yet**; that switch is the next development round. Until then, the steps below are only for
+trying the schema against a real Supabase project (staging).
+
+Design and rules: `docs/architecture/data-model.md`. Tests: `npx tsx server/db/schema.test.ts`
+(PGlite, also run in CI).
+
+**Run migrations**
+
+```sh
+DATABASE_MIGRATION_URL="postgresql://postgres.<ref>:<password>@aws-0-eu-central-1.pooler.supabase.com:5432/postgres" \
+DATABASE_SSL_CA="$(cat supabase-ca.crt)" \
+bun run db:migrate
+```
+
+- Use the session pooler on port `5432` (migrations need session semantics and advisory locks).
+- The runner takes a `pg_advisory_lock`, so several instances or CI jobs cannot apply migrations
+  at the same time. Each migration runs in its own transaction; a second run applies nothing.
+- Run it once on a **staging** Supabase project before any production use. Tests ran on PGlite
+  (Postgres 17); Supabase-specific behaviour (extensions in the `extensions` schema, creating the
+  `ralo_app` role) has not been verified yet.
+
+**After the first migration (per environment)**
+
+1. Give the application role a password and use it for the app's connection string later:
+   ```sql
+   ALTER ROLE ralo_app LOGIN PASSWORD '<generated, stored in the password manager>';
+   ```
+   `ralo_app` is not a superuser, has no `BYPASSRLS` and owns no tables. Every API transaction must
+   run `SET LOCAL app.scope = 'club:<uuid>'` (club panel, coaches) or `'global'` (players, admin,
+   jobs); without it the club-scoped tables return no rows.
+2. Create the first platform admin (from the admin tooling once it exists).
+3. Insert the platform-wide app reservation fee (100 TL = `10000` kuruş) and the global billing
+   policy. VAT inclusion (`amounts_include_vat`) must be decided with the accountant first.
+4. Lesson fees are per club: set them for each club before that club can create lessons.
+
+**Fee rules enforced by the database**
+
+- Only reservations made by players in the app are charged; club panel entries are free.
+- A cancelled reservation is never charged, whoever cancels. If the fee was already on a monthly
+  statement, a reversal entry is added so the club's net is zero.
+- One fee entry per reservation (duplicate inserts fail), and the fee's service date must match the
+  reservation's Istanbul local date.

@@ -52,6 +52,12 @@ jobs:
         env:
           TZ: UTC
 
+      # Applies every migration to an in-process PGlite database and checks the constraints
+      - name: Database schema tests
+        run: npx tsx server/db/schema.test.ts
+        env:
+          TZ: UTC
+
       - name: Build
         run: npm run build
         env:
