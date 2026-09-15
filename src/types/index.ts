@@ -21,6 +21,7 @@ export interface User {
   preferredDays: string[];
   preferredHours: string[];
   businessId?: string; // set for ISLETME_SAHIBI and PERSONEL
+  isPlatformAdmin?: boolean; // RALO platform owner: super-admin panel access
   friends?: string[]; // array of friend user IDs
   favoriteCourtIds?: string[]; // array of favorited court IDs
   pushNotificationsEnabled?: boolean;

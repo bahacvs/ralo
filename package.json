@@ -12,7 +12,8 @@
     "lint": "tsc --noEmit",
     "test": "tsx server/tests.ts",
     "db:up": "docker compose up -d db",
-    "db:import": "tsx scripts/db-import-json.ts",
+    "db:seed": "tsx scripts/db-seed.ts",
+    "admin:grant": "tsx scripts/admin-grant.ts",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "test:db": "tsx server/db/schema.test.ts"
   },

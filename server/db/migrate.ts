@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import pg from 'pg';
 
 /**
@@ -32,7 +31,9 @@ export interface MigrateResult {
   alreadyApplied: string[];
 }
 
-export const MIGRATIONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'migrations');
+// Resolved from the project root: the production server is a CommonJS bundle in dist/ (no import.meta),
+// and Render and CI run from the repository root where server/db/migrations lives.
+export const MIGRATIONS_DIR = path.join(process.cwd(), 'server', 'db', 'migrations');
 
 // Arbitrary constant shared by every instance; only one migrator can hold it at a time.
 const MIGRATION_LOCK_KEY = 7274365001;

@@ -1,273 +1,222 @@
 /**
- * RALO Test Suite
- * 
- * Verifies the 3 core requirements:
- * 1. Double-booking conflict check (Same court, overlapping time interval -> conflict error)
- * 2. Cross-tenant business access check (Unauthorized business access returns 403)
- * 3. Open match capacity boundary (4 players max -> waitlist)
+ * RALO integration tests: the real Express app against an in-memory PGlite with every migration and the
+ * demo seed applied. Run: npx tsx server/tests.ts (CI runs it with TZ=UTC; the app pins Europe/Istanbul).
  */
+process.env.MAIL_PROVIDER = 'console';
+process.env.DEMO_MODE = 'false';
 
-import { dbStore, addDays, formatDateKey } from './store.js';
-import { addMinutesToLocal, parseClientDateTime } from './time.js';
+import type { AddressInfo } from 'net';
+import { addMinutesToLocal, parseClientDateTime, todayLocal } from './time.js';
+import { createPgliteDatabase } from './db/client.js';
+import { setDatabase } from './db/instance.js';
+import { seedDemoData, DEMO_ADMIN_EMAIL } from './db/seed.js';
+import { createApp, DEMO_ACCOUNT_EMAILS } from './app.js';
 import { normalizeEmail, validatePassword, hashPassword, verifyPassword, createAuthToken, consumeAuthToken } from './auth.js';
+
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'padel2026demo';
 
 let passed = 0;
 let failed = 0;
 
-function assert(condition: boolean, testName: string, detail?: string) {
+// Console mail output (verification links) is noise here
+const originalLog = console.log;
+console.log = (...args: unknown[]) => {
+  if (typeof args[0] === 'string' && args[0].startsWith('[mail]')) return;
+  originalLog(...args);
+};
+
+function assert(condition: unknown, testName: string, detail?: unknown) {
   if (condition) {
-    console.log(`✅ [PASS] ${testName}`);
+    originalLog(`✅ [PASS] ${testName}`);
     passed++;
   } else {
-    console.error(`❌ [FAIL] ${testName} - ${detail || 'Assertion failed'}`);
+    console.error(`❌ [FAIL] ${testName}${detail !== undefined ? ` - ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`);
     failed++;
   }
 }
 
 async function runTests() {
-  console.log('\n🎾 ================= RALO Automated Tests ================= 🎾\n');
+  originalLog('\n🎾 ================= RALO Automated Tests ================= 🎾\n');
 
-  const data = dbStore.getData();
+  const db = await createPgliteDatabase();
+  setDatabase(db);
+  await db.migrate();
+  await seedDemoData(db);
 
-  // Generate unique future date for idempotent test runs
-  const uniqueOffsetDays = 30 + Math.floor(Math.random() * 50);
-  const testDate = formatDateKey(addDays(new Date(), uniqueOffsetDays));
+  const server = createApp().listen(0);
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
-  const createdResIds: string[] = [];
+  const call = async (method: string, path: string, body?: unknown, token?: string) => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(`${base}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+    const text = await res.text();
+    let json: any = null;
+    try { json = JSON.parse(text); } catch { /* not json */ }
+    return { status: res.status, json, text };
+  };
+  const login = async (email: string) => (await call('POST', '/api/auth/login', { email, password: DEMO_PASSWORD })).json?.token as string;
+  const one = async <T = any>(sql: string, params: unknown[] = []) => (await db.query<T>(sql, params)).rows[0];
+  const dayOffset = (days: number) => addMinutesToLocal(`${todayLocal()}T00:00:00`, days * 24 * 60).slice(0, 10);
 
-  // TEST 1: Double-Booking Conflict Prevention
   try {
-    const courtId = 'court_urla_1';
-    const businessId = 'biz_urla';
-    const startAt = `${testDate}T10:00:00`;
-    const endAt = `${testDate}T11:30:00`;
+    // TEST 1: Local time helpers (Europe/Istanbul, midnight rollover)
+    assert(addMinutesToLocal('2026-03-01T23:00:00', 120) === '2026-03-02T01:00:00', 'Test 1.1: Gece yarısını geçen maçın bitişi ertesi güne taşındı');
+    assert(new Date('2026-03-01T18:00:00').toISOString() === '2026-03-01T15:00:00.000Z', 'Test 1.2: Yerel saatler Europe/Istanbul (UTC+3) olarak yorumlanıyor');
+    assert(parseClientDateTime('2026-03-01T15:00:00.000Z') === '2026-03-01T18:00:00', 'Test 1.3: UTC gelen istemci saati yerel saate çevrildi');
+    assert(parseClientDateTime('dün akşam') === null, 'Test 1.4: Geçersiz tarih metni reddedildi');
 
-    // 1. Create first reservation
-    const result1 = dbStore.createReservationAtomic({
-      courtId,
-      businessId,
-      ownerUserId: 'user_player_demo',
-      startAt,
-      endAt,
-      durationMinutes: 90,
-      totalPrice: 1500,
-      source: 'ONLINE',
-      isOpenMatch: false
-    });
-
-    if (result1.reservation) {
-      createdResIds.push(result1.reservation.id);
-    }
-
-    assert(result1.success && !!result1.reservation, 'Test 1.1: İlk rezervasyon başarıyla oluşturuldu', result1.error);
-
-    // 2. Try creating overlapping reservation on the same court (e.g. 10:30 - 12:00)
-    const overlapStart = `${testDate}T10:30:00`;
-    const overlapEnd = `${testDate}T12:00:00`;
-
-    const result2 = dbStore.createReservationAtomic({
-      courtId,
-      businessId,
-      ownerUserId: 'user_player_1',
-      startAt: overlapStart,
-      endAt: overlapEnd,
-      durationMinutes: 90,
-      totalPrice: 1500,
-      source: 'ONLINE',
-      isOpenMatch: false
-    });
-
-    assert(!result2.success && result2.error !== undefined, 'Test 1.2: Aynı kort ve saat çakışmasında çakışma hatası üretildi ve rezervasyon engellendi');
-
-  } catch (err: any) {
-    assert(false, 'Test 1: Çakışma testi beklenmedik hata verdi', err.message);
-  }
-
-  // TEST 2: Multi-Tenant / Business Access Control (403 Forbidden)
-  try {
-    const userUrla = data.users.find(u => u.id === 'user_owner_demo'); // Owner of biz_urla
-    const targetBusinessId = 'biz_cesme'; // Different club
-
-    // Authorization check simulation
-    let isAuthorized = false;
-    if (userUrla && userUrla.businessId === targetBusinessId) {
-      isAuthorized = true;
-    }
-
-    assert(!isAuthorized, 'Test 2.1: Farklı bir işletmenin panel kimliğiyle gelen erişim isteği 403 ile reddedildi');
-
-  } catch (err: any) {
-    assert(false, 'Test 2: Yetkilendirme testi beklenmedik hata verdi', err.message);
-  }
-
-  // TEST 3: Open Match 4-Player Capacity & Waitlist Redirect
-  try {
-    // 1. Create a fresh test open match on a distinct court/time
-    const matchStartAt = `${testDate}T18:00:00`;
-    const matchEndAt = `${testDate}T19:30:00`;
-
-    const matchRes = dbStore.createReservationAtomic({
-      courtId: 'court_urla_2',
-      businessId: 'biz_urla',
-      ownerUserId: 'user_player_demo', // Slot 0
-      startAt: matchStartAt,
-      endAt: matchEndAt,
-      durationMinutes: 90,
-      totalPrice: 1500,
-      source: 'ONLINE',
-      isOpenMatch: true,
-      minElo: 1200,
-      maxElo: 1700
-    });
-
-    assert(matchRes.success && !!matchRes.reservation, 'Test 3.1: Açık maç başarıyla başlatıldı (Organizatör koltuk 0)');
-
-    if (matchRes.reservation) {
-      createdResIds.push(matchRes.reservation.id);
-    }
-
-    const matchId = matchRes.reservation!.id;
-
-    // Join player 2 (Slot 1)
-    const p2 = data.users.find(u => u.id === 'user_player_1') || {
-      id: 'test_p2', displayName: 'P2', maskedName: 'P. 2', phone: '1', elo: 1400, role: 'OYUNCU', matchesCount: 5, playSide: 'RIGHT', dominantHand: 'RIGHT', preferredDays: [], preferredHours: [], createdAt: ''
-    };
-    const join2 = dbStore.joinOpenMatch(matchId, p2 as any);
-    assert(join2.success, 'Test 3.2: 2. Oyuncu başarıyla maça katıldı');
-
-    // Join player 3 (Slot 2)
-    const p3 = data.users.find(u => u.id === 'user_player_2') || {
-      id: 'test_p3', displayName: 'P3', maskedName: 'P. 3', phone: '2', elo: 1450, role: 'OYUNCU', matchesCount: 5, playSide: 'LEFT', dominantHand: 'RIGHT', preferredDays: [], preferredHours: [], createdAt: ''
-    };
-    const join3 = dbStore.joinOpenMatch(matchId, p3 as any);
-    assert(join3.success, 'Test 3.3: 3. Oyuncu başarıyla maça katıldı');
-
-    // Join player 4 (Slot 3) -> Match Full!
-    const p4 = data.users.find(u => u.id === 'user_player_3') || {
-      id: 'test_p4', displayName: 'P4', maskedName: 'P. 4', phone: '3', elo: 1350, role: 'OYUNCU', matchesCount: 5, playSide: 'RIGHT', dominantHand: 'LEFT', preferredDays: [], preferredHours: [], createdAt: ''
-    };
-    const join4 = dbStore.joinOpenMatch(matchId, p4 as any);
-    assert(join4.success, 'Test 3.4: 4. Oyuncu maça katıldı, 4/4 kadro tamamlandı');
-
-    // Attempt to join player 5 -> Should fail because match is full!
-    const p5 = data.users.find(u => u.id === 'user_player_4') || {
-      id: 'test_p5', displayName: 'P5', maskedName: 'P. 5', phone: '4', elo: 1400, role: 'OYUNCU', matchesCount: 5, playSide: 'BOTH', dominantHand: 'RIGHT', preferredDays: [], preferredHours: [], createdAt: ''
-    };
-    const join5 = dbStore.joinOpenMatch(matchId, p5 as any);
-    assert(!join5.success && join5.error?.includes('dolu'), 'Test 3.5: 5. Oyuncunun doğrudan maça katılımı engellendi');
-
-    // Player 5 joins waitlist instead
-    const waitlistRes = dbStore.toggleWaitlist(matchId, p5 as any);
-    assert(waitlistRes.success && waitlistRes.action === 'JOINED', 'Test 3.6: 5. Oyuncu yedek listesine (Waitlist) yönlendirildi ve 1. sıradan listeye alındı');
-
-  } catch (err: any) {
-    assert(false, 'Test 3: Kontenjan testi beklenmedik hata verdi', err.message);
-  } finally {
-    // Teardown: Clean up created test reservations so persistent storage stays pristine
-    if (createdResIds.length > 0) {
-      data.reservations = data.reservations.filter(r => !createdResIds.includes(r.id));
-      data.reservation_slots = data.reservation_slots.filter(s => !createdResIds.includes(s.reservationId));
-      data.open_match_participants = data.open_match_participants.filter(p => !createdResIds.includes(p.reservationId));
-      data.open_match_waitlists = (data.open_match_waitlists || []).filter(w => !createdResIds.includes(w.reservationId));
-      dbStore.save();
-    }
-  }
-
-  // TEST 4: Local time helpers (Europe/Istanbul, midnight rollover)
-  assert(addMinutesToLocal('2026-03-01T23:00:00', 120) === '2026-03-02T01:00:00', 'Test 4.1: Gece yarısını geçen maçın bitişi ertesi güne taşındı');
-  assert(new Date('2026-03-01T18:00:00').toISOString() === '2026-03-01T15:00:00.000Z', 'Test 4.2: Yerel saatler Europe/Istanbul (UTC+3) olarak yorumlanıyor');
-  assert(parseClientDateTime('2026-03-01T15:00:00.000Z') === '2026-03-01T18:00:00', 'Test 4.3: UTC gelen istemci saati yerel saate çevrildi');
-  assert(parseClientDateTime('dün akşam') === null, 'Test 4.4: Geçersiz tarih metni reddedildi');
-
-  // TEST 5: Player cancellation window, slot release and open match notifications
-  const cancelResIds: string[] = [];
-  const biz = data.businesses.find(b => b.id === 'biz_urla');
-  const originalWindow = biz?.cancellationWindowHours;
-  try {
-    const cancelDate = formatDateKey(addDays(new Date(), uniqueOffsetDays + 1));
-    const openMatch = dbStore.createReservationAtomic({
-      courtId: 'court_urla_3', businessId: 'biz_urla', ownerUserId: 'user_player_demo',
-      startAt: `${cancelDate}T20:00:00`, endAt: `${cancelDate}T21:30:00`,
-      durationMinutes: 90, totalPrice: 1500, source: 'ONLINE', isOpenMatch: true
-    });
-    const matchId = openMatch.reservation!.id;
-    cancelResIds.push(matchId);
-    const joiner = data.users.find(u => u.id === 'u_2')!;
-    dbStore.joinOpenMatch(matchId, joiner);
-
-    if (biz) delete biz.cancellationWindowHours;
-    assert(dbStore.getCancellationWindowHours('biz_urla') === 24, 'Test 5.1: İptal süresi tanımsızsa varsayılan 24 saat kullanıldı');
-
-    const notOwner = dbStore.cancelReservationByOwner(matchId, 'u_2');
-    assert(!notOwner.success && notOwner.status === 404, 'Test 5.2: Rezervasyon sahibi olmayan kullanıcı iptal edemedi');
-
-    const startMs = new Date(`${cancelDate}T20:00:00`).getTime();
-    const tooLate = dbStore.cancelReservationByOwner(matchId, 'user_player_demo', startMs - 23 * 60 * 60 * 1000);
-    assert(!tooLate.success && tooLate.status === 409 && !!tooLate.error?.includes('24 saat'), 'Test 5.3: Başlamaya 24 saatten az kala iptal reddedildi', tooLate.error);
-
-    if (biz) biz.cancellationWindowHours = 12;
-    const cancelled = dbStore.cancelReservationByOwner(matchId, 'user_player_demo', startMs - 23 * 60 * 60 * 1000);
-    const resAfter = data.reservations.find(r => r.id === matchId);
-    assert(cancelled.success && resAfter?.status === 'CANCELLED', 'Test 5.4: Kulübün 12 saatlik penceresi dışında iptal başarılı oldu', cancelled.error);
-    assert(!data.reservation_slots.some(s => s.reservationId === matchId), 'Test 5.5: İptal edilen rezervasyonun slotu serbest bırakıldı');
-    assert(!!cancelled.notifiedUserIds?.includes('u_2') && data.notifications.some(n => n.userId === 'u_2' && n.matchId === matchId && n.type === 'RESERVATION_UPDATE'), 'Test 5.6: Açık maçın diğer katılımcısına iptal bildirimi gönderildi');
-    assert(dbStore.isSlotAvailable('court_urla_3', `${cancelDate}T20:00:00`, `${cancelDate}T21:30:00`), 'Test 5.7: İptal sonrası kort saati yeniden rezerve edilebilir');
-
-    const again = dbStore.cancelReservationByOwner(matchId, 'user_player_demo');
-    assert(!again.success && again.status === 409, 'Test 5.8: Zaten iptal edilmiş rezervasyon tekrar iptal edilemedi');
-  } catch (err: any) {
-    assert(false, 'Test 5: İptal testi beklenmedik hata verdi', err.message);
-  } finally {
-    if (biz) {
-      if (originalWindow === undefined) delete biz.cancellationWindowHours;
-      else biz.cancellationWindowHours = originalWindow;
-    }
-    data.reservations = data.reservations.filter(r => !cancelResIds.includes(r.id));
-    data.reservation_slots = data.reservation_slots.filter(s => !cancelResIds.includes(s.reservationId));
-    data.open_match_participants = data.open_match_participants.filter(p => !cancelResIds.includes(p.reservationId));
-    data.notifications = data.notifications.filter(n => !n.matchId || !cancelResIds.includes(n.matchId));
-    dbStore.save();
-  }
-
-  // TEST 6: Leaderboard ordering and size
-  const board = dbStore.getLeaderboard(50);
-  assert(board.length > 0 && board.length <= 50, 'Test 6.1: Sıralama en fazla 50 oyuncu döndürdü');
-  assert(board.every((u, i) => i === 0 || board[i - 1].elo >= u.elo), 'Test 6.2: Sıralama Elo puanına göre azalan düzende');
-  assert(board.every(u => u.role === 'OYUNCU'), 'Test 6.3: Sıralamada yalnızca oyuncular yer aldı');
-
-  // TEST 7: Email + password sign-in primitives
-  try {
-    assert(normalizeEmail('  Baha@Example.COM ') === 'baha@example.com', 'Test 7.1: E-posta adresi küçük harfe çevrildi ve boşlukları temizlendi');
-    assert(normalizeEmail('baha@') === null && normalizeEmail(42) === null, 'Test 7.2: Geçersiz e-posta adresi reddedildi');
-    assert(validatePassword('kisa1') !== null && validatePassword('sadeceharf') !== null && validatePassword('12345678') !== null, 'Test 7.3: Kısa, rakamsız veya harfsiz şifre reddedildi');
-    assert(validatePassword('padel2026') === null, 'Test 7.4: Kurallara uyan şifre kabul edildi');
-
+    // TEST 2: Password and email link primitives
+    assert(normalizeEmail('  Baha@Example.COM ') === 'baha@example.com', 'Test 2.1: E-posta adresi küçük harfe çevrildi');
+    assert(validatePassword('kisa1') !== null && validatePassword('sadeceharf') !== null && validatePassword('padel2026') === null, 'Test 2.2: Şifre kuralları uygulandı');
     const hash = await hashPassword('padel2026');
-    assert(hash.startsWith('scrypt$') && !hash.includes('padel2026'), 'Test 7.5: Şifre scrypt ile özetlendi, düz metin saklanmadı');
-    assert(await verifyPassword('padel2026', hash), 'Test 7.6: Doğru şifre doğrulandı');
-    assert(!(await verifyPassword('padel2027', hash)), 'Test 7.7: Yanlış şifre reddedildi');
-    assert((await hashPassword('padel2026')) !== hash, 'Test 7.8: Aynı şifre her seferinde farklı tuzla özetlendi');
+    assert(hash.startsWith('scrypt$') && await verifyPassword('padel2026', hash) && !(await verifyPassword('padel2027', hash)), 'Test 2.3: Şifre scrypt ile özetlendi ve doğrulandı');
+    const player = await one<{ id: string; email: string }>(`SELECT id, email FROM app.users WHERE email = $1`, [DEMO_ACCOUNT_EMAILS.OYUNCU]);
+    const first = await createAuthToken(player.id, player.email, 'RESET_PASSWORD', 60_000);
+    const second = await createAuthToken(player.id, player.email, 'RESET_PASSWORD', 60_000);
+    assert(await consumeAuthToken(first, 'RESET_PASSWORD') === null, 'Test 2.4: Yeni bağlantı istenince eski bağlantı geçersiz oldu');
+    assert(await consumeAuthToken(second, 'VERIFY_EMAIL') === null, 'Test 2.5: Bağlantı başka amaçla kullanılamadı');
+    assert((await consumeAuthToken(second, 'RESET_PASSWORD'))?.userId === player.id, 'Test 2.6: Geçerli bağlantı hesabı döndürdü');
+    assert(await consumeAuthToken(second, 'RESET_PASSWORD') === null, 'Test 2.7: Bağlantı ikinci kez kullanılamadı');
+    const expired = await createAuthToken(player.id, player.email, 'VERIFY_EMAIL', 60_000);
+    await db.query(`UPDATE app.auth_tokens SET created_at = now() - interval '2 hours', expires_at = now() - interval '1 hour' WHERE user_id = $1`, [player.id]);
+    assert(await consumeAuthToken(expired, 'VERIFY_EMAIL') === null, 'Test 2.8: Süresi dolmuş bağlantı reddedildi');
 
-    const userId = 'test_auth_user';
-    const first = createAuthToken(userId, 'test@ralo.app', 'RESET_PASSWORD', 60_000);
-    const second = createAuthToken(userId, 'test@ralo.app', 'RESET_PASSWORD', 60_000);
-    assert(consumeAuthToken(first, 'RESET_PASSWORD') === null, 'Test 7.9: Yeni bağlantı istenince eski bağlantı geçersiz oldu');
-    assert(consumeAuthToken(second, 'VERIFY_EMAIL') === null, 'Test 7.10: Bağlantı başka bir amaç için kullanılamadı');
-    assert(consumeAuthToken(second, 'RESET_PASSWORD')?.userId === userId, 'Test 7.11: Geçerli bağlantı hesabı döndürdü');
-    assert(consumeAuthToken(second, 'RESET_PASSWORD') === null, 'Test 7.12: Bağlantı ikinci kez kullanılamadı');
-    const expired = createAuthToken(userId, 'test@ralo.app', 'VERIFY_EMAIL', -1000);
-    assert(consumeAuthToken(expired, 'VERIFY_EMAIL') === null, 'Test 7.13: Süresi dolmuş bağlantı reddedildi');
+    // TEST 3: Sign-in and court search
+    const playerToken = await login(DEMO_ACCOUNT_EMAILS.OYUNCU);
+    const zeynepToken = await login('zeynep@demo.ralo.app');
+    assert(!!playerToken && !!zeynepToken, 'Test 3.1: Demo hesaplarla e-posta ve şifre ile giriş yapıldı');
+    const me = await call('GET', '/api/auth/me', undefined, playerToken);
+    assert(me.status === 200 && me.json.user.emailVerified === true && !me.text.includes('scrypt$'), 'Test 3.2: Oturum bilgisi şifre özeti içermeden döndü');
+    const courts = await call('GET', `/api/courts?date=${dayOffset(10)}&city=İzmir`);
+    assert(courts.status === 200 && courts.json.total >= 5 && courts.json.courts.every((c: any) => c.business.city === 'İzmir'), 'Test 3.3: İl filtresiyle kortlar listelendi', courts.json?.total);
+    const urlaCourt = courts.json.courts.find((c: any) => c.business.name === 'Padel Arena Urla');
+    const detail = await call('GET', `/api/courts/${urlaCourt.id}?date=${dayOffset(10)}&duration=90`);
+    assert(detail.status === 200 && detail.json.slots.length > 0 && detail.json.slots.every((s: any) => s.isAvailable), 'Test 3.4: Boş bir günde kortun tüm saatleri müsait göründü');
+
+    // TEST 4: Double-booking prevention and the platform fee
+    const bookingDate = dayOffset(10);
+    const booking = await call('POST', '/api/reservations', { courtId: urlaCourt.id, startAt: `${bookingDate}T10:00:00`, durationMinutes: 90 }, playerToken);
+    assert(booking.status === 201, 'Test 4.1: Uygulama rezervasyonu oluşturuldu', booking.json);
+    const fee = await one(`SELECT amount_kurus, status FROM app.fee_ledger_entries WHERE reservation_id = $1`, [booking.json?.reservation?.id]);
+    assert(fee?.amount_kurus === 10000 && fee.status === 'accrued', 'Test 4.2: Rezervasyon için 100 TL platform ücreti deftere yazıldı', fee);
+    const overlap = await call('POST', '/api/reservations', { courtId: urlaCourt.id, startAt: `${bookingDate}T10:30:00`, durationMinutes: 90 }, zeynepToken);
+    assert(overlap.status === 409, 'Test 4.3: Çakışan ikinci rezervasyon veritabanı tarafından reddedildi', overlap.json);
+    const adjacent = await call('POST', '/api/reservations', { courtId: urlaCourt.id, startAt: `${bookingDate}T11:30:00`, durationMinutes: 60 }, zeynepToken);
+    assert(adjacent.status === 201, 'Test 4.4: Hemen ardından başlayan rezervasyon kabul edildi', adjacent.json);
+
+    // TEST 5: Player cancellation voids the fee and frees the slot; the window is enforced
+    const cancel = await call('POST', `/api/reservations/${booking.json.reservation.id}/cancel`, {}, playerToken);
+    const voided = await one(`SELECT status, void_reason FROM app.fee_ledger_entries WHERE reservation_id = $1`, [booking.json.reservation.id]);
+    assert(cancel.status === 200 && voided.status === 'voided' && voided.void_reason === 'player_cancelled', 'Test 5.1: İptal edilen rezervasyonun ücreti iptal edildi', voided);
+    const rebook = await call('POST', '/api/reservations', { courtId: urlaCourt.id, startAt: `${bookingDate}T10:00:00`, durationMinutes: 90 }, zeynepToken);
+    assert(rebook.status === 201, 'Test 5.2: İptalden sonra aynı saat yeniden rezerve edildi', rebook.json);
+    const notOwner = await call('POST', `/api/reservations/${rebook.json.reservation.id}/cancel`, {}, playerToken);
+    assert(notOwner.status === 404, 'Test 5.3: Başkasının rezervasyonu iptal edilemedi');
+    const windowBooking = await call('POST', '/api/reservations', { courtId: urlaCourt.id, startAt: `${dayOffset(20)}T14:00:00`, durationMinutes: 60 }, playerToken);
+    await db.query(`UPDATE app.reservations SET cancellation_deadline = now() - interval '1 minute' WHERE id = $1`, [windowBooking.json?.reservation?.id]);
+    const late = await call('POST', `/api/reservations/${windowBooking.json?.reservation?.id}/cancel`, {}, playerToken);
+    assert(late.status === 409 && /24 saat/.test(late.json?.error ?? ''), 'Test 5.4: İptal süresi dolmuş rezervasyon iptal edilemedi', late.json);
+
+    // TEST 6: Open match capacity, waitlist and promotion
+    const match = await call('POST', '/api/reservations', {
+      courtId: urlaCourt.id, startAt: `${dayOffset(11)}T18:00:00`, durationMinutes: 90, isOpenMatch: true, minElo: 1200, maxElo: 1800
+    }, playerToken);
+    assert(match.status === 201 && match.json.reservation.isOpenMatch, 'Test 6.1: Açık maç oluşturuldu', match.json);
+    const matchId = match.json.reservation.id;
+    const tokens = await Promise.all(['mert', 'caner', 'ece', 'kaan', 'melis'].map(n => login(`${n}@demo.ralo.app`)));
+    const joins: number[] = [];
+    for (const token of tokens.slice(0, 3)) joins.push((await call('POST', `/api/open-matches/${matchId}/join`, {}, token)).status);
+    assert(joins.every(s => s === 200), 'Test 6.2: Üç oyuncu maça katıldı, kadro 4/4 doldu', joins);
+    const fifth = await call('POST', `/api/open-matches/${matchId}/join`, {}, tokens[3]);
+    assert(fifth.status === 400, 'Test 6.3: Beşinci oyuncunun katılımı engellendi', fifth.json);
+    const notJoined = await call('POST', `/api/open-matches/${matchId}/leave`, {}, tokens[4]);
+    assert(notJoined.status === 400, 'Test 6.4: Maçta olmayan oyuncu ayrılamadı');
+    const waitlist = await call('POST', `/api/open-matches/${matchId}/waitlist`, {}, tokens[3]);
+    assert(waitlist.status === 200 && waitlist.json.action === 'JOINED', 'Test 6.5: Beşinci oyuncu bekleme listesine alındı');
+    const leave = await call('POST', `/api/open-matches/${matchId}/leave`, {}, tokens[0]);
+    const detailAfter = await call('GET', `/api/open-matches/${matchId}`);
+    const kaanId = (await one(`SELECT id FROM app.users WHERE email = 'kaan@demo.ralo.app'`)).id;
+    assert(leave.status === 200 && detailAfter.json.participants.some((p: any) => p.userId === kaanId && p.status === 'ACTIVE') && detailAfter.json.waitlist.length === 0,
+      'Test 6.6: Ayrılan oyuncunun yerine bekleme listesindeki oyuncu alındı', detailAfter.json);
+    const organizerLeave = await call('POST', `/api/open-matches/${matchId}/leave`, {}, playerToken);
+    assert(organizerLeave.status === 400, 'Test 6.7: Organizatör maçtan ayrılamadı (iptal etmesi gerekir)');
+
+    // TEST 7: Email verification is required for app bookings
+    const register = await call('POST', '/api/auth/register', { displayName: 'Yeni Oyuncu', email: 'yeni@test.ralo', password: 'padel2026', acceptTerms: true });
+    const unverified = await call('POST', '/api/reservations', { courtId: urlaCourt.id, startAt: `${dayOffset(12)}T09:00:00`, durationMinutes: 60 }, register.json?.token);
+    assert(register.status === 201 && unverified.status === 403 && unverified.json.code === 'EMAIL_NOT_VERIFIED', 'Test 7.1: Doğrulanmamış hesap rezervasyon yapamadı', unverified.json);
+
+    // TEST 8: Club panel permissions and tenant isolation
+    const ownerToken = await login(DEMO_ACCOUNT_EMAILS.ISLETME_SAHIBI);
+    const staffToken = await login(DEMO_ACCOUNT_EMAILS.PERSONEL);
+    const schedule = await call('GET', `/api/panel/schedule?date=${bookingDate}`, undefined, ownerToken);
+    assert(schedule.status === 200 && schedule.json.reservations.some((r: any) => r.id === rebook.json.reservation.id), 'Test 8.1: İşletme sahibi kendi takviminde rezervasyonu gördü');
+    const istanbulCourts = await call('GET', `/api/courts?city=İstanbul`);
+    const etilerBooking = await call('POST', '/api/reservations', { courtId: istanbulCourts.json.courts[0].id, startAt: `${dayOffset(10)}T12:00:00`, durationMinutes: 60 }, zeynepToken);
+    const foreign = await call('PATCH', `/api/panel/reservations/${etilerBooking.json?.reservation?.id}/status`, { status: 'CANCELLED' }, ownerToken);
+    assert(etilerBooking.status === 201 && foreign.status === 404, 'Test 8.2: Başka kulübün rezervasyonu panelden değiştirilemedi', foreign.json);
+    const staffForbidden = await call('GET', '/api/panel/staff', undefined, staffToken);
+    assert(staffForbidden.status === 403, 'Test 8.3: Personel, personel yönetimine erişemedi');
+    const clubCancel = await call('PATCH', `/api/panel/reservations/${rebook.json.reservation.id}/status`, { status: 'CANCELLED' }, staffToken);
+    const clubVoid = await one(`SELECT status, void_reason FROM app.fee_ledger_entries WHERE reservation_id = $1`, [rebook.json.reservation.id]);
+    assert(clubCancel.status === 200 && clubVoid.void_reason === 'club_cancelled', 'Test 8.4: Kulübün iptal ettiği rezervasyonda da ücret alınmadı', clubVoid);
+    const manual = await call('POST', '/api/panel/reservations/manual', { courtId: urlaCourt.id, customerName: 'Telefon Müşterisi', date: dayOffset(13), startTime: '15:00', durationMinutes: 60 }, staffToken);
+    const manualFee = await one(`SELECT count(*)::int AS n FROM app.fee_ledger_entries WHERE reservation_id = $1`, [manual.json?.reservation?.id]);
+    assert(manual.status === 201 && manualFee.n === 0, 'Test 8.5: Panelden girilen rezervasyon ücretsiz kaldı', manual.json);
+    const panelCourts = await call('GET', `/api/panel/courts?date=${dayOffset(13)}`, undefined, ownerToken);
+    assert(panelCourts.status === 200 && panelCourts.json.analytics.totalCourts === 3 && panelCourts.json.analytics.totalBookedHours >= 1, 'Test 8.6: Kort doluluğu gerçek rezervasyonlardan hesaplandı', panelCourts.json?.analytics);
+
+    // TEST 9: Platform admin
+    const adminToken = await login(DEMO_ADMIN_EMAIL);
+    const denied = await call('GET', '/api/admin/overview', undefined, ownerToken);
+    const overview = await call('GET', '/api/admin/overview', undefined, adminToken);
+    assert(denied.status === 403 && overview.status === 200 && overview.json.activeClubs === 4, 'Test 9.1: Yönetim paneli yalnızca platform yöneticisine açıldı', overview.json);
+    const newClub = await call('POST', '/api/admin/clubs', {
+      name: 'Bursa Padel Merkezi', cityId: 16, districtName: 'Nilüfer', address: 'Test Cad. No:1, Nilüfer / Bursa',
+      ownerName: 'Ayşe Yılmaz', ownerEmail: 'ayse.bursa@test.ralo', amenities: ['parking', 'cafe']
+    }, adminToken);
+    assert(newClub.status === 201 && newClub.json.club.isActive === false && newClub.json.ownerInvited === true && newClub.json.inviteEmailSent === true,
+      'Test 9.2: Yönetici yeni kulüp açtı, sahibine davet gönderildi, kulüp pasif başladı', newClub.json);
+    const hidden = await call('GET', '/api/courts?city=Bursa');
+    assert(hidden.json.total === 0, 'Test 9.3: Pasif kulüp oyunculara görünmedi');
+
+    // Move one reservation 45 days back so its fee falls into a finished month
+    await db.query(
+      `UPDATE app.court_bookings SET starts_at = starts_at - interval '45 days', ends_at = ends_at - interval '45 days'
+       WHERE id = (SELECT booking_id FROM app.reservations WHERE id = $1)`,
+      [adjacent.json.reservation.id]
+    );
+    const period = (await one<{ period: string }>(`SELECT to_char(local_date, 'YYYY-MM') AS period FROM app.reservations WHERE id = $1`, [adjacent.json.reservation.id])).period;
+    const current = await call('POST', '/api/admin/statements/generate', { period: todayLocal().slice(0, 7) }, adminToken);
+    assert(current.status === 400, 'Test 9.4: İçinde bulunulan ay için hesap özeti oluşturulamadı');
+    const generated = await call('POST', '/api/admin/statements/generate', { period }, adminToken);
+    const statement = generated.json?.statements?.[0];
+    assert(generated.status === 200 && generated.json.created === 1 && statement.reservationFeeTotal === 100 && statement.total === 120,
+      'Test 9.5: Geçmiş ay için hesap özeti oluşturuldu (100 TL + %20 KDV)', generated.json);
+    const again = await call('POST', '/api/admin/statements/generate', { period }, adminToken);
+    assert(again.status === 200 && again.json.created === 0, 'Test 9.6: Aynı ay için ikinci hesap özeti oluşmadı');
+    const paid = await call('POST', `/api/admin/statements/${statement?.id}/paid`, { paymentReference: 'EFT-123' }, adminToken);
+    assert(paid.status === 200 && paid.json.statement.status === 'paid' && paid.json.statement.paidAmount === 120, 'Test 9.7: Hesap özeti havale ile ödendi olarak işaretlendi', paid.json);
+    const clubStatements = await call('GET', '/api/panel/statements', undefined, ownerToken);
+    assert(clubStatements.status === 200 && clubStatements.json.statements.some((s: any) => s.id === statement?.id), 'Test 9.8: Kulüp sahibi kendi hesap özetini panelde gördü');
+
+    // TEST 10: KVKK account deletion
+    const deleteAccount = await call('POST', '/api/auth/delete-account', { confirmationText: 'HESABIMI SIL', confirmationCheck: true }, register.json.token);
+    const afterDelete = await call('GET', '/api/auth/me', undefined, register.json.token);
+    const anonymized = await one(`SELECT email FROM app.users WHERE status = 'deleted' LIMIT 1`);
+    assert(deleteAccount.status === 200 && afterDelete.status === 401 && anonymized && anonymized.email === null, 'Test 10.1: Hesap anonimleştirildi ve oturum kapandı', deleteAccount.json);
+    const ownerDelete = await call('POST', '/api/auth/delete-account', { confirmationText: 'HESABIMI SIL', confirmationCheck: true }, ownerToken);
+    assert(ownerDelete.status === 409, 'Test 10.2: İşletme sahibi hesabı uygulamadan silinemedi');
   } catch (err: any) {
-    assert(false, 'Test 7: Kimlik doğrulama testi beklenmedik hata verdi', err.message);
+    assert(false, 'Beklenmeyen hata', err?.stack ?? String(err));
   } finally {
-    dbStore.removeAuthTokens(t => t.userId === 'test_auth_user');
+    server.close();
+    await db.close();
   }
 
-  console.log(`\n🏁 Test Özeti: ${passed} Başarılı, ${failed} Hatalı\n`);
-
-  if (failed > 0) {
-    process.exit(1);
-  }
+  originalLog(`\n🏁 Test Özeti: ${passed} Başarılı, ${failed} Hatalı\n`);
+  process.exit(failed > 0 ? 1 : 0);
 }
 
 runTests();

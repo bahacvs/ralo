@@ -108,13 +108,14 @@ export const CourtsView: React.FC = () => {
     setShowAdvancedFilters(false);
   };
 
+  // Labels of app.amenities in the database; the server filters by exact label
   const amenitiesList = [
-    'Işıklandırma (LED)',
-    'Soyunma Odası & Duş',
+    'Gece Aydınlatması',
+    'Soyunma Odası',
+    'Duş',
     'Otopark',
-    'Kafe / Dinlenme Alanı',
-    'Raket & Top Kiralama',
-    'Kamera / Maç Kaydı'
+    'Kafe',
+    'Ekipman Kiralama'
   ];
 
   return (

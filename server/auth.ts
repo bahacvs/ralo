@@ -1,50 +1,52 @@
 import crypto from 'crypto';
 import type { Request } from 'express';
-import { dbStore, type AuthTokenPurpose } from './store.js';
+import { getDb, type Queryable } from './db/instance.js';
 
+/** sha256 hex; the database stores decode(hex) in bytea columns. Tokens themselves are never stored. */
 function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 // -------------------------------------------------------------
-// Sessions (persisted with the store; only token hashes are stored)
+// Sessions (app.sessions)
 // -------------------------------------------------------------
 
-const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const SESSION_TTL_DAYS = 30;
 
-export function createSession(userId: string): string {
+export async function createSession(userId: string, q: Queryable = getDb()): Promise<string> {
   const token = crypto.randomBytes(32).toString('base64url');
-  const now = Date.now();
-  dbStore.getSessions().push({
-    id: hashToken(token),
-    userId,
-    createdAt: new Date(now).toISOString(),
-    expiresAt: new Date(now + SESSION_TTL_MS).toISOString()
-  });
-  dbStore.save();
+  await q.query(
+    `INSERT INTO app.sessions (token_hash, user_id, expires_at)
+     VALUES (decode($1, 'hex'), $2, now() + make_interval(days => $3))`,
+    [hashToken(token), userId, SESSION_TTL_DAYS]
+  );
+  await q.query(`UPDATE app.users SET last_login_at = now() WHERE id = $1`, [userId]);
   return token;
 }
 
-export function getSessionUserId(token: string | undefined): string | undefined {
-  if (!token) return undefined;
-  const id = hashToken(token);
-  const session = dbStore.getSessions().find(s => s.id === id);
-  if (!session) return undefined;
-  if (Date.parse(session.expiresAt) < Date.now()) {
-    dbStore.removeSessions(s => s.id === id);
-    return undefined;
-  }
-  return session.userId;
+export async function getSessionUserId(token: string | undefined): Promise<string | undefined> {
+  if (!token || token.length > 128) return undefined;
+  const { rows } = await getDb().query<{ user_id: string }>(
+    `SELECT user_id FROM app.sessions
+     WHERE token_hash = decode($1, 'hex') AND revoked_at IS NULL AND expires_at > now()`,
+    [hashToken(token)]
+  );
+  return rows[0]?.user_id;
 }
 
-export function deleteSession(token: string | undefined): void {
-  if (!token) return;
-  const id = hashToken(token);
-  dbStore.removeSessions(s => s.id === id);
+export async function deleteSession(token: string | undefined): Promise<void> {
+  if (!token || token.length > 128) return;
+  await getDb().query(`DELETE FROM app.sessions WHERE token_hash = decode($1, 'hex')`, [hashToken(token)]);
 }
 
-export function deleteUserSessions(userId: string): void {
-  dbStore.removeSessions(s => s.userId === userId);
+export async function deleteUserSessions(userId: string, q: Queryable = getDb()): Promise<void> {
+  await q.query(`DELETE FROM app.sessions WHERE user_id = $1`, [userId]);
+}
+
+/** Removes expired sessions and email links; run periodically. */
+export async function purgeExpiredAuthRows(): Promise<void> {
+  await getDb().query(`DELETE FROM app.sessions WHERE expires_at < now()`);
+  await getDb().query(`DELETE FROM app.auth_tokens WHERE expires_at < now()`);
 }
 
 export function extractToken(req: Request): string | undefined {
@@ -139,37 +141,41 @@ export async function burnPasswordCheck(password: string): Promise<void> {
 }
 
 // -------------------------------------------------------------
-// Single-use email links (verification, password reset, staff invitation)
+// Single-use email links (app.auth_tokens)
 // -------------------------------------------------------------
+
+export type AuthTokenPurpose = 'VERIFY_EMAIL' | 'RESET_PASSWORD';
 
 export const VERIFY_EMAIL_TTL_MS = 48 * 60 * 60 * 1000;
 export const RESET_PASSWORD_TTL_MS = 60 * 60 * 1000;
 export const STAFF_INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+const purposeToDb = (purpose: AuthTokenPurpose) => (purpose === 'VERIFY_EMAIL' ? 'verify_email' : 'reset_password');
+
 /** Issues a link token; any earlier token for the same user and purpose stops working. */
-export function createAuthToken(userId: string, email: string, purpose: AuthTokenPurpose, ttlMs: number): string {
+export async function createAuthToken(
+  userId: string, email: string, purpose: AuthTokenPurpose, ttlMs: number, q: Queryable = getDb()
+): Promise<string> {
   const token = crypto.randomBytes(32).toString('base64url');
-  const now = Date.now();
-  dbStore.removeAuthTokens(t => t.userId === userId && t.purpose === purpose);
-  dbStore.getAuthTokens().push({
-    id: hashToken(token),
-    userId,
-    email,
-    purpose,
-    createdAt: new Date(now).toISOString(),
-    expiresAt: new Date(now + ttlMs).toISOString()
-  });
-  dbStore.save();
+  await q.query(`DELETE FROM app.auth_tokens WHERE user_id = $1 AND purpose = $2`, [userId, purposeToDb(purpose)]);
+  await q.query(
+    `INSERT INTO app.auth_tokens (token_hash, user_id, purpose, email, expires_at)
+     VALUES (decode($1, 'hex'), $2, $3, $4, now() + make_interval(secs => $5))`,
+    [hashToken(token), userId, purposeToDb(purpose), email, ttlMs / 1000]
+  );
   return token;
 }
 
-/** Deletes the token and returns its owner when it exists, matches the purpose and has not expired. */
-export function consumeAuthToken(token: unknown, purpose: AuthTokenPurpose): { userId: string; email: string } | null {
+/** Deletes the token and returns its owner when it matches the purpose and has not expired. */
+export async function consumeAuthToken(
+  token: unknown, purpose: AuthTokenPurpose, q: Queryable = getDb()
+): Promise<{ userId: string; email: string } | null> {
   if (typeof token !== 'string' || token.length < 32 || token.length > 128) return null;
-  const id = hashToken(token);
-  const record = dbStore.getAuthTokens().find(t => t.id === id && t.purpose === purpose);
-  if (!record) return null;
-  dbStore.removeAuthTokens(t => t.id === id);
-  if (Date.parse(record.expiresAt) <= Date.now()) return null;
-  return { userId: record.userId, email: record.email };
+  const { rows } = await q.query<{ user_id: string; email: string; valid: boolean }>(
+    `DELETE FROM app.auth_tokens WHERE token_hash = decode($1, 'hex') AND purpose = $2
+     RETURNING user_id, email, expires_at > now() AS valid`,
+    [hashToken(token), purposeToDb(purpose)]
+  );
+  const row = rows[0];
+  return row && row.valid ? { userId: row.user_id, email: row.email } : null;
 }

@@ -7,4 +7,5 @@ coverage/
 .env*
 !.env.example
 data/ralo_db.json
+data/pglite/
 .claude/worktrees/
