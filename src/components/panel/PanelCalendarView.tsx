@@ -11,7 +11,7 @@ import {
 
 export const PanelCalendarView: React.FC = () => {
   const { user } = useAuth();
-  const businessId = user?.businessId || 'biz_urla';
+  const businessId = user?.businessId || '';
 
   const todayStr = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState<string>(todayStr);

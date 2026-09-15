@@ -6,7 +6,7 @@ import { CheckCircle2, XCircle, Clock, Search, Filter } from 'lucide-react';
 
 export const PanelReservationsView: React.FC = () => {
   const { user } = useAuth();
-  const businessId = user?.businessId || 'biz_urla';
+  const businessId = user?.businessId || '';
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

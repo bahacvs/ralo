@@ -56,7 +56,7 @@ function getOccupancyBadgeClass(status?: string): string {
 
 export const PanelCourtsView: React.FC = () => {
   const { user } = useAuth();
-  const businessId = user?.businessId || 'biz_urla';
+  const businessId = user?.businessId || '';
 
   const todayStr = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);

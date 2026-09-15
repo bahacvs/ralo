@@ -144,7 +144,7 @@ export const Header: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate(isPanel ? `/panel/${user?.businessId || 'biz_urla'}/takvim` : '/ana')}
+              onClick={() => navigate(isPanel ? `/panel/${user?.businessId || ''}/takvim` : '/ana')}
               className="flex items-center gap-2 text-left rounded-xl py-1 px-1 focus-visible:ring-2 focus-visible:ring-amber-400 cursor-pointer"
               aria-label="RALO - The Social Network for Padel Ana Sayfa"
             >
@@ -215,11 +215,23 @@ export const Header: React.FC = () => {
           {/* Controls: Mesajlar + Bildirimler + Demo Switcher */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             
+            {/* Platform admin shortcut */}
+            {user?.isPlatformAdmin && !isPanel && (
+              <button
+                type="button"
+                onClick={() => navigate('/admin')}
+                className="hidden sm:inline-flex items-center gap-1.5 min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors focus-visible:ring-2 focus-visible:ring-amber-300"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>RALO Yönetim</span>
+              </button>
+            )}
+
             {/* Business Panel / Player Switch Shortcut */}
             {role !== 'OYUNCU' && (
               <button
                 type="button"
-                onClick={() => navigate(isPanel ? '/ana' : `/panel/${user?.businessId || 'biz_urla'}/takvim`)}
+                onClick={() => navigate(isPanel ? '/ana' : `/panel/${user?.businessId || ''}/takvim`)}
                 className="hidden sm:inline-flex items-center gap-1.5 min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400"
               >
                 <Building2 className="w-3.5 h-3.5 text-amber-400" aria-hidden="true" />

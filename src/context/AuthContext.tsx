@@ -149,7 +149,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       // Route accordingly
       if (targetRole === 'ISLETME_SAHIBI' || targetRole === 'PERSONEL') {
-        const bId = res.user.businessId || 'biz_urla';
+        const bId = res.user.businessId || '';
         navigate(`/panel/${bId}/takvim`);
       } else {
         navigate('/ana');

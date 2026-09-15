@@ -6,7 +6,7 @@ import { BarChart3, TrendingUp, AlertTriangle, Users, DollarSign, Calendar } fro
 
 export const PanelReportsView: React.FC = () => {
   const { user } = useAuth();
-  const businessId = user?.businessId || 'biz_urla';
+  const businessId = user?.businessId || '';
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

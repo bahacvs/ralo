@@ -37,6 +37,16 @@ import { PanelReservationsView } from './components/panel/PanelReservationsView.
 import { PanelCourtsView } from './components/panel/PanelCourtsView.js';
 import { PanelStaffView } from './components/panel/PanelStaffView.js';
 import { PanelReportsView } from './components/panel/PanelReportsView.js';
+import { PanelStatementsView } from './components/panel/PanelStatementsView.js';
+
+// Platform admin
+import { AdminLayout } from './components/admin/AdminLayout.js';
+import { AdminOverviewView } from './components/admin/AdminOverviewView.js';
+import { AdminClubsView } from './components/admin/AdminClubsView.js';
+import { AdminClubDetailView } from './components/admin/AdminClubDetailView.js';
+import { AdminFeesView } from './components/admin/AdminFeesView.js';
+import { AdminStatementsView } from './components/admin/AdminStatementsView.js';
+import { AdminUsersView } from './components/admin/AdminUsersView.js';
 
 const PROTECTED_PLAYER_ROUTES = ['/maclarim', '/mesajlar', '/profil', '/hesap-ve-gizlilik'];
 
@@ -45,20 +55,22 @@ const AppContent: React.FC = () => {
 
   // Route matching logic
   const isPanelRoute = currentRoute.startsWith('/panel');
-  const needsLogin = !user && (isPanelRoute || PROTECTED_PLAYER_ROUTES.includes(currentRoute));
+  const isAdminRoute = currentRoute === '/admin' || currentRoute.startsWith('/admin/');
+  const needsLogin = !user && (isPanelRoute || isAdminRoute || PROTECTED_PLAYER_ROUTES.includes(currentRoute));
   const needsBusinessRole = !!user && isPanelRoute && user.role === 'OYUNCU';
+  const needsPlatformAdmin = !!user && isAdminRoute && !user.isPlatformAdmin;
 
   useEffect(() => {
     if (isLoading) return;
     if (needsLogin) {
       setReturnTo(currentRoute);
       navigate('/giris');
-    } else if (needsBusinessRole) {
+    } else if (needsBusinessRole || needsPlatformAdmin) {
       navigate('/ana');
     }
-  }, [isLoading, needsLogin, needsBusinessRole, currentRoute]);
+  }, [isLoading, needsLogin, needsBusinessRole, needsPlatformAdmin, currentRoute]);
 
-  if (isLoading || needsLogin || needsBusinessRole) {
+  if (isLoading || needsLogin || needsBusinessRole || needsPlatformAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950" role="status" aria-live="polite">
         <span className="w-8 h-8 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" aria-hidden="true" />
@@ -84,6 +96,9 @@ const AppContent: React.FC = () => {
       }
       if (currentRoute.includes('/raporlar')) {
         return <PanelReportsView />;
+      }
+      if (currentRoute.includes('/hesap-ozetleri')) {
+        return <PanelStatementsView />;
       }
       return <PanelCalendarView />;
     }
@@ -132,6 +147,22 @@ const AppContent: React.FC = () => {
     // Default fallback to Home
     return <HomeView />;
   };
+
+  if (isAdminRoute) {
+    const renderAdmin = () => {
+      if (currentRoute.startsWith('/admin/kulupler/')) return <AdminClubDetailView />;
+      if (currentRoute === '/admin/kulupler') return <AdminClubsView />;
+      if (currentRoute === '/admin/ucretler') return <AdminFeesView />;
+      if (currentRoute === '/admin/hesap-ozetleri') return <AdminStatementsView />;
+      if (currentRoute === '/admin/kullanicilar') return <AdminUsersView />;
+      return <AdminOverviewView />;
+    };
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-900 antialiased font-sans overflow-x-hidden w-full">
+        <AdminLayout>{renderAdmin()}</AdminLayout>
+      </div>
+    );
+  }
 
   if (isPanelRoute) {
     return (

@@ -20,10 +20,13 @@ announced. Details for each item are in [runbook.md](runbook.md).
 
 ## 2. Product and fee settings (super-admin panel)
 
-- [ ] Platform owner super-admin account exists and uses a real email address and a strong password.
-- [ ] App reservation fee set to **100 TL** per reservation made through the app.
+- [ ] Platform owner signed up in the app with a real email address and a strong password, verified
+      the email, and was made admin with `bun run admin:grant <email>` (runbook 8).
+- [ ] App reservation fee set to **100 TL** in `/admin` > Ücretler & KDV.
+- [ ] Billing policy saved there: VAT included or excluded (decided with the accountant), VAT rate,
+      due days, no-show charging.
 - [ ] Manually entered club-panel reservations confirmed to incur **no** fee.
-- [ ] Decision recorded and configured: does a **club-cancelled** app reservation still incur the fee?
+- [ ] Cancelled reservations confirmed to incur **no** fee (enforced by the database).
 - [ ] Default player cancellation window configured (default 24h) and per-club overrides reviewed.
 - [ ] Lesson platform fee amount configured (decision recorded; not hardcoded).
 - [ ] Elo change rules decided and configured.
@@ -35,7 +38,7 @@ announced. Details for each item are in [runbook.md](runbook.md).
 
 ## 3. Production configuration
 
-- [ ] Render service in Frankfurt, **exactly 1 instance**, plan starter or higher.
+- [ ] Render service in Frankfurt, plan starter or higher (1 instance to start; rate limits are per instance).
 - [ ] `NODE_ENV=production`, `TZ=Europe/Istanbul`.
 - [ ] **`DEMO_MODE=false`**.
 - [ ] **`VITE_DEMO_MODE=false`** and the production build was made with it (redeploy after any change).
@@ -48,16 +51,13 @@ announced. Details for each item are in [runbook.md](runbook.md).
 
 ## 4. Data
 
-- [ ] Production database contains **no seeded demo data**. Both queries return 0:
+- [ ] Production database contains **no seeded demo data**. The query returns 0:
       ```sql
-      SELECT count(*) FROM users      WHERE id LIKE '%_demo';
-      -- every seeded demo club id starts with biz_; real clubs added through the admin panel do not
-      SELECT count(*) FROM businesses WHERE id LIKE 'biz\_%';
+      SELECT count(*) FROM app.users WHERE email LIKE '%@demo.ralo.app';
       ```
-- [ ] Boot log did **not** contain `seeding demo data` or `Seed data successfully generated`.
-- [ ] Test accounts and test reservations created during verification removed (through the app, so
-      the in-memory state stays consistent).
-- [ ] Any imported data went through `bun run db:import` with the service suspended (runbook 8).
+- [ ] Boot log did **not** contain `Demo data seeded`.
+- [ ] Test accounts and test reservations created during verification removed (accounts deleted from
+      the app, test clubs deactivated in `/admin`).
 
 ## 5. Infrastructure and operations
 
@@ -75,10 +75,10 @@ announced. Details for each item are in [runbook.md](runbook.md).
 
 - [ ] Deploy is Live; `/api/health` returns `{"ok":true}`.
 - [ ] Log shows `Connected to Postgres.` and `RALO Server running on ...`.
-- [ ] Previous instance logged `SIGTERM received, flushing pending data...` without `Final flush failed`.
+- [ ] `/admin` opens for the platform admin and the overview's launch checklist is all green.
 - [ ] Real sign-up works: verification email arrives, the link verifies, password reset works; no demo role switcher.
 - [ ] One real app reservation at a live club appears in that club's panel and in the fee ledger;
       then cancel it and confirm the fee behaviour matches the configured rule.
 - [ ] One manual panel reservation confirmed to create no fee.
 - [ ] PWA installs on iOS and Android; times shown in Turkey local time.
-- [ ] Logs watched for the first hour: no `Postgres flush failed`, `Email delivery failed` spikes.
+- [ ] Logs watched for the first hour: no `Postgres pool error` lines or `Email delivery failed` spikes.

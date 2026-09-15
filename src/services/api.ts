@@ -3,6 +3,10 @@ import {
   CourtFilterOptions, OpenMatchFilterOptions, Message, Conversation, Notification,
   FeedPost, FeedReply, FeedCategory, CourtWeatherInfo, CourtOccupancyInfo
 } from '../types/index.js';
+import type {
+  AdminOverview, AdminReference, AdminClubListItem, AdminClubDetail, FeeSettings, MonthlyStatement,
+  AdminUserRow, LessonFeeBasis
+} from '../types/admin.js';
 
 /** Fired on window when the server rejects the session; detail: { method } */
 export const UNAUTHORIZED_EVENT = 'ralo:unauthorized';
@@ -419,6 +423,103 @@ export const api = {
       body: JSON.stringify(data)
     }),
 
-  getPanelReports: (businessId: string) => 
-    request<any>(`/api/panel/reports?businessId=${businessId}`)
+  getPanelReports: (businessId: string) =>
+    request<any>(`/api/panel/reports?businessId=${businessId}`),
+
+  // Club billing (owner)
+  getPanelStatements: () =>
+    request<{ statements: MonthlyStatement[] }>('/api/panel/statements'),
+
+  getPanelStatement: (id: string) =>
+    request<{ statement: MonthlyStatement }>(`/api/panel/statements/${id}`),
+
+  // Platform admin (super-admin panel)
+  admin: {
+    overview: () => request<AdminOverview>('/api/admin/overview'),
+
+    reference: () => request<AdminReference>('/api/admin/reference'),
+
+    clubs: () => request<{ clubs: AdminClubListItem[] }>('/api/admin/clubs'),
+
+    club: (id: string) => request<{ club: AdminClubDetail }>(`/api/admin/clubs/${id}`),
+
+    createClub: (data: Record<string, unknown>) =>
+      request<{ success: boolean; club: AdminClubDetail; ownerInvited: boolean; inviteEmailSent: boolean }>('/api/admin/clubs', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+
+    updateClub: (id: string, data: Record<string, unknown>) =>
+      request<{ success: boolean; club: AdminClubDetail }>(`/api/admin/clubs/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+      }),
+
+    setOpeningHours: (id: string, days: { isClosed: boolean; open: string; close: string }[]) =>
+      request<{ success: boolean; club: AdminClubDetail }>(`/api/admin/clubs/${id}/opening-hours`, {
+        method: 'PUT',
+        body: JSON.stringify({ days })
+      }),
+
+    createCourt: (clubId: string, data: Record<string, unknown>) =>
+      request<{ success: boolean; court: Court }>(`/api/admin/clubs/${clubId}/courts`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+
+    updateCourt: (clubId: string, courtId: string, data: Record<string, unknown>) =>
+      request<{ success: boolean; court: Court }>(`/api/admin/clubs/${clubId}/courts/${courtId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+      }),
+
+    setLessonFee: (clubId: string, amount: number, basis: LessonFeeBasis) =>
+      request<{ success: boolean; club: AdminClubDetail }>(`/api/admin/clubs/${clubId}/lesson-fee`, {
+        method: 'PUT',
+        body: JSON.stringify({ amount, basis })
+      }),
+
+    resendOwnerInvite: (clubId: string) =>
+      request<{ success: boolean; message: string }>(`/api/admin/clubs/${clubId}/resend-owner-invite`, { method: 'POST' }),
+
+    fees: () => request<FeeSettings>('/api/admin/fees'),
+
+    setAppReservationFee: (amount: number, reason?: string) =>
+      request<FeeSettings & { success: boolean }>('/api/admin/fees/app-reservation', {
+        method: 'POST',
+        body: JSON.stringify({ amount, reason })
+      }),
+
+    setBillingPolicy: (data: { amountsIncludeVat: boolean; vatRatePercent: number; statementDueDays: number; chargeNoShow: boolean }) =>
+      request<FeeSettings & { success: boolean }>('/api/admin/billing-policy', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+
+    statements: (period?: string) =>
+      request<{ statements: MonthlyStatement[] }>(`/api/admin/statements${period ? `?period=${encodeURIComponent(period)}` : ''}`),
+
+    statement: (id: string) => request<{ statement: MonthlyStatement }>(`/api/admin/statements/${id}`),
+
+    generateStatements: (period: string) =>
+      request<{ success: boolean; created: number; statements: MonthlyStatement[] }>('/api/admin/statements/generate', {
+        method: 'POST',
+        body: JSON.stringify({ period })
+      }),
+
+    markStatementPaid: (id: string, data: { paidAmount?: number; paymentReference?: string }) =>
+      request<{ success: boolean; statement: MonthlyStatement }>(`/api/admin/statements/${id}/paid`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+
+    cancelStatement: (id: string, reason: string) =>
+      request<{ success: boolean; statement: MonthlyStatement }>(`/api/admin/statements/${id}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      }),
+
+    users: (search?: string) =>
+      request<{ users: AdminUserRow[] }>(`/api/admin/users${search ? `?search=${encodeURIComponent(search)}` : ''}`)
+  }
 };

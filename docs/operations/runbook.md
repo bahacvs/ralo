@@ -5,18 +5,22 @@ UI copy is Turkish; this document is for the operators.
 
 ## 1. Architecture in one paragraph
 
-A single Node process (`dist/server.cjs`, built from `server.ts`) serves the API and the built
-React app. All data lives **in memory** and is mirrored to Postgres (one `jsonb` row per record,
-one table per collection, see `server/persistence.ts`). Writes are debounced (about 20 ms) and
-flushed on `SIGTERM`. Because memory is the source of truth while running, **the service must run
-as exactly one instance**. Never scale horizontally and never point two services at the same
-database.
+A Node process (`dist/server.cjs`, built from `server.ts`) serves the API and the built React app.
+All data lives in the relational Postgres schema `app` (`server/db/migrations`), which the API
+reads and writes directly (`server/repo/*`). Business rules that must never break are enforced by
+the database itself: overlap-proof court bookings, the platform fee ledger, monthly statements and
+KVKK anonymization. Pending migrations are applied on every boot. In development, when
+`DATABASE_URL` is empty, the same schema runs in-process on PGlite (`data/pglite`).
+
+The API keeps no business state in memory, so more than one instance is possible. Two things are
+still per instance: login/sign-up rate limits and the hourly cleanup of expired sessions. Run a
+single instance until there is a reason to scale.
 
 ## 2. Environments
 
 | | Staging | Production |
 |---|---|---|
-| App host | Render web service `ralo-staging` (Frankfurt, starter) | Render web service `ralo` (Frankfurt, `numInstances: 1`) |
+| App host | Render web service `ralo-staging` (Frankfurt, starter) | Render web service `ralo` (Frankfurt) |
 | Database | Separate Supabase project, Frankfurt (`eu-central-1`) | Separate Supabase project, Frankfurt, Pro plan (backups + PITR) |
 | Email | Same RALO Gmail account is fine, or `MAIL_PROVIDER=console` with `DEMO_MODE=true` for internal testing only | Gmail SMTP (`MAIL_PROVIDER=smtp`); a domain mailbox once there is a company and a domain |
 | Demo mode | May be `true` for internal demos | **Always `false`** |
@@ -36,12 +40,15 @@ between staging and production.
 | `NODE_ENV` | `production` serves `dist/`, requires `DATABASE_URL`, makes SMTP the default mail provider and refuses to boot without `SMTP_USER`/`SMTP_PASS` | Render (plain) | `production` |
 | `TZ` | Process timezone. `server/time.ts` also forces `Europe/Istanbul`; set it anyway so logs match | Render (plain) | `Europe/Istanbul` |
 | `PORT` | HTTP port (default 3000). Render injects it automatically | Render injects; `.env` locally | leave unset |
-| `DATABASE_URL` | Postgres connection string. Empty = JSON file store in `data/` (development only). Server refuses to start in production without it | Render (secret); `.env` locally | Supabase **session pooler** URL (see section 6) |
+| `DATABASE_URL` | Postgres connection string. Empty = local PGlite database in `data/pglite` (development only). Server refuses to start in production without it | Render (secret); `.env` locally | Supabase **session pooler** URL (see section 6) |
+| `DATABASE_POOL_MAX` | Maximum connections per instance (default 10) | Render (plain), normally unset | unset |
 | `DATABASE_SSL_CA` | PEM of the database CA certificate. Remote connections verify the TLS certificate; Supabase's CA is not in Node's trust store, so without it the connection fails. Newlines may be written as `\n` | Render (secret) | Supabase project CA certificate (section 6) |
 | `DATABASE_SSL_REJECT_UNAUTHORIZED` | `false` disables certificate verification. Emergency workaround only; logs a warning on boot | Render (plain), normally unset | unset (`true`) |
-| `DATABASE_MIGRATION_URL` | Connection used by `bun run db:migrate` for the SQL schema (section 12). Falls back to `DATABASE_URL` | local shell / CI job only | session pooler URL, port `5432` |
-| `APP_URL` | Public URL used in share links and in verification, password reset and staff invitation emails. Must be the real domain in production or email links break | Render (secret) | `https://<production domain>` |
-| `DEMO_MODE` | `true` exposes the role switcher API, lets unverified accounts book, seeds/refreshes demo data on boot, allows console mail in production | Render (plain) | `false` |
+| `DATABASE_MIGRATION_URL` | Connection used by `bun run db:migrate` and `bun run admin:grant` from a local shell. Falls back to `DATABASE_URL` | local shell / CI job only | session pooler URL, port `5432` |
+| `PGLITE_DATA_DIR` | Development only: where the local PGlite database is stored (default `data/pglite`) | `.env` locally | unset |
+| `DEMO_PASSWORD` | Password of the seeded demo accounts (default `padel2026demo`) | `.env` / staging | unset |
+| `APP_URL` | Public URL used in share links and in verification, password reset and invitation emails. Must be the real domain in production or email links break | Render (secret) | `https://<production domain>` |
+| `DEMO_MODE` | `true` exposes the role switcher API, lets unverified accounts book, seeds demo data into an empty database on boot, allows console mail in production | Render (plain) | `false` |
 | `VITE_DEMO_MODE` | **Build-time** flag that shows the demo role switcher in the UI. Baked into the bundle, so changing it needs a rebuild/redeploy. Keep equal to `DEMO_MODE` | Render (plain) | `false` |
 | `MAIL_PROVIDER` | `smtp` or `console` (prints emails, including their one-time links, to the log) | Render (plain) | `smtp` |
 | `SMTP_HOST` / `SMTP_PORT` | SMTP server. Port 465 uses TLS directly, 587 uses STARTTLS | Render (plain) | `smtp.gmail.com` / `465` |
@@ -60,22 +67,23 @@ Rules:
 1. **Supabase**: create the project (section 6), copy the session pooler connection string.
 2. **Email**: complete the Gmail checklist in section 5.
 3. **Render**: New > Blueprint, select the repo, it reads `render.yaml`.
-   Confirm region Frankfurt, plan starter or higher, instances = 1.
+   Confirm region Frankfurt, plan starter or higher.
 4. Fill the secret env vars: `DATABASE_URL`, `DATABASE_SSL_CA`, `APP_URL`, `SMTP_USER`,
    `SMTP_PASS`, `MAIL_FROM`, optionally `GEMINI_API_KEY`.
 5. Deploy. Build command: `npm install --include=dev && npm run build`. Start: `npm start`.
-6. Tables are created automatically on boot (`CREATE TABLE IF NOT EXISTS`, one per collection).
-7. Verify (section 7). On an empty production database the log shows
-   `Database is empty. Import data with "bun run db:import <file>" or add businesses before going live.`
-   This is expected. Clubs are then added from the super-admin panel, or imported (section 8).
+6. Migrations run automatically on boot (the log lists each applied migration). An empty production
+   database stays empty: demo data is only seeded when `DEMO_MODE=true`.
+7. Verify (section 7).
 8. Add the custom domain in Render, wait for TLS, then set `APP_URL` to it and redeploy.
-9. Sign up with a real email address, confirm the verification email arrives (check spam), open the
-   link, then test "Şifremi unuttum".
+9. Sign up in the app with the platform owner's real email address and verify it, then make that
+   account the first platform admin (section 8).
+10. In the admin panel (`/admin`): set the app reservation fee and the billing policy, then add clubs.
+11. Test "Şifremi unuttum" and a club owner invitation email end to end.
 
 ## 5. Email (Gmail SMTP) checklist
 
-Until there is a company and a domain, transactional email (verification, password reset, staff
-invitation) goes out through a Gmail account opened for RALO.
+Until there is a company and a domain, transactional email (verification, password reset, staff and
+club owner invitations) goes out through a Gmail account opened for RALO.
 
 - [ ] Dedicated Gmail account for RALO (not a personal inbox), recovery phone and email set.
 - [ ] **2-Step Verification** turned on (Google Account > Security). App passwords require it.
@@ -96,8 +104,8 @@ wrong or revoked app password; `Daily user sending limit exceeded` means the Gma
 - **Connection string for Render**: Project > Connect > **Session pooler** (port `5432`, host like
   `aws-0-eu-central-1.pooler.supabase.com`, user `postgres.<project-ref>`).
   - Do not use the direct connection (`db.<ref>.supabase.co`): it is IPv6-only and Render cannot reach it.
-  - Do not use the transaction pooler (port `6543`): the app uses explicit `BEGIN/COMMIT` blocks on
-    pooled clients, which want session semantics.
+  - Do not use the transaction pooler (port `6543`): the app refuses it. Transactions set a
+    per-request scope with `set_config` and migrations take advisory locks; both need session semantics.
   - TLS is required and the certificate is **verified** for every non-localhost URL. Download the
     project CA certificate (Project settings > Database > SSL configuration > Download certificate)
     and put its PEM content in `DATABASE_SSL_CA`. An `sslmode=...` parameter in the URL is ignored
@@ -105,61 +113,70 @@ wrong or revoked app password; `Daily user sending limit exceeded` means the Gma
   - If boot fails with a certificate error, the CA value is wrong or missing. Fix `DATABASE_SSL_CA`;
     use `DATABASE_SSL_REJECT_UNAUTHORIZED=false` only as a short emergency workaround.
   - URL-encode special characters in the password.
-- **Pool size**: the app opens at most 5 connections (`max: 5`), well within the pooler limit.
+- **Pool size**: at most `DATABASE_POOL_MAX` (default 10) connections per instance. Keep
+  instances × pool size below the pooler limit of the plan.
 - **Backups**: Pro plan gives daily backups. Enable **Point-in-Time Recovery** add-on for production
   (Project settings > Add-ons) so you can restore to any second within the retention window.
 - **Security**: database password stored only in Render and the team password manager. Enable
-  2FA for everyone in the Supabase organization. Row Level Security is not used by the app (it
-  connects as the owner role); do not expose the Supabase anon key or PostgREST to clients.
+  2FA for everyone in the Supabase organization. Do not expose the Supabase anon key or PostgREST
+  to clients; all access goes through the RALO API.
 - Supabase free projects pause after inactivity; production must be on a paid plan.
 
 ## 7. Verifying a deploy
 
-1. Render events show the deploy as **Live** (Render itself polls `healthCheckPath: /api/health`).
+1. Render events show the deploy as **Live** (Render itself polls `healthCheckPath: /api/health`,
+   which also runs `SELECT 1` against the database).
 2. `curl -fsS https://<domain>/api/health` returns `{"ok":true}`.
 3. Render logs for the new instance contain, in order:
+   - `Applied NNNN_<name>.sql (<ms> ms)` for each new migration (none when there is nothing new)
    - `Connected to Postgres.`
    - `RALO Server running on http://0.0.0.0:<PORT>`
-   If `Connected to Postgres.` is missing, the process is not persisting. Treat as an incident.
-   `Failed to start server: Error: DATABASE_URL is required in production` means the secret is missing.
-4. Logs of the **previous** instance end with `SIGTERM received, flushing pending data...` and no
-   `Final flush failed:` line after it. A `Final flush failed:` line means recent writes may be lost:
-   check the last reservations in the DB against what users report.
-5. No repeating `Postgres flush failed, retrying:` or `Postgres pool error:` lines.
-6. Smoke test: open the app, sign in with email and password, view a club's courts, open the club panel.
+   `Failed to start server: Error: DATABASE_URL is required in production` means the secret is missing;
+   `Migration ... failed:` means a migration did not apply and the release must be fixed.
+4. The previous instance logs `SIGTERM received, shutting down...`.
+5. No repeating `Postgres pool error:` lines.
+6. Smoke test: open the app, sign in with email and password, view a club's courts, open the club
+   panel, open `/admin` with the platform admin account.
 7. The demo role switcher is **not** visible.
 
-## 8. Importing data
+## 8. Admin tooling and local database
 
-`scripts/db-import-json.ts` loads a JSON file in the old file-store format (collections as top-level
-arrays) into Postgres.
+**First platform admin** (per environment). The account must already exist (sign up in the app first):
 
 ```sh
-# From a local checkout, with the target DATABASE_URL (use the session pooler URL)
-DATABASE_URL="postgresql://..." bun run db:import data/ralo_db.json
+DATABASE_MIGRATION_URL="postgresql://postgres.<ref>:<password>@aws-0-eu-central-1.pooler.supabase.com:5432/postgres" \
+DATABASE_SSL_CA="$(cat supabase-ca.crt)" \
+bun run admin:grant owner@example.com
 ```
 
-- It runs the migrations first, then refuses to write if the database already has rows.
-- `--force` overwrites: rows in the file are upserted and rows not in the file are **deleted**.
-  Take a backup first.
-- It prints the row count per collection and `Import complete.`
-- **The server holds data in memory.** Import while the service is suspended (Render > Suspend),
-  or restart it right after importing, otherwise the running instance will overwrite the import on
-  its next flush. Resume/redeploy afterwards and verify (section 7).
-- Never import demo seed data (`user_player_demo`, `biz_urla`, ...) into production.
+After that, sign out and in again; the header shows **RALO Yönetim**. Everything else (fees, billing
+policy, clubs, courts, opening hours, owner invitations, monthly statements) is done in `/admin`.
+
+**Local development**
+
+- With `DATABASE_URL` empty, `bun run dev` uses PGlite in `data/pglite` (gitignored) and applies the
+  migrations on start. Delete that folder to start from scratch.
+- `bun run db:seed` fills an empty local database with demo clubs and accounts (password
+  `DEMO_PASSWORD`, default `padel2026demo`; admin `admin@demo.ralo.app`). It refuses to run in
+  production and against a remote `DATABASE_URL` unless `--remote` is given. Never seed production.
+- `bun run db:up` starts the docker Postgres from `docker-compose.yml` if you prefer a real server.
+- Tests: `bun run test` (HTTP integration tests on in-memory PGlite) and `bun run test:db`
+  (schema tests). Both run in CI.
 
 ## 9. Rollback
 
-Code rollback (bad release, schema unchanged):
+Code rollback (bad release, no new migration):
 1. Render > service > Events > pick the last good deploy > **Rollback**.
    Alternatively `git revert` the bad commit on the deploy branch and let it deploy.
 2. Verify (section 7).
-3. Tables are created with `IF NOT EXISTS` and records are schemaless `jsonb`, so an older build
-   reads newer data. If the bad release wrote malformed records, fix the data (section 10) rather
-   than rolling back further.
+
+Releases with a new migration: migrations only move forward. An older build keeps working as long
+as the migration was additive (new columns/tables). For an incompatible migration, write a new
+forward migration that fixes it instead of rolling the code back past it; if data was damaged,
+restore (below).
 
 Data rollback (bad release corrupted data):
-1. Suspend the Render service so memory stops flushing.
+1. Suspend the Render service so no more writes happen.
 2. Restore the database with PITR to a timestamp before the release (section 10). Note that
    everything written after that timestamp is lost; export the affected rows first if possible.
 3. Roll back the code, resume the service, verify, and inform affected clubs.
@@ -175,9 +192,10 @@ Goal: prove we can restore production data and know how long it takes.
    set `DEMO_MODE=false`, deploy.
 4. Verify section 7 on staging, confirm the noted reservation ids exist, compare row counts:
    ```sql
-   SELECT 'users', count(*) FROM users UNION ALL
-   SELECT 'businesses', count(*) FROM businesses UNION ALL
-   SELECT 'reservations', count(*) FROM reservations;
+   SELECT 'users', count(*) FROM app.users UNION ALL
+   SELECT 'clubs', count(*) FROM app.clubs UNION ALL
+   SELECT 'court_bookings', count(*) FROM app.court_bookings UNION ALL
+   SELECT 'fee_ledger_entries', count(*) FROM app.fee_ledger_entries;
    ```
 5. Record: date, backup used, restore duration, data gap, problems. Restore staging's own
    `DATABASE_URL` and delete the temporary project (it contains personal data, KVKK).
@@ -187,35 +205,25 @@ Goal: prove we can restore production data and know how long it takes.
 1. **Acknowledge** in the team channel: what is broken, since when, who is on it.
 2. **Health**: `curl https://<domain>/api/health`. Check Render status page and Supabase status page.
 3. **Logs** (Render > Logs), search for:
-   - `Failed to start server` (boot failure: env var or database unreachable)
-   - `Postgres flush failed, retrying` / `Postgres pool error` (database connectivity, writes at risk)
+   - `Failed to start server` (boot failure: env var, failed migration or database unreachable)
+   - `Postgres pool error` (database connectivity)
    - `Email delivery failed` (SMTP: wrong app password or Gmail daily limit, see section 5)
-   - `Final flush failed` (data possibly lost on the last restart)
-4. **Database down**: do not restart the service repeatedly. The running instance keeps data in
-   memory and retries flushing every 2 s; a restart while the DB is down loses unflushed writes and
-   fails to boot. Wait for Supabase to recover and confirm the retry messages stop.
+4. **Database down**: requests fail and `/api/health` fails, but nothing already committed is lost
+   because the app holds no data in memory. Wait for Supabase to recover; the pool reconnects on its own.
 5. **Bad deploy**: roll back (section 9).
-6. **Instance count**: confirm Render shows exactly 1 instance. Two instances corrupt data.
-7. **Sign-ups cannot verify / reset emails missing**: check `Email delivery failed` logs, the Gmail app
+6. **Sign-ups cannot verify / reset emails missing**: check `Email delivery failed` logs, the Gmail app
    password and daily sending limit, and that `MAIL_PROVIDER=smtp` and `APP_URL` are correct.
-8. **Security incident / data leak**: rotate the `DATABASE_URL` password and the Gmail app password (`SMTP_PASS`), redeploy,
+7. **Security incident / data leak**: rotate the database password and the Gmail app password (`SMTP_PASS`), redeploy,
    preserve logs. KVKK requires notifying the Board within 72 hours of learning of a breach; involve
    the legal contact immediately.
-9. **Afterwards**: short written post-mortem (timeline, impact on clubs/reservations, fee
+8. **Afterwards**: short written post-mortem (timeline, impact on clubs/reservations, fee
    statements affected, fixes).
 
-## 12. Production SQL schema (Phase 2, not yet used by the app)
+## 12. SQL schema and migrations
 
-`server/db/migrations/0001-0009` define the relational schema that replaces the jsonb mirror:
-overlap-proof court bookings, the platform fee ledger, monthly statements, lessons, KVKK
-anonymization and club-scoped row-level security. **The running app does not read or write these
-tables yet**; that switch is the next development round. Until then, the steps below are only for
-trying the schema against a real Supabase project (staging).
+`server/db/migrations/NNNN_*.sql` define the schema. Design and rules: `docs/architecture/data-model.md`.
 
-Design and rules: `docs/architecture/data-model.md`. Tests: `npx tsx server/db/schema.test.ts`
-(PGlite, also run in CI).
-
-**Run migrations**
+**Run migrations manually** (the server also applies them on boot):
 
 ```sh
 DATABASE_MIGRATION_URL="postgresql://postgres.<ref>:<password>@aws-0-eu-central-1.pooler.supabase.com:5432/postgres" \
@@ -226,23 +234,18 @@ bun run db:migrate
 - Use the session pooler on port `5432` (migrations need session semantics and advisory locks).
 - The runner takes a `pg_advisory_lock`, so several instances or CI jobs cannot apply migrations
   at the same time. Each migration runs in its own transaction; a second run applies nothing.
-- Run it once on a **staging** Supabase project before any production use. Tests ran on PGlite
-  (Postgres 17); Supabase-specific behaviour (extensions in the `extensions` schema, creating the
-  `ralo_app` role) has not been verified yet.
+- Never edit a migration that has been applied anywhere; add a new one.
 
-**After the first migration (per environment)**
+**Fees and billing** (set in `/admin` > Ücretler & KDV)
 
-1. Give the application role a password and use it for the app's connection string later:
-   ```sql
-   ALTER ROLE ralo_app LOGIN PASSWORD '<generated, stored in the password manager>';
-   ```
-   `ralo_app` is not a superuser, has no `BYPASSRLS` and owns no tables. Every API transaction must
-   run `SET LOCAL app.scope = 'club:<uuid>'` (club panel, coaches) or `'global'` (players, admin,
-   jobs); without it the club-scoped tables return no rows.
-2. Create the first platform admin (from the admin tooling once it exists).
-3. Insert the platform-wide app reservation fee (100 TL = `10000` kuruş) and the global billing
-   policy. VAT inclusion (`amounts_include_vat`) must be decided with the accountant first.
-4. Lesson fees are per club: set them for each club before that club can create lessons.
+- The app reservation fee (100 TL) and the billing policy (VAT included or excluded, VAT rate,
+  due days, no-show charging) are append-only: each change is a new version effective from now.
+  Until both exist, app bookings fail and statements cannot be generated. VAT inclusion must be
+  decided with the accountant first.
+- Lesson fees are per club (club page in `/admin`); a club cannot create lessons without one.
+- Monthly statements are generated per finished month in `/admin` > Hesap Özetleri. Clubs pay by
+  bank transfer; mark the statement paid when the transfer arrives. Cancelling a statement returns
+  its fees to the unbilled state so the month can be regenerated.
 
 **Fee rules enforced by the database**
 
