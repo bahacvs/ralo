@@ -44,3 +44,8 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
+      # Bank account shown to clubs on their monthly statements
+      - key: PAYMENT_IBAN
+        sync: false
+      - key: PAYMENT_ACCOUNT_NAME
+        sync: false

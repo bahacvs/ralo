@@ -82,8 +82,8 @@ Soruların doğru yanıtlanabilmesi için kod tabanından tespit edilen işleyi�
 Bu maddeler avukat onayından sonra geliştirme ekibine iletilecektir:
 
 - Konum koordinatlarının URL yerine istek gövdesinde gönderilmesi.
-- Paylaşım kartında açık rıza vermeyen katılımcıların anonim gösterilmesi.
+- Paylaşım kartında açık rıza vermeyen katılımcıların anonim gösterilmesi. *(Uygulandı: rıza vermeyen oyuncu kartta "Oyuncu N" olarak, Elo'suz gösteriliyor.)*
 - Hesap silmede geçmiş rezervasyonların kullanıcı kimliğinden ayrıştırılması (ad/telefon yerine anonim etiket).
-- Açık rıza ve kullanım koşulu onaylarının sürüm + zaman damgasıyla kaydedilmesi (şu an kayıt yok).
+- Açık rıza ve kullanım koşulu onaylarının sürüm + zaman damgasıyla kaydedilmesi. *(Uygulandı: kayıtta Kullanım Koşulları, Aydınlatma Metni bilgilendirmesi ve isteğe bağlı paylaşım kartı rızası; kulüp sahiplerinin Kulüp Hizmet Sözleşmesi onayı. Her kayıt belge sürümü, zaman, IP ve e-postanın HMAC özetiyle saklanıyor; rıza ayarlardan geri alınabiliyor.)*
 - İşletme sahibi hesapları için silme/başvuru süreci.
 - Gemini kararına göre özelliğin kaldırılması veya ücretli katmana geçilmesi.

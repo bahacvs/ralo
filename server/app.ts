@@ -1022,7 +1022,10 @@ export function createApp() {
   }));
 
   app.get('/api/panel/statements', requireAuth, requireBusiness('BILLING_VIEW'), handle(async (req, res) => {
-    return res.json({ statements: await admin.listStatements({ clubId: currentClubId(req) }) });
+    // Where clubs send the bank transfer (public account details, set per environment)
+    const iban = process.env.PAYMENT_IBAN?.trim();
+    const paymentInfo = iban ? { iban, accountName: process.env.PAYMENT_ACCOUNT_NAME?.trim() || null } : null;
+    return res.json({ statements: await admin.listStatements({ clubId: currentClubId(req) }), paymentInfo });
   }));
 
   app.get('/api/panel/statements/:id', requireAuth, requireBusiness('BILLING_VIEW'), handle(async (req, res) => {

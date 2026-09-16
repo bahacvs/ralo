@@ -12,11 +12,14 @@ export const PanelStatementsView: React.FC = () => {
   const [statements, setStatements] = useState<MonthlyStatement[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<MonthlyStatement | null>(null);
+  const [paymentInfo, setPaymentInfo] = useState<{ iban: string; accountName: string | null } | null>(null);
 
   const load = async () => {
     setError(null);
     try {
-      setStatements((await api.getPanelStatements()).statements);
+      const res = await api.getPanelStatements();
+      setStatements(res.statements);
+      setPaymentInfo(res.paymentInfo);
     } catch (err: any) {
       setError(err.message || 'Hesap özetleri yüklenemedi.');
     }
@@ -47,6 +50,12 @@ export const PanelStatementsView: React.FC = () => {
         <p>
           Yalnızca oyuncuların uygulamadan yaptığı rezervasyonlar ücretlendirilir. Panelden girdiğiniz ve iptal edilen rezervasyonlardan ücret alınmaz.
           Ödemeyi banka havalesiyle yapın ve açıklamaya <strong>hesap özeti numarasını</strong> yazın.
+          {paymentInfo && (
+            <span className="block mt-2">
+              IBAN: <strong className="font-mono select-all">{paymentInfo.iban}</strong>
+              {paymentInfo.accountName && <> · Alıcı: <strong>{paymentInfo.accountName}</strong></>}
+            </span>
+          )}
         </p>
       </div>
 

@@ -1,6 +1,6 @@
 # RALO production data model (Postgres 15+, Supabase)
 
-Status: implemented as SQL migrations in `server/db/migrations/` (not yet wired into `server.ts` / `store.ts`).
+Status: implemented as SQL migrations in `server/db/migrations/` and used by the API (`server/repo/*`).
 Tests: `npm run test:db` (applies every migration to an in-process PGlite and checks the invariants below).
 Apply to a real database: `npm run db:migrate` with `DATABASE_MIGRATION_URL` (direct or session connection, port 5432).
 
@@ -12,7 +12,7 @@ Apply to a real database: `npm run db:migrate` with `DATABASE_MIGRATION_URL` (di
 | **A cancelled reservation never incurs the platform fee**, whoever cancels. Cancelling voids the ledger entry (or reverses it if it was already billed). | `trg_reservation_cancel_fees` → `app.void_reservation_fees()`; `fee_ledger_validate` refuses a charge for a cancelled reservation. `billing_policies` has no charge-on-cancel setting. |
 | **Lesson platform fee differs per club**, stored as a per-club setting with effective-from history. | `platform_fee_rates` `lesson` rows must have `club_id NOT NULL`; a lesson snapshots the rate in effect at creation (`lessons.fee_rate_id`, `fee_basis`). |
 | **Player cancellation window** is a per-club setting, default 24 hours. | `clubs.cancellation_window_hours` (default 24), snapshotted to `reservations.cancellation_deadline` on insert. The deadline only matters for whether the player may cancel in the app; it has no fee effect. |
-| **Elo** follows the chess Elo formula; doubles use team average rating, expected score and a K-factor. Who confirms results is undecided. | `elo_events` stores `elo_before`, `team_rating`, `opponent_rating`, `expected_score`, `actual_score`, `k_factor`, `algorithm_ver`. No result/confirmation table yet. |
+| **Elo** follows the chess Elo formula; doubles use team average rating, expected score and a K-factor (40 for the first 30 rated matches, 10 from 2400, else 20). A player submits the result, the opposing team confirms or disputes, unanswered results confirm after 48 h. | `match_results` (0012) holds teams, sets and confirmation state; `elo_events` stores `elo_before`, `team_rating`, `opponent_rating`, `expected_score`, `actual_score`, `k_factor`, `algorithm_ver` per confirmed result. |
 | Monthly statement per club, paid by bank transfer, marked paid by an admin. | `monthly_statements`, `statement_lines`, `fee_ledger_entries.status = 'billed'` |
 | Clubs are added by the platform owner. | `clubs.created_by`, `approved_by`, `platform_admins` |
 
@@ -221,16 +221,16 @@ Hard `DELETE FROM users` is refused by the RESTRICT foreign keys on history rows
 
 Each is configurable or isolated in the schema; the product answer is still needed.
 
-1. **Elo result confirmation:** who submits and confirms results, disputes, whether casual matches count, K-factor values, `matches_count` semantics. The formula inputs are stored on `elo_events`; no match result table yet.
+1. **Elo result confirmation:** implemented (any player submits within 7 days, opposing team confirms or disputes, automatic after 48 h, casual and competitive matches both count, `matches_count` = confirmed rated matches). Still open: moderation of repeated disputes.
 2. **Lesson fee amounts and basis per club:** a club has no lessons until a `lesson` rate row is inserted for it (`per_session`, `per_lesson` or `per_enrolled_student_session`).
 3. **No-show fee:** `billing_policies.charge_no_show` (default true).
 4. **VAT and invoicing:** `amounts_include_vat` (no default), e-Arşiv/e-Fatura provider, whether the statement is the invoice (`invoice_reference`).
 5. **Billing basis:** service month (implemented) vs booking month.
-6. **Payment terms:** due days (15), overdue consequences (`clubs.app_booking_enabled` exists, no rule), partial payments, zero-total statements.
+6. **Payment terms:** due days (15; a daily job marks overdue statements and notifies owners), overdue consequences (`clubs.app_booking_enabled` can be switched off by an admin, no automatic rule), partial payments, zero-total statements.
 7. **Rescheduling:** allowed (keeps the charge, implemented) or cancel and rebook.
-8. **Open matches:** whether `pending_approval` should reserve capacity (currently no); auto-promotion vs time-limited offers.
-9. **Coach contracts:** who creates/approves them, whether verification is required, capacity bounds (private 1-4, group 2-16).
-10. **Lesson rules:** student cancellation window, waitlist offers, Elo/level gates.
+8. **Open matches:** `pending_approval` does not reserve capacity; the organizer approves (lowest free seat, refused when full) or rejects. Still open: auto-promotion vs time-limited waitlist offers.
+9. **Coach contracts:** club owners create them in the panel (active immediately, invite email for new accounts) and end them when no sessions are upcoming. Still open: coach verification (`coach_profiles.is_verified`).
+10. **Lesson rules:** students may cancel at any time; the waitlist is promoted automatically; optional Elo gates per lesson. Still open: a student cancellation window.
 11. **Gender preference:** needs `users.gender` and a purpose in the KVKK disclosure.
 12. **Friends:** directed follow (current) vs mutual.
 13. **Panel walk-ins:** `guest_name`/`guest_phone` on the reservation (implemented) vs a club customer book.

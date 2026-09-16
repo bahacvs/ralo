@@ -514,7 +514,7 @@ export const api = {
 
   // Club billing (owner)
   getPanelStatements: () =>
-    request<{ statements: MonthlyStatement[] }>('/api/panel/statements'),
+    request<{ statements: MonthlyStatement[]; paymentInfo: { iban: string; accountName: string | null } | null }>('/api/panel/statements'),
 
   getPanelStatement: (id: string) =>
     request<{ statement: MonthlyStatement }>(`/api/panel/statements/${id}`),
