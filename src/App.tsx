@@ -30,6 +30,10 @@ import { VerifyEmailView, ResetPasswordView } from './components/player/AuthLink
 import { EmailVerificationBanner } from './components/common/EmailVerificationBanner.js';
 import { FeedView } from './components/player/FeedView.js';
 import { LegalDocumentView } from './components/player/LegalDocumentView.js';
+import { LessonsView } from './components/player/LessonsView.js';
+import { LessonDetailView } from './components/player/LessonDetailView.js';
+import { CoachView } from './components/coach/CoachView.js';
+import { PanelCoachesView } from './components/panel/PanelCoachesView.js';
 
 // Business Panel Views & Layout
 import { PanelLayout } from './components/panel/PanelLayout.js';
@@ -49,7 +53,7 @@ import { AdminFeesView } from './components/admin/AdminFeesView.js';
 import { AdminStatementsView } from './components/admin/AdminStatementsView.js';
 import { AdminUsersView } from './components/admin/AdminUsersView.js';
 
-const PROTECTED_PLAYER_ROUTES = ['/maclarim', '/mesajlar', '/profil', '/hesap-ve-gizlilik'];
+const PROTECTED_PLAYER_ROUTES = ['/maclarim', '/mesajlar', '/profil', '/hesap-ve-gizlilik', '/antrenor'];
 
 const AppContent: React.FC = () => {
   const { currentRoute, user, isLoading, navigate, setReturnTo } = useAuth();
@@ -101,6 +105,9 @@ const AppContent: React.FC = () => {
       if (currentRoute.includes('/hesap-ozetleri')) {
         return <PanelStatementsView />;
       }
+      if (currentRoute.includes('/antrenorler')) {
+        return <PanelCoachesView />;
+      }
       return <PanelCalendarView />;
     }
 
@@ -116,6 +123,15 @@ const AppContent: React.FC = () => {
     }
     if (currentRoute.startsWith('/yasal/')) {
       return <LegalDocumentView />;
+    }
+    if (currentRoute === '/dersler') {
+      return <LessonsView />;
+    }
+    if (currentRoute.startsWith('/ders/')) {
+      return <LessonDetailView />;
+    }
+    if (currentRoute === '/antrenor') {
+      return <CoachView />;
     }
     if (currentRoute.startsWith('/saha/')) {
       return <CourtDetailView />;

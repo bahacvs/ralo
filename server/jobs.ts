@@ -3,6 +3,7 @@ import { nowLocal, todayLocal } from './time.js';
 import { purgeExpiredAuthRows } from './auth.js';
 import { autoConfirmDueResults } from './repo/matchResults.js';
 import { generateStatements, markOverdueStatements } from './repo/admin.js';
+import { chargeStartedLessonSessions } from './repo/lessons.js';
 
 /**
  * Background jobs, run in-process on every instance. Periodic jobs are safe to run concurrently (row locks,
@@ -60,6 +61,7 @@ export function previousPeriod(today: string): string {
 export async function runJobs(): Promise<void> {
   await periodic('auth_purge', () => purgeExpiredAuthRows());
   await periodic('match_results_auto_confirm', () => autoConfirmDueResults());
+  await periodic('lesson_session_charges', () => chargeStartedLessonSessions());
 
   const today = todayLocal();
   await once('statements_overdue', today, () => markOverdueStatements());

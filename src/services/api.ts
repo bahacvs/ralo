@@ -7,6 +7,9 @@ import type {
   AdminOverview, AdminReference, AdminClubListItem, AdminClubDetail, FeeSettings, MonthlyStatement,
   AdminUserRow, LessonFeeBasis
 } from '../types/admin.js';
+import type {
+  LessonSummary, LessonDetail, MyLessonsResponse, CoachOverview, CoachContract
+} from '../types/lessons.js';
 
 /** Fired on window when the server rejects the session; detail: { method } */
 export const UNAUTHORIZED_EVENT = 'ralo:unauthorized';
@@ -66,6 +69,61 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   // Auth
+  // Lessons and coaches
+  getLessons: (params: { city?: string; clubId?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.city) q.set('city', params.city);
+    if (params.clubId) q.set('clubId', params.clubId);
+    return request<{ lessons: LessonSummary[] }>(`/api/lessons?${q.toString()}`);
+  },
+
+  getLesson: (id: string) => request<{ lesson: LessonDetail }>(`/api/lessons/${id}`),
+
+  enrollLesson: (id: string) =>
+    request<{ success: boolean; status: 'ENROLLED' | 'WAITLISTED'; message: string }>(`/api/lessons/${id}/enroll`, { method: 'POST' }),
+
+  cancelLessonEnrollment: (id: string) =>
+    request<{ success: boolean; message: string }>(`/api/lessons/${id}/cancel-enrollment`, { method: 'POST' }),
+
+  getMyLessons: () => request<MyLessonsResponse>('/api/my-lessons'),
+
+  getCoachOverview: () => request<CoachOverview>('/api/coach/overview'),
+
+  createLesson: (data: Record<string, unknown>) =>
+    request<{ success: boolean; lessonId: string; message: string }>('/api/coach/lessons', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  cancelLesson: (id: string) =>
+    request<{ success: boolean; message: string }>(`/api/coach/lessons/${id}/cancel`, { method: 'POST' }),
+
+  cancelLessonSession: (sessionId: string) =>
+    request<{ success: boolean; message: string }>(`/api/coach/sessions/${sessionId}/cancel`, { method: 'POST' }),
+
+  saveAttendance: (sessionId: string, entries: { enrollmentId: string; status: string }[]) =>
+    request<{ success: boolean; message: string }>(`/api/coach/sessions/${sessionId}/attendance`, {
+      method: 'PUT',
+      body: JSON.stringify({ entries })
+    }),
+
+  addStudentNote: (data: { lessonId: string; studentUserId: string; note: string; assessedLevel?: string; visibleToStudent: boolean }) =>
+    request<{ success: boolean; message: string }>('/api/coach/notes', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  getPanelCoaches: () => request<{ coaches: CoachContract[] }>('/api/panel/coaches'),
+
+  addPanelCoach: (name: string, email: string) =>
+    request<{ success: boolean; coaches: CoachContract[]; invited: boolean; inviteEmailSent: boolean }>('/api/panel/coaches', {
+      method: 'POST',
+      body: JSON.stringify({ name, email })
+    }),
+
+  endPanelCoach: (contractId: string) =>
+    request<{ success: boolean; coaches: CoachContract[] }>(`/api/panel/coaches/${contractId}/end`, { method: 'POST' }),
+
   // Legal documents and consents
   getLegalDocument: (slug: string) =>
     request<{ document: { slug: string; title: string; version: string; publishedAt: string; content: string } }>(`/api/legal/${encodeURIComponent(slug)}`),

@@ -219,7 +219,23 @@ export const ProfileView: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => navigate('/dersler')}
+              className="inline-flex items-center gap-1.5 min-h-[44px] px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition-colors focus-visible:ring-2 focus-visible:ring-amber-500 cursor-pointer"
+            >
+              <span>Dersler</span>
+            </button>
+            {user?.isCoach && (
+              <button
+                type="button"
+                onClick={() => navigate('/antrenor')}
+                className="inline-flex items-center gap-1.5 min-h-[44px] px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition-colors focus-visible:ring-2 focus-visible:ring-amber-500 cursor-pointer"
+              >
+                <span>Antrenör Paneli</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => navigate('/hesap-ve-gizlilik')}

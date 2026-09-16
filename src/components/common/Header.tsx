@@ -201,6 +201,15 @@ export const Header: React.FC = () => {
                 </button>
                 <button
                   type="button"
+                  onClick={() => navigate('/dersler')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                    currentRoute === '/dersler' || currentRoute.startsWith('/ders/') ? 'bg-slate-800 text-amber-400 font-bold' : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  Dersler
+                </button>
+                <button
+                  type="button"
                   onClick={() => navigate('/siralama')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
                     currentRoute === '/siralama' ? 'bg-slate-800 text-amber-400 font-bold' : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
@@ -224,6 +233,17 @@ export const Header: React.FC = () => {
               >
                 <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>RALO Yönetim</span>
+              </button>
+            )}
+
+            {/* Coach panel shortcut */}
+            {user?.isCoach && !isPanel && (
+              <button
+                type="button"
+                onClick={() => navigate('/antrenor')}
+                className="hidden sm:inline-flex items-center gap-1.5 min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400"
+              >
+                <span>Antrenör Paneli</span>
               </button>
             )}
 

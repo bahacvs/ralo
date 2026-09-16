@@ -303,6 +303,67 @@ async function runTests() {
     assert(auto.status === 'confirmed' && auto.confirmed_by === null && overdueRun?.status === 'succeeded',
       'Test 12.1: Süresi dolan sonuç otomatik onaylandı, günlük gecikme işi çalıştı', { auto, overdueRun });
     assert(previousPeriod('2027-01-05') === '2026-12' && previousPeriod('2026-10-01') === '2026-09', 'Test 12.2: Aylık hesap özeti işi bir önceki ayı seçti');
+
+    // TEST 13: Coaches and lessons
+    const staffCoach = await call('POST', '/api/panel/coaches', { name: 'Deniz Hoca', email: 'hoca@test.ralo' }, staffToken);
+    assert(staffCoach.status === 403, 'Test 13.1: Personel antrenör ekleyemedi');
+    const addCoach = await call('POST', '/api/panel/coaches', { name: 'Deniz Hoca', email: 'hoca@test.ralo' }, ownerToken);
+    assert(addCoach.status === 201 && addCoach.json.invited === true && addCoach.json.coaches.length === 1, 'Test 13.2: Kulüp sahibi antrenörü e-postayla ekledi', addCoach.json);
+    await db.query(`UPDATE app.users SET password_hash = $1, email_verified_at = now() WHERE email = 'hoca@test.ralo'`, [await hashPassword('padel2026')]);
+    const coachToken = (await call('POST', '/api/auth/login', { email: 'hoca@test.ralo', password: 'padel2026' })).json?.token;
+    const coachMe = await call('GET', '/api/auth/me', undefined, coachToken);
+    const coachOverview = await call('GET', '/api/coach/overview', undefined, coachToken);
+    const notCoach = await call('GET', '/api/coach/overview', undefined, playerToken);
+    assert(coachMe.json?.user?.isCoach === true && coachOverview.status === 200 && coachOverview.json.contracts[0]?.courts.length === 3 && notCoach.status === 403,
+      'Test 13.3: Antrenör paneli yalnızca sözleşmeli antrenöre açıldı', coachOverview.json);
+
+    const lessonInput = {
+      clubId: urlaCourt.businessId, courtId: urlaCourt.id, kind: 'GROUP', title: 'Başlangıç Grubu', level: 'BEGINNER',
+      capacity: 2, pricePerStudent: 400, firstSessionAt: `${dayOffset(15)}T09:00`, durationMinutes: 60, sessionCount: 3
+    };
+    const noFee = await call('POST', '/api/coach/lessons', lessonInput, coachToken);
+    assert(noFee.status === 409 && noFee.json.code === 'LESSON_FEE_NOT_CONFIGURED', 'Test 13.4: Ders ücreti tanımlı olmayan kulüpte ders açılamadı', noFee.json);
+    await call('PUT', `/api/admin/clubs/${urlaCourt.businessId}/lesson-fee`, { amount: 50, basis: 'per_session' }, adminToken);
+    const created = await call('POST', '/api/coach/lessons', lessonInput, coachToken);
+    const lessonId = created.json?.lessonId;
+    const lessonFees = await one<{ n: number; total: number }>(
+      `SELECT count(*)::int AS n, sum(f.amount_kurus)::int AS total FROM app.fee_ledger_entries f
+       JOIN app.lesson_sessions s ON s.id = f.lesson_session_id WHERE s.lesson_id = $1 AND f.status = 'accrued'`, [lessonId]);
+    assert(created.status === 201 && lessonFees.n === 3 && lessonFees.total === 15000, 'Test 13.5: Haftalık 3 oturumlu ders açıldı, oturum başı ders ücreti deftere yazıldı', { created: created.json, lessonFees });
+    const clash = await call('POST', '/api/reservations', { courtId: urlaCourt.id, startAt: `${dayOffset(22)}T09:00:00`, durationMinutes: 60 }, zeynepToken);
+    assert(clash.status === 409, 'Test 13.6: Ders oturumunun kortu başka rezervasyona kapandı');
+
+    const enrollStatuses = [];
+    for (const token of [tokens[1], tokens[2], tokens[3]]) enrollStatuses.push((await call('POST', `/api/lessons/${lessonId}/enroll`, {}, token)).json?.status);
+    assert(enrollStatuses.join(',') === 'ENROLLED,ENROLLED,WAITLISTED', 'Test 13.7: Kontenjan dolunca üçüncü öğrenci bekleme listesine alındı', enrollStatuses);
+    await call('POST', `/api/lessons/${lessonId}/cancel-enrollment`, {}, tokens[1]);
+    const kaanLesson = await call('GET', `/api/lessons/${lessonId}`, undefined, tokens[3]);
+    assert(kaanLesson.json?.lesson?.myEnrollment?.status === 'ENROLLED' && kaanLesson.json.lesson.enrolledCount === 2,
+      'Test 13.8: Kayıt iptalinde bekleme listesindeki öğrenci derse alındı', kaanLesson.json?.lesson);
+
+    const sessions = kaanLesson.json.lesson.sessions;
+    const cancelThird = await call('POST', `/api/coach/sessions/${sessions[2].id}/cancel`, {}, coachToken);
+    const thirdFee = await one<{ status: string }>(`SELECT status FROM app.fee_ledger_entries WHERE lesson_session_id = $1`, [sessions[2].id]);
+    assert(cancelThird.status === 200 && thirdFee.status === 'voided', 'Test 13.9: İptal edilen ders oturumunun ücreti silindi', thirdFee);
+    const earlyAttendance = await call('PUT', `/api/coach/sessions/${sessions[0].id}/attendance`, { entries: [] }, coachToken);
+    assert(earlyAttendance.status === 400, 'Test 13.10: Boş veya erken yoklama reddedildi');
+    await db.query(
+      `UPDATE app.court_bookings SET starts_at = now() - interval '20 minutes', ends_at = now() + interval '40 minutes'
+       WHERE id = (SELECT r.booking_id FROM app.lesson_sessions s JOIN app.reservations r ON r.id = s.reservation_id WHERE s.id = $1)`,
+      [sessions[0].id]
+    );
+    const coachView = (await call('GET', '/api/coach/overview', undefined, coachToken)).json.lessons.find((l: any) => l.id === lessonId);
+    const attendance = await call('PUT', `/api/coach/sessions/${sessions[0].id}/attendance`, {
+      entries: coachView.students.map((s: any, i: number) => ({ enrollmentId: s.enrollmentId, status: i === 0 ? 'PRESENT' : 'ABSENT' }))
+    }, coachToken);
+    const note = await call('POST', '/api/coach/notes', {
+      lessonId, studentUserId: ids.ece, note: 'Voleyde ağırlık aktarımı gelişti.', assessedLevel: 'INTERMEDIATE', visibleToStudent: true
+    }, coachToken);
+    const eceLessons = await call('GET', '/api/my-lessons', undefined, tokens[2]);
+    assert(attendance.status === 200 && note.status === 201 && eceLessons.json.notes.length === 1 && eceLessons.json.lessons.length === 1,
+      'Test 13.11: Antrenör yoklama aldı ve öğrenci notunu gördü', { attendance: attendance.json, note: note.json });
+    const endContract = await call('POST', `/api/panel/coaches/${addCoach.json.coaches[0].id}/end`, {}, ownerToken);
+    assert(endContract.status === 409, 'Test 13.12: Yaklaşan oturumu olan antrenörün sözleşmesi sonlandırılamadı', endContract.json);
   } catch (err: any) {
     assert(false, 'Beklenmeyen hata', err?.stack ?? String(err));
   } finally {

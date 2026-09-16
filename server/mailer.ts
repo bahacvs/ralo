@@ -130,6 +130,18 @@ export function passwordResetEmail(to: string, name: string, token: string): Mai
   });
 }
 
+export function coachInviteEmail(to: string, name: string, clubName: string, token: string): MailMessage {
+  return linkEmail({
+    to,
+    subject: `${clubName} sizi RALO'ya antrenör olarak ekledi`,
+    greetingName: name,
+    intro: `${clubName} sizi RALO'da antrenör olarak ekledi. Hesabınızı kullanmaya başlamak için bir şifre belirleyin; ardından Antrenör Paneli'nden ders açabilirsiniz.`,
+    buttonLabel: 'Şifremi Belirle',
+    link: `${appUrl()}/sifre-sifirla#token=${token}&davet=1`,
+    footer: 'Bağlantı 7 gün geçerlidir. Bu daveti beklemiyorsanız bu e-postayı dikkate almayın.'
+  });
+}
+
 export function staffInviteEmail(to: string, name: string, businessName: string, token: string): MailMessage {
   return linkEmail({
     to,

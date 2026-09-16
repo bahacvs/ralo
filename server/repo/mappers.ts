@@ -79,7 +79,8 @@ export const USER_SELECT = `
   u.push_notifications_enabled, u.reminder_2h_enabled, u.notification_sound_enabled,
   u.terms_accepted_at, u.created_at, u.status,
   m.club_id AS membership_club_id, m.role AS membership_role,
-  EXISTS (SELECT 1 FROM app.platform_admins pa WHERE pa.user_id = u.id) AS is_platform_admin
+  EXISTS (SELECT 1 FROM app.platform_admins pa WHERE pa.user_id = u.id) AS is_platform_admin,
+  EXISTS (SELECT 1 FROM app.coach_club_contracts cc WHERE cc.coach_user_id = u.id AND cc.status = 'active') AS is_coach
   FROM app.users u
   LEFT JOIN LATERAL (
     SELECT cm.club_id, cm.role FROM app.club_memberships cm
@@ -108,6 +109,7 @@ export function toUser(row: any): User {
     preferredHours: row.preferred_time_ranges ?? [],
     businessId: row.membership_club_id ?? undefined,
     isPlatformAdmin: !!row.is_platform_admin,
+    isCoach: !!row.is_coach,
     pushNotificationsEnabled: row.push_notifications_enabled,
     reminder2HoursBefore: row.reminder_2h_enabled,
     notificationSoundEnabled: row.notification_sound_enabled,

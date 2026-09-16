@@ -4,7 +4,7 @@ import { api } from '../../services/api.js';
 import type { Business } from '../../types/index.js';
 import { 
   Calendar, ListFilter, LayoutGrid, Users2, 
-  BarChart3, Building2, User, Menu, X, ArrowLeft, LogOut, Receipt
+  BarChart3, Building2, User, Menu, X, ArrowLeft, LogOut, Receipt, GraduationCap
 } from 'lucide-react';
 
 interface PanelLayoutProps {
@@ -64,6 +64,7 @@ export const PanelLayout: React.FC<PanelLayoutProps> = ({ children }) => {
     { label: 'Kort Yönetimi', path: `/panel/${businessId}/kortlar`, icon: LayoutGrid },
     { label: 'Personel & Yetkiler', path: `/panel/${businessId}/personel`, icon: Users2, ownerOnly: true },
     { label: 'Raporlar & Doluluk', path: `/panel/${businessId}/raporlar`, icon: BarChart3, ownerOnly: true },
+    { label: 'Antrenörler', path: `/panel/${businessId}/antrenorler`, icon: GraduationCap, ownerOnly: true },
     { label: 'Hesap Özetleri', path: `/panel/${businessId}/hesap-ozetleri`, icon: Receipt, ownerOnly: true },
   ].filter(item => isOwner || !item.ownerOnly);
 

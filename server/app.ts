@@ -8,7 +8,7 @@ import {
   normalizeEmail, normalizePhone, validatePassword, hashPassword, verifyPassword, burnPasswordCheck,
   createAuthToken, consumeAuthToken, PASSWORD_MAX_LENGTH, VERIFY_EMAIL_TTL_MS, RESET_PASSWORD_TTL_MS, STAFF_INVITE_TTL_MS
 } from './auth.js';
-import { sendMail, verificationEmail, passwordResetEmail, staffInviteEmail, type MailMessage } from './mailer.js';
+import { sendMail, verificationEmail, passwordResetEmail, staffInviteEmail, coachInviteEmail, type MailMessage } from './mailer.js';
 import { rateLimit, byIp, byUser } from './rateLimit.js';
 import { HttpError } from './repo/util.js';
 import { toPublicUser, RESERVATION_STATUSES } from './repo/mappers.js';
@@ -22,6 +22,7 @@ import * as panel from './repo/panel.js';
 import * as admin from './repo/admin.js';
 import * as matchResults from './repo/matchResults.js';
 import * as legal from './repo/legal.js';
+import * as lessons from './repo/lessons.js';
 import type { User, ReservationStatus } from '../src/types/index.js';
 
 // Demo helpers (role switcher, unverified bookings) are only exposed when explicitly enabled
@@ -1178,6 +1179,119 @@ export function createApp() {
   // -------------------------------------------------------------
   // Health, unknown API routes, errors
   // -------------------------------------------------------------
+
+  // -------------------------------------------------------------
+  // Lessons: players, coaches, club coach contracts
+  // -------------------------------------------------------------
+
+  const requireCoach: RequestHandler = async (req, res, next) => {
+    try {
+      if (!(await lessons.isCoach(currentUser(req).id))) {
+        return res.status(403).json({ error: 'Bu bölüm yalnızca kulüplerle sözleşmeli antrenörlere açıktır.' });
+      }
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  app.get('/api/lessons', handle(async (req, res) => {
+    const user = await optionalUser(req);
+    const city = typeof req.query.city === 'string' && req.query.city !== 'Tüm Türkiye' && req.query.city !== 'ALL' ? req.query.city : undefined;
+    const clubId = typeof req.query.clubId === 'string' ? req.query.clubId : undefined;
+    return res.json({ lessons: await lessons.listLessons(user?.id ?? null, { city, clubId }) });
+  }));
+
+  app.get('/api/lessons/:id', handle(async (req, res) => {
+    const user = await optionalUser(req);
+    const lesson = await lessons.getLesson(req.params.id, user?.id ?? null);
+    if (!lesson) throw new HttpError(404, 'Ders bulunamadı.');
+    return res.json({ lesson });
+  }));
+
+  app.post('/api/lessons/:id/enroll', requireAuth, bookingLimit, handle(async (req, res) => {
+    const user = currentUser(req);
+    if (!user.emailVerified && !DEMO_MODE) {
+      throw new HttpError(403, 'Derse kayıt olabilmek için önce e-posta adresinizi doğrulayın.', 'EMAIL_NOT_VERIFIED');
+    }
+    const status = await lessons.enroll(req.params.id, user);
+    return res.json({
+      success: true,
+      status,
+      message: status === 'ENROLLED' ? 'Derse kaydınız alındı. Ücret tesiste ödenir.' : 'Ders kontenjanı dolu; bekleme listesine alındınız.'
+    });
+  }));
+
+  app.post('/api/lessons/:id/cancel-enrollment', requireAuth, handle(async (req, res) => {
+    await lessons.cancelEnrollment(req.params.id, currentUser(req));
+    return res.json({ success: true, message: 'Ders kaydınız iptal edildi.' });
+  }));
+
+  app.get('/api/my-lessons', requireAuth, handle(async (req, res) => {
+    return res.json(await lessons.getMyLessons(currentUser(req).id));
+  }));
+
+  app.get('/api/coach/overview', requireAuth, requireCoach, handle(async (req, res) => {
+    return res.json(await lessons.getCoachOverview(currentUser(req).id));
+  }));
+
+  app.post('/api/coach/lessons', requireAuth, requireCoach, handle(async (req, res) => {
+    const lessonId = await lessons.createLesson(currentUser(req), req.body || {});
+    return res.status(201).json({ success: true, lessonId, message: 'Ders oluşturuldu ve oturumlar için kort ayrıldı.' });
+  }));
+
+  app.post('/api/coach/lessons/:id/cancel', requireAuth, requireCoach, handle(async (req, res) => {
+    await lessons.cancelLesson(currentUser(req), req.params.id);
+    return res.json({ success: true, message: 'Ders ve kalan oturumları iptal edildi; öğrencilere bildirim gönderildi.' });
+  }));
+
+  app.post('/api/coach/sessions/:id/cancel', requireAuth, requireCoach, handle(async (req, res) => {
+    await lessons.cancelSession(currentUser(req), req.params.id);
+    return res.json({ success: true, message: 'Oturum iptal edildi, kort serbest bırakıldı.' });
+  }));
+
+  app.put('/api/coach/sessions/:id/attendance', requireAuth, requireCoach, handle(async (req, res) => {
+    await lessons.takeAttendance(currentUser(req), req.params.id, req.body?.entries);
+    return res.json({ success: true, message: 'Yoklama kaydedildi.' });
+  }));
+
+  app.post('/api/coach/notes', requireAuth, requireCoach, handle(async (req, res) => {
+    await lessons.addStudentNote(currentUser(req), req.body || {});
+    return res.status(201).json({ success: true, message: 'Not kaydedildi.' });
+  }));
+
+  app.get('/api/panel/coaches', requireAuth, requireBusiness('STAFF_MANAGE'), handle(async (req, res) => {
+    return res.json({ coaches: await lessons.listCoachContracts(currentClubId(req)) });
+  }));
+
+  app.post('/api/panel/coaches', requireAuth, requireBusiness('STAFF_MANAGE'), handle(async (req, res) => {
+    const clubId = currentClubId(req);
+    const email = normalizeEmail(req.body?.email);
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    if (!name || name.length > 60 || !email) throw new HttpError(400, 'Geçerli bir antrenör adı ve e-posta adresi zorunludur.');
+
+    const existing = await users.findCredentialByEmail(email);
+    if (existing && existing.status !== 'active') throw new HttpError(400, 'Bu e-posta adresine ait hesap kullanılamıyor.');
+    const userId = await getDb().tx(async q => {
+      const id = existing ? existing.id : await users.createInvitedUser(email, name, q);
+      await lessons.createCoachContract(q, clubId, id, currentUser(req).id);
+      return id;
+    }, `club:${clubId}`);
+
+    const invited = !existing?.passwordHash;
+    let inviteEmailSent = false;
+    if (invited) {
+      const business = await clubs.getBusiness(clubId);
+      const link = await createAuthToken(userId, email, 'RESET_PASSWORD', STAFF_INVITE_TTL_MS);
+      inviteEmailSent = await deliverMail(coachInviteEmail(email, existing?.displayName ?? name, business?.name ?? 'RALO kulübü', link));
+    }
+    return res.status(201).json({ success: true, coaches: await lessons.listCoachContracts(clubId), invited, inviteEmailSent });
+  }));
+
+  app.post('/api/panel/coaches/:id/end', requireAuth, requireBusiness('STAFF_MANAGE'), handle(async (req, res) => {
+    await lessons.endCoachContract(currentClubId(req), req.params.id);
+    return res.json({ success: true, coaches: await lessons.listCoachContracts(currentClubId(req)) });
+  }));
 
   // -------------------------------------------------------------
   // Legal documents and consents
