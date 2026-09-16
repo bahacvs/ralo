@@ -222,6 +222,21 @@ export const api = {
       method: 'POST'
     }),
 
+  submitMatchResult: (matchId: string, data: { teamA: string[]; teamB: string[]; sets: [number, number][] }) =>
+    request<{ success: boolean; message: string }>(`/api/matches/${matchId}/result`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  confirmMatchResult: (matchId: string) =>
+    request<{ success: boolean; eloChange: number; message: string }>(`/api/matches/${matchId}/result/confirm`, { method: 'POST' }),
+
+  disputeMatchResult: (matchId: string, reason: string) =>
+    request<{ success: boolean; message: string }>(`/api/matches/${matchId}/result/dispute`, {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    }),
+
   respondToJoinRequest: (matchId: string, userId: string, decision: 'approve' | 'reject') =>
     request<{ success: boolean; message: string }>(`/api/open-matches/${matchId}/requests/${userId}`, {
       method: 'POST',

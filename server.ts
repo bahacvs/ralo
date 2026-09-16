@@ -7,7 +7,7 @@ import { setDatabase } from './server/db/instance.js';
 import { seedDemoData } from './server/db/seed.js';
 import { createApp } from './server/app.js';
 import { assertMailConfigured } from './server/mailer.js';
-import { purgeExpiredAuthRows } from './server/auth.js';
+import { startJobs } from './server/jobs.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -42,14 +42,13 @@ async function start() {
     console.log(`RALO Server running on http://0.0.0.0:${PORT}`);
   });
 
-  const purge = setInterval(() => {
-    purgeExpiredAuthRows().catch(err => console.error('Expired session cleanup failed:', err?.message));
-  }, 60 * 60 * 1000);
-  purge.unref();
+  // Expired sessions, automatic result confirmation, overdue and monthly statements
+  const stopJobs = startJobs();
 
   // Render sends SIGTERM on deploy: finish in-flight requests, then close the pool
   const shutdown = (signal: string) => {
     console.log(`${signal} received, shutting down...`);
+    stopJobs();
     setTimeout(() => process.exit(0), 10_000).unref();
     server.close(() => {
       db.close().catch(() => {}).finally(() => process.exit(0));

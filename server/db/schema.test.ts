@@ -900,7 +900,7 @@ async function main() {
       'reservations.cancelled_by_user_id', 'venue_payments.recorded_by', 'elo_events.user_id', 'elo_events.created_by',
       'lesson_attendance.marked_by', 'platform_fee_rates.created_by', 'billing_policies.created_by',
       'monthly_statements.marked_paid_by', 'fee_ledger_entries.voided_by', 'account_deletion_requests.processed_by',
-      'audit_log.actor_user_id'
+      'audit_log.actor_user_id', 'match_results.submitted_by', 'match_results.confirmed_by', 'match_results.disputed_by'
     ]);
     const { rows } = await db.query<{ ref: string; tbl: string }>(
       `SELECT cl.relname || '.' || a.attname AS ref, cl.relname AS tbl

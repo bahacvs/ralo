@@ -8,6 +8,7 @@ import {
 import { isUuid, HttpError } from './util.js';
 import { addNotification, getNotification } from './notifications.js';
 import { getBusiness, getCourt, getBusinessesByIds, getCourtsByIds, listClubCourts } from './clubs.js';
+import { getResults, SUBMIT_WINDOW_DAYS } from './matchResults.js';
 import type {
   User, Reservation, ReservationStatus, OpenMatchParticipant, CourtBlock, Business, Court, Notification
 } from '../../src/types/index.js';
@@ -453,10 +454,17 @@ export async function getMyMatches(userId: string) {
     [userId]
   );
   const now = nowLocal();
-  const enriched = (await enrichReservations(rows.map(toReservation))).map(r => ({
-    ...r,
-    isUpcoming: r.startAt >= now && r.status !== 'CANCELLED'
-  }));
+  const submitFrom = addMinutesToLocal(now, -SUBMIT_WINDOW_DAYS * 24 * 60);
+  const base = await enrichReservations(rows.map(toReservation));
+  const results = await getResults(base.map(r => r.id), userId);
+  const enriched = base.map(r => {
+    const result = results.get(r.id) ?? null;
+    const active = r.participants.filter(p => p.status === 'ACTIVE');
+    const canSubmitResult = r.source === 'ONLINE' && (r.status === 'CONFIRMED' || r.status === 'COMPLETED')
+      && r.endAt <= now && r.endAt >= submitFrom && active.length === 4 && active.some(p => p.userId === userId)
+      && (!result || result.status === 'DISPUTED');
+    return { ...r, isUpcoming: r.startAt >= now && r.status !== 'CANCELLED', result, canSubmitResult };
+  });
   return {
     upcoming: enriched.filter(r => r.isUpcoming).sort((a, b) => a.startAt.localeCompare(b.startAt)),
     past: enriched.filter(r => !r.isUpcoming)

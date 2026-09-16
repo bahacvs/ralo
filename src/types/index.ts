@@ -186,7 +186,8 @@ export interface Notification {
   title: string;
   message: string;
   read: boolean;
-  type: 'MATCH_JOIN' | 'MATCH_LEAVE' | 'MATCH_INVITE' | 'NEW_MESSAGE' | 'FRIEND_ADD' | 'MATCH_APPROVED' | 'SLOT_AVAILABLE' | 'RESERVATION_UPDATE' | 'MATCH_REMINDER_2H';
+  type: 'MATCH_JOIN' | 'MATCH_LEAVE' | 'MATCH_INVITE' | 'NEW_MESSAGE' | 'FRIEND_ADD' | 'MATCH_APPROVED' | 'SLOT_AVAILABLE' | 'RESERVATION_UPDATE' | 'MATCH_REMINDER_2H'
+    | 'MATCH_RESULT' | 'STATEMENT_ISSUED' | 'STATEMENT_OVERDUE' | 'LESSON_ENROLLED' | 'LESSON_WAITLIST_PROMOTED' | 'LESSON_CANCELLED' | 'COACH_NOTE';
   matchId?: string;
   courtId?: string;
   senderId?: string;

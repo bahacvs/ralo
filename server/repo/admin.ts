@@ -8,14 +8,15 @@ import { addNotification } from './notifications.js';
 
 // Platform (super-admin) operations: clubs, fee settings and monthly statements.
 
+/** actorId null = a background job (actor_scope 'system'). */
 async function audit(
-  q: Queryable, actorId: string, action: string, targetType: string, targetId: string | null,
+  q: Queryable, actorId: string | null, action: string, targetType: string, targetId: string | null,
   clubId: string | null, after: unknown = null
 ) {
   await q.query(
     `INSERT INTO app.audit_log (actor_user_id, actor_scope, action, target_type, target_id, club_id, after_data)
-     VALUES ($1, 'platform_admin', $2, $3, $4, $5, $6)`,
-    [actorId, action, targetType, targetId, clubId, after === null ? null : JSON.stringify(after)]
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [actorId, actorId ? 'platform_admin' : 'system', action, targetType, targetId, clubId, after === null ? null : JSON.stringify(after)]
   );
 }
 
@@ -566,7 +567,36 @@ const STATEMENT_SELECT = `
   FROM app.monthly_statements s JOIN app.clubs c ON c.id = s.club_id`;
 
 /** Creates one statement per club with accrued fees in a finished month; clubs that already have one are skipped. */
-export async function generateStatements(adminId: string, period: unknown) {
+/** Marks issued statements past their due date as overdue and tells the club owners (once per statement). */
+export async function markOverdueStatements(): Promise<number> {
+  return getDb().tx(async q => {
+    const { rows } = await q.query<{ id: string; club_id: string; statement_no: string; total_kurus: number; due_date: string }>(
+      `UPDATE app.monthly_statements SET status = 'overdue'
+       WHERE status = 'issued' AND due_date < app.istanbul_date(now())
+       RETURNING id, club_id, statement_no, total_kurus, to_char(due_date, 'DD.MM.YYYY') AS due_date`
+    );
+    for (const statement of rows) {
+      const owners = await q.query<{ user_id: string }>(
+        `SELECT user_id FROM app.club_memberships WHERE club_id = $1 AND role = 'owner' AND status = 'active'`,
+        [statement.club_id]
+      );
+      for (const owner of owners.rows) {
+        await addNotification(q, {
+          userId: owner.user_id,
+          type: 'statement_overdue',
+          title: 'Hesap Özeti Ödemesi Gecikti',
+          body: `${statement.statement_no} numaralı hesap özetinin son ödeme tarihi (${statement.due_date}) geçti. Tutar: ${kurusToTl(statement.total_kurus).toLocaleString('tr-TR')} TL. Havale açıklamasına hesap özeti numarasını yazmayı unutmayın.`,
+          dedupeKey: `overdue:${statement.id}`
+        });
+      }
+      await audit(q, null, 'statement.overdue', 'monthly_statement', statement.id, statement.club_id, { statementNo: statement.statement_no });
+    }
+    return rows.length;
+  });
+}
+
+/** adminId null = the monthly background job. */
+export async function generateStatements(adminId: string | null, period: unknown) {
   const match = typeof period === 'string' ? PERIOD_PATTERN.exec(period) : null;
   if (!match) throw new HttpError(400, 'Dönem YYYY-AA biçiminde olmalıdır.');
   const periodText = period as string;

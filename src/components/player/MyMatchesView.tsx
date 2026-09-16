@@ -4,6 +4,9 @@ import { usePushNotification } from '../../context/PushNotificationContext.js';
 import { api } from '../../services/api.js';
 import { LoadingState, EmptyState, ErrorState } from '../common/StateViews.js';
 import { MatchGearChecklist } from './MatchGearChecklist.js';
+import { MatchResultModal } from './MatchResultModal.js';
+
+const IS_DEMO_UI = import.meta.env.VITE_DEMO_MODE === 'true';
 import { 
   Calendar, Clock, MapPin, Users, ChevronRight, CheckCircle2, 
   Bell, BellRing, Sparkles, Volume2, ShieldCheck, Play, XCircle
@@ -88,6 +91,40 @@ export const MyMatchesView: React.FC = () => {
     }
   };
 
+  const [resultMatch, setResultMatch] = useState<any | null>(null);
+  const [resultBusyId, setResultBusyId] = useState<string | null>(null);
+
+  const handleConfirmResult = async (m: any) => {
+    setCancelFeedback(null);
+    setResultBusyId(m.id);
+    try {
+      const res = await api.confirmMatchResult(m.id);
+      const change = res.eloChange > 0 ? `+${res.eloChange}` : String(res.eloChange);
+      setCancelFeedback({ type: 'success', text: `${res.message} Elo değişiminiz: ${change}.` });
+      await fetchMatches();
+    } catch (err: any) {
+      setCancelFeedback({ type: 'error', text: err.message || 'Sonuç onaylanamadı.' });
+    } finally {
+      setResultBusyId(null);
+    }
+  };
+
+  const handleDisputeResult = async (m: any) => {
+    const reason = window.prompt('İtirazınızın nedenini kısaca yazın (örn. doğru skor 6-4, 6-3):');
+    if (reason === null) return;
+    setCancelFeedback(null);
+    setResultBusyId(m.id);
+    try {
+      const res = await api.disputeMatchResult(m.id, reason);
+      setCancelFeedback({ type: 'success', text: res.message });
+      await fetchMatches();
+    } catch (err: any) {
+      setCancelFeedback({ type: 'error', text: err.message || 'İtiraz kaydedilemedi.' });
+    } finally {
+      setResultBusyId(null);
+    }
+  };
+
   const list = tab === 'UPCOMING' ? matches.upcoming : matches.past;
 
   return (
@@ -133,8 +170,8 @@ export const MyMatchesView: React.FC = () => {
         </button>
       </div>
 
-      {/* 2-Hour Reminder Push Notification Simulator Banner */}
-      {tab === 'UPCOMING' && (
+      {/* 2-Hour Reminder Push Notification Simulator Banner (demo only: there are no real push notifications yet) */}
+      {IS_DEMO_UI && tab === 'UPCOMING' && (
         <div className="rounded-3xl p-4 sm:p-5 bg-gradient-to-br from-amber-950 via-slate-900 to-slate-950 text-white border border-amber-500/30 shadow-lg relative overflow-hidden">
           <div className="absolute top-0 right-0 -mt-6 -mr-6 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
           
@@ -310,7 +347,7 @@ export const MyMatchesView: React.FC = () => {
                 </div>
 
                 <div className="flex items-center justify-between sm:justify-end gap-3">
-                  {tab === 'UPCOMING' && (
+                  {IS_DEMO_UI && tab === 'UPCOMING' && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -355,9 +392,83 @@ export const MyMatchesView: React.FC = () => {
                   <ChevronRight className="w-5 h-5 text-slate-400" aria-hidden="true" />
                 </div>
               </div>
+
+              {tab === 'PAST' && (m.result || m.canSubmitResult) && (
+                <div
+                  className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs cursor-default"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  <div className="min-w-0">
+                    {m.result ? (
+                      <>
+                        <p className="font-bold text-slate-900 dark:text-white">
+                          {m.result.teamA.map((p: any) => p.maskedName).join(' & ')}
+                          <span className="mx-1.5 text-amber-600 dark:text-amber-400">{m.result.sets.map((s: number[]) => s.join('-')).join(', ')}</span>
+                          {m.result.teamB.map((p: any) => p.maskedName).join(' & ')}
+                        </p>
+                        <p className="text-slate-500 dark:text-slate-400 mt-0.5">
+                          {m.result.status === 'CONFIRMED'
+                            ? `Kesinleşti${m.result.confirmedAutomatically ? ' (otomatik)' : ''}${user && m.result.eloChanges[user.id] !== undefined ? ` · Elo değişiminiz: ${m.result.eloChanges[user.id] > 0 ? '+' : ''}${m.result.eloChanges[user.id]}` : ''}`
+                            : m.result.status === 'DISPUTED'
+                            ? `İtiraz edildi${m.result.disputeReason ? `: "${m.result.disputeReason}"` : ''} · Doğru skoru yeniden girin`
+                            : m.result.canRespond
+                            ? `Onayınızı bekliyor · ${new Date(m.result.confirmDeadline).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} tarihinde otomatik kesinleşir`
+                            : 'Rakip takımın onayı bekleniyor'}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-slate-600 dark:text-slate-400">Maçın sonucunu girin; onaylanınca Elo puanlarınız güncellenir.</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    {m.result?.canRespond && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={resultBusyId === m.id}
+                          onClick={() => handleConfirmResult(m)}
+                          className="min-h-[40px] px-3 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-black cursor-pointer"
+                        >
+                          Onayla
+                        </button>
+                        <button
+                          type="button"
+                          disabled={resultBusyId === m.id}
+                          onClick={() => handleDisputeResult(m)}
+                          className="min-h-[40px] px-3 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 font-bold cursor-pointer"
+                        >
+                          İtiraz Et
+                        </button>
+                      </>
+                    )}
+                    {m.canSubmitResult && (
+                      <button
+                        type="button"
+                        onClick={() => setResultMatch(m)}
+                        className="min-h-[40px] px-3 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold cursor-pointer"
+                      >
+                        {m.result ? 'Skoru Yeniden Gir' : 'Sonucu Gir'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
+      )}
+
+      {resultMatch && (
+        <MatchResultModal
+          match={resultMatch}
+          onClose={() => setResultMatch(null)}
+          onSaved={async (message) => {
+            setResultMatch(null);
+            setCancelFeedback({ type: 'success', text: message });
+            await fetchMatches();
+          }}
+        />
       )}
 
     </div>

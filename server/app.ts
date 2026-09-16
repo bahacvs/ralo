@@ -20,6 +20,7 @@ import * as social from './repo/social.js';
 import * as notifications from './repo/notifications.js';
 import * as panel from './repo/panel.js';
 import * as admin from './repo/admin.js';
+import * as matchResults from './repo/matchResults.js';
 import type { User, ReservationStatus } from '../src/types/index.js';
 
 // Demo helpers (role switcher, unverified bookings) are only exposed when explicitly enabled
@@ -791,6 +792,22 @@ export function createApp() {
 
   app.get('/api/my-matches', requireAuth, handle(async (req, res) => {
     return res.json(await reservations.getMyMatches(currentUser(req).id));
+  }));
+
+  app.post('/api/matches/:id/result', requireAuth, handle(async (req, res) => {
+    await matchResults.submitResult(req.params.id, currentUser(req), req.body || {});
+    return res.status(201).json({ success: true, message: 'Sonuç kaydedildi. Rakip takım onayladığında veya 48 saat içinde itiraz edilmezse Elo puanları güncellenir.' });
+  }));
+
+  app.post('/api/matches/:id/result/confirm', requireAuth, handle(async (req, res) => {
+    const changes = await matchResults.confirmResult(req.params.id, currentUser(req));
+    const mine = changes.find(c => c.userId === currentUser(req).id);
+    return res.json({ success: true, eloChange: mine?.delta ?? 0, message: 'Sonucu onayladınız, Elo puanları güncellendi.' });
+  }));
+
+  app.post('/api/matches/:id/result/dispute', requireAuth, handle(async (req, res) => {
+    await matchResults.disputeResult(req.params.id, currentUser(req), req.body?.reason);
+    return res.json({ success: true, message: 'İtirazınız kaydedildi. Doğru skor yeniden girilene kadar Elo değişmez.' });
   }));
 
   app.get('/api/messages', requireAuth, handle(async (req, res) => {

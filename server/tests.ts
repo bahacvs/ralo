@@ -12,6 +12,8 @@ import { setDatabase } from './db/instance.js';
 import { seedDemoData, DEMO_ADMIN_EMAIL } from './db/seed.js';
 import { createApp, DEMO_ACCOUNT_EMAILS } from './app.js';
 import { normalizeEmail, validatePassword, hashPassword, verifyPassword, createAuthToken, consumeAuthToken } from './auth.js';
+import { computeEloChanges, parseSets } from './repo/matchResults.js';
+import { runJobs, previousPeriod } from './jobs.js';
 
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'padel2026demo';
 
@@ -226,6 +228,66 @@ async function runTests() {
     assert(deleteAccount.status === 200 && afterDelete.status === 401 && anonymized && anonymized.email === null, 'Test 10.1: Hesap anonimleştirildi ve oturum kapandı', deleteAccount.json);
     const ownerDelete = await call('POST', '/api/auth/delete-account', { confirmationText: 'HESABIMI SIL', confirmationCheck: true }, ownerToken);
     assert(ownerDelete.status === 409, 'Test 10.2: İşletme sahibi hesabı uygulamadan silinemedi');
+
+    // TEST 11: Match results and Elo
+    const even = computeEloChanges(
+      [{ userId: 'a1', elo: 1500, matchesCount: 0 }, { userId: 'a2', elo: 1500, matchesCount: 50 }],
+      [{ userId: 'b1', elo: 1500, matchesCount: 0 }, { userId: 'b2', elo: 1500, matchesCount: 50 }], 'a');
+    assert(even.map(c => c.delta).join(',') === '20,10,-20,-10', 'Test 11.1: Eşit takımlarda Elo değişimi K katsayısına göre hesaplandı (40/20)', even);
+    let parseError = '';
+    try { parseSets([[6, 4], [4, 6]]); } catch (err: any) { parseError = err.message; }
+    assert(/kazananı/.test(parseError), 'Test 11.2: Kazananı olmayan skor reddedildi');
+
+    const early = await call('POST', `/api/matches/${matchId}/result`, { teamA: [], teamB: [], sets: [[6, 4], [6, 4]] }, playerToken);
+    assert(early.status === 400, 'Test 11.3: Bitmemiş maç için sonuç girilemedi', early.json);
+    await db.query(
+      `UPDATE app.court_bookings SET starts_at = now() - interval '3 hours', ends_at = now() - interval '90 minutes'
+       WHERE id = (SELECT booking_id FROM app.reservations WHERE id = $1)`,
+      [matchId]
+    );
+    const ids = Object.fromEntries((await db.query<{ email: string; id: string }>(
+      `SELECT email, id FROM app.users WHERE email = ANY($1::text[])`,
+      [['oyuncu@demo.ralo.app', 'caner@demo.ralo.app', 'ece@demo.ralo.app', 'kaan@demo.ralo.app']]
+    )).rows.map(r => [r.email.split('@')[0], r.id]));
+    const teams = { teamA: [ids.oyuncu, ids.caner], teamB: [ids.ece, ids.kaan] };
+    const outsider = await call('POST', `/api/matches/${matchId}/result`, { ...teams, sets: [[6, 4], [6, 4]] }, zeynepToken);
+    assert(outsider.status === 403, 'Test 11.4: Maçta oynamayan oyuncu sonuç giremedi');
+    const submitted = await call('POST', `/api/matches/${matchId}/result`, { ...teams, sets: [[6, 4], [3, 6], [6, 2]] }, playerToken);
+    assert(submitted.status === 201, 'Test 11.5: Oyuncu maç sonucunu girdi', submitted.json);
+    const teammate = await call('POST', `/api/matches/${matchId}/result/confirm`, {}, tokens[1]);
+    assert(teammate.status === 403, 'Test 11.6: Sonucu giren takımdan biri onaylayamadı');
+    const eceMatches = await call('GET', '/api/my-matches', undefined, tokens[2]);
+    const eceView = eceMatches.json?.past?.find((m: any) => m.id === matchId);
+    assert(eceView?.result?.status === 'PENDING' && eceView.result.canRespond === true, 'Test 11.7: Rakip oyuncu onay bekleyen sonucu gördü', eceView?.result);
+    const dispute = await call('POST', `/api/matches/${matchId}/result/dispute`, { reason: 'Skor yanlış' }, tokens[2]);
+    const afterDispute = await call('GET', '/api/my-matches', undefined, tokens[3]);
+    assert(dispute.status === 200 && afterDispute.json.past.find((m: any) => m.id === matchId)?.canSubmitResult === true,
+      'Test 11.8: İtiraz edilen sonuç için skor yeniden girilebilir oldu');
+    const before = await one<{ elo: number; matches_count: number }>(`SELECT elo, matches_count FROM app.users WHERE id = $1`, [ids.kaan]);
+    const resubmit = await call('POST', `/api/matches/${matchId}/result`, { ...teams, sets: [[4, 6], [6, 3], [2, 6]] }, tokens[3]);
+    const confirm = await call('POST', `/api/matches/${matchId}/result/confirm`, {}, playerToken);
+    const after = await one<{ elo: number; matches_count: number }>(`SELECT elo, matches_count FROM app.users WHERE id = $1`, [ids.kaan]);
+    const events = await one<{ n: number }>(`SELECT count(*)::int AS n FROM app.elo_events WHERE reservation_id = $1`, [matchId]);
+    const completed = await one<{ status: string }>(`SELECT status FROM app.reservations WHERE id = $1`, [matchId]);
+    assert(resubmit.status === 201 && confirm.status === 200 && after.elo > before.elo && after.matches_count === before.matches_count + 1
+      && events.n === 4 && completed.status === 'completed',
+      'Test 11.9: Rakip takım onayladı, kazananların Elo puanı arttı ve maç tamamlandı', { confirm: confirm.json, before, after, events });
+    const twice = await call('POST', `/api/matches/${matchId}/result/confirm`, {}, playerToken);
+    assert(twice.status === 404, 'Test 11.10: Kesinleşen sonuç ikinci kez onaylanamadı');
+
+    // TEST 12: Background jobs
+    const autoIds = [ids.oyuncu, ids.caner, ids.ece, ids.kaan];
+    await db.query(
+      `INSERT INTO app.match_results (reservation_id, team_a, team_b, sets, winner, submitted_by, confirm_deadline, submitted_at)
+       VALUES ($1, $2::uuid[], $3::uuid[], '[[6,1],[6,1]]', 'a', $4, now() - interval '1 minute', now() - interval '49 hours')`,
+      [approvalId, [autoIds[0], autoIds[2]], [autoIds[1], autoIds[3]], autoIds[0]]
+    );
+    await runJobs();
+    const auto = await one<{ status: string; confirmed_by: string | null }>(`SELECT status, confirmed_by FROM app.match_results WHERE reservation_id = $1`, [approvalId]);
+    const overdueRun = await one<{ status: string }>(`SELECT status FROM app.job_runs WHERE job_name = 'statements_overdue' AND run_key = $1`, [todayLocal()]);
+    assert(auto.status === 'confirmed' && auto.confirmed_by === null && overdueRun?.status === 'succeeded',
+      'Test 12.1: Süresi dolan sonuç otomatik onaylandı, günlük gecikme işi çalıştı', { auto, overdueRun });
+    assert(previousPeriod('2027-01-05') === '2026-12' && previousPeriod('2026-10-01') === '2026-09', 'Test 12.2: Aylık hesap özeti işi bir önceki ayı seçti');
   } catch (err: any) {
     assert(false, 'Beklenmeyen hata', err?.stack ?? String(err));
   } finally {
