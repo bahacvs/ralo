@@ -21,6 +21,7 @@ import * as notifications from './repo/notifications.js';
 import * as panel from './repo/panel.js';
 import * as admin from './repo/admin.js';
 import * as matchResults from './repo/matchResults.js';
+import * as legal from './repo/legal.js';
 import type { User, ReservationStatus } from '../src/types/index.js';
 
 // Demo helpers (role switcher, unverified bookings) are only exposed when explicitly enabled
@@ -76,6 +77,7 @@ const handle = (fn: Handler): RequestHandler => async (req, res, next) => {
 
 const currentUser = (req: Request) => (req as any).user as User;
 const currentClubId = (req: Request) => (req as any).clubId as string;
+const consentMeta = (req: Request): legal.ConsentMeta => ({ ip: req.ip ?? null, userAgent: req.get('user-agent') ?? null });
 
 /** Sends a transactional email; delivery problems are logged and reported as false. */
 async function deliverMail(message: MailMessage): Promise<boolean> {
@@ -232,7 +234,14 @@ export function createApp() {
     const passwordHash = await hashPassword(password);
     let userId: string;
     try {
-      userId = await users.createPlayer({ email, displayName: name, passwordHash });
+      userId = await getDb().tx(async q => {
+        const id = await users.createPlayer({ email, displayName: name, passwordHash }, q);
+        // Terms + privacy notice with the signup; the share-card consent is a separate, optional box
+        await legal.recordConsents(q, { id, email },
+          req.body?.shareCardConsent === true ? ['terms_of_use', 'privacy_notice', 'share_card'] : ['terms_of_use', 'privacy_notice'],
+          'accepted', 'signup', consentMeta(req));
+        return id;
+      });
     } catch (err) {
       if (sqlState(err) === '23505') throw new HttpError(409, EMAIL_TAKEN);
       throw err;
@@ -641,11 +650,12 @@ export function createApp() {
     const match = await openMatches.getOpenMatch(req.params.id);
     if (!match) throw new HttpError(404, 'Açık maç bulunamadı.');
     const { court, business, participants, waitlist, organizerMaskedName, ...reservation } = match;
+    const consenting = await legal.shareCardConsentingUsers(participants.map(p => p.userId));
     return res.json({
       match: reservation,
       court,
       business,
-      participants,
+      participants: participants.map(p => ({ ...p, shareCardConsent: consenting.has(p.userId) })),
       waitlist,
       organizerMaskedName,
       pricePerPlayer: Math.round(match.totalPrice / 4)
@@ -702,6 +712,7 @@ export function createApp() {
     if (!match) throw new HttpError(404, 'Açık maç bulunamadı.');
 
     const participants = match.participants.filter(p => p.status === 'ACTIVE');
+    const consenting = await legal.shareCardConsentingUsers(participants.map(p => p.userId));
     const availableSpots = Math.max(0, match.participantLimit - participants.length);
     const business = match.business;
     const court = match.court;
@@ -760,7 +771,10 @@ export function createApp() {
         totalSpots: match.participantLimit,
         filledSpots: participants.length,
         availableSpots,
-        participants: participants.map(p => ({ maskedName: p.userMaskedName || 'Oyuncu', avatarUrl: p.userAvatar || '', elo: p.userElo || 1400 }))
+        // Players appear by name, photo and Elo only with their explicit share-card consent
+        participants: participants.map(p => consenting.has(p.userId)
+          ? { maskedName: p.userMaskedName || 'Oyuncu', avatarUrl: p.userAvatar || '', elo: p.userElo || 1400 }
+          : { maskedName: 'Oyuncu', avatarUrl: '', elo: null })
       },
       aiHeadline,
       aiCaption,
@@ -995,6 +1009,17 @@ export function createApp() {
     return res.json(await panel.getPanelReports(currentClubId(req)));
   }));
 
+  app.get('/api/panel/club-agreement', requireAuth, requireBusiness('BILLING_VIEW'), handle(async (req, res) => {
+    const state = await legal.getConsentState(currentUser(req).id);
+    const doc = legal.listLegalDocuments().find(d => d.slug === 'kulup-hizmet-sozlesmesi') ?? null;
+    return res.json({ document: doc, accepted: state.club_service_agreement.granted && state.club_service_agreement.currentVersion, acceptedAt: state.club_service_agreement.at });
+  }));
+
+  app.post('/api/panel/club-agreement/accept', requireAuth, requireBusiness('BILLING_VIEW'), handle(async (req, res) => {
+    await legal.recordConsents(getDb(), currentUser(req), ['club_service_agreement'], 'accepted', 'club_panel', consentMeta(req), currentClubId(req));
+    return res.json({ success: true, message: 'Kulüp Hizmet Sözleşmesi onayınız kaydedildi.' });
+  }));
+
   app.get('/api/panel/statements', requireAuth, requireBusiness('BILLING_VIEW'), handle(async (req, res) => {
     return res.json({ statements: await admin.listStatements({ clubId: currentClubId(req) }) });
   }));
@@ -1153,6 +1178,35 @@ export function createApp() {
   // -------------------------------------------------------------
   // Health, unknown API routes, errors
   // -------------------------------------------------------------
+
+  // -------------------------------------------------------------
+  // Legal documents and consents
+  // -------------------------------------------------------------
+
+  app.get('/api/legal', handle(async (_req, res) => {
+    return res.json({ documents: legal.listLegalDocuments() });
+  }));
+
+  app.get('/api/legal/:slug', handle(async (req, res) => {
+    const doc = legal.getLegalDocument(req.params.slug);
+    if (!doc) throw new HttpError(404, 'Belge bulunamadı.');
+    return res.json({ document: doc });
+  }));
+
+  app.get('/api/user/consents', requireAuth, handle(async (req, res) => {
+    return res.json({ consents: await legal.getConsentState(currentUser(req).id) });
+  }));
+
+  app.put('/api/user/consents/share-card', requireAuth, handle(async (req, res) => {
+    const granted = req.body?.granted;
+    if (typeof granted !== 'boolean') throw new HttpError(400, 'granted alanı true veya false olmalıdır.');
+    await legal.recordConsents(getDb(), currentUser(req), ['share_card'], granted ? 'accepted' : 'withdrawn', 'profile_settings', consentMeta(req));
+    return res.json({
+      success: true,
+      consents: await legal.getConsentState(currentUser(req).id),
+      message: granted ? 'Paylaşım kartlarında görünme rızanız kaydedildi.' : 'Rızanız geri alındı; paylaşım kartlarında anonim görüneceksiniz.'
+    });
+  }));
 
   app.get('/api/health', handle(async (_req, res) => {
     await getDb().query('SELECT 1');

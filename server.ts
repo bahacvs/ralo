@@ -8,16 +8,19 @@ import { seedDemoData } from './server/db/seed.js';
 import { createApp } from './server/app.js';
 import { assertMailConfigured } from './server/mailer.js';
 import { startJobs } from './server/jobs.js';
+import { assertLegalConfigured, syncLegalDocuments } from './server/repo/legal.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 
 async function start() {
   assertMailConfigured();
+  assertLegalConfigured();
 
   const db = await createDatabase();
   setDatabase(db);
   await db.migrate(message => console.log(message));
   console.log(db.kind === 'postgres' ? 'Connected to Postgres.' : 'Using the local PGlite database (data/pglite).');
+  console.log(`Legal documents published: ${await syncLegalDocuments()}`);
 
   if (process.env.DEMO_MODE === 'true' && (await seedDemoData(db))) {
     console.log('Demo data seeded (DEMO_MODE=true).');

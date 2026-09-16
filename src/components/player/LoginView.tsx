@@ -71,6 +71,7 @@ export const LoginView: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [shareCardConsent, setShareCardConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -118,7 +119,7 @@ export const LoginView: React.FC = () => {
       if (mode === 'LOGIN') {
         await login(trimmedEmail, password);
       } else if (mode === 'REGISTER') {
-        await register({ displayName: displayName.trim(), email: trimmedEmail, password, acceptTerms });
+        await register({ displayName: displayName.trim(), email: trimmedEmail, password, acceptTerms, shareCardConsent });
       } else {
         const res = await api.forgotPassword(trimmedEmail);
         setNotice(res.message);
@@ -268,7 +269,24 @@ export const LoginView: React.FC = () => {
                 className="w-4 h-4 mt-0.5 accent-amber-500 shrink-0"
               />
               <span>
-                <strong>Kullanım Koşulları</strong>'nı ve <strong>KVKK Aydınlatma Metni</strong>'ni okudum, kabul ediyorum.
+                <a href="/yasal/kullanim-kosullari" target="_blank" rel="noopener" className="font-bold underline text-amber-800">Kullanım Koşulları</a>'nı okudum, kabul ediyorum;{' '}
+                <a href="/yasal/kvkk-aydinlatma-metni" target="_blank" rel="noopener" className="font-bold underline text-amber-800">KVKK Aydınlatma Metni</a>'ni okudum.
+              </span>
+            </label>
+          )}
+
+          {mode === 'REGISTER' && (
+            <label className="flex items-start gap-2.5 text-xs text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={shareCardConsent}
+                onChange={(e) => setShareCardConsent(e.target.checked)}
+                className="w-4 h-4 mt-0.5 accent-amber-500 shrink-0"
+              />
+              <span>
+                <span className="text-slate-500">(İsteğe bağlı)</span> Maç paylaşım kartlarında kısaltılmış adımın, fotoğrafımın ve Elo puanımın görünmesine{' '}
+                <a href="/yasal/acik-riza-metni" target="_blank" rel="noopener" className="font-bold underline text-amber-800">Açık Rıza Metni</a> kapsamında rıza veriyorum.
+                Vermezsem kartlarda anonim görünürüm; üyeliğim etkilenmez.
               </span>
             </label>
           )}

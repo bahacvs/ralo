@@ -14,6 +14,7 @@ import { createApp, DEMO_ACCOUNT_EMAILS } from './app.js';
 import { normalizeEmail, validatePassword, hashPassword, verifyPassword, createAuthToken, consumeAuthToken } from './auth.js';
 import { computeEloChanges, parseSets } from './repo/matchResults.js';
 import { runJobs, previousPeriod } from './jobs.js';
+import { syncLegalDocuments } from './repo/legal.js';
 
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'padel2026demo';
 
@@ -43,6 +44,7 @@ async function runTests() {
   const db = await createPgliteDatabase();
   setDatabase(db);
   await db.migrate();
+  await syncLegalDocuments();
   await seedDemoData(db);
 
   const server = createApp().listen(0);
@@ -163,9 +165,22 @@ async function runTests() {
     assert(reject.status === 200 && rejected.n === 0, 'Test 6.11: Reddedilen katılım isteği silindi', reject.json);
 
     // TEST 7: Email verification is required for app bookings
-    const register = await call('POST', '/api/auth/register', { displayName: 'Yeni Oyuncu', email: 'yeni@test.ralo', password: 'padel2026', acceptTerms: true });
+    const register = await call('POST', '/api/auth/register', { displayName: 'Yeni Oyuncu', email: 'yeni@test.ralo', password: 'padel2026', acceptTerms: true, shareCardConsent: true });
     const unverified = await call('POST', '/api/reservations', { courtId: urlaCourt.id, startAt: `${dayOffset(12)}T09:00:00`, durationMinutes: 60 }, register.json?.token);
     assert(register.status === 201 && unverified.status === 403 && unverified.json.code === 'EMAIL_NOT_VERIFIED', 'Test 7.1: Doğrulanmamış hesap rezervasyon yapamadı', unverified.json);
+
+    const signupConsents = await call('GET', '/api/user/consents', undefined, register.json?.token);
+    const consentRows = await one<{ n: number; hmac_len: number }>(
+      `SELECT count(*)::int AS n, max(octet_length(subject_hmac))::int AS hmac_len FROM app.consent_records WHERE user_id = $1`, [register.json?.user?.id]);
+    assert(signupConsents.status === 200 && signupConsents.json.consents.terms_of_use.granted && signupConsents.json.consents.terms_of_use.currentVersion
+      && signupConsents.json.consents.share_card.granted && consentRows.n === 3 && consentRows.hmac_len === 32,
+      'Test 7.2: Kayıtta koşullar, aydınlatma ve isteğe bağlı paylaşım rızası sürümüyle kaydedildi', { consents: signupConsents.json, consentRows });
+    const legalDoc = await call('GET', '/api/legal/kullanim-kosullari');
+    const internalDoc = await call('GET', '/api/legal/ACIK-KONULAR');
+    assert(legalDoc.status === 200 && legalDoc.json.document.content.includes('Kullanım Koşulları') && internalDoc.status === 404,
+      'Test 7.3: Yasal metin yayımlandı, iç not dosyası yayımlanmadı');
+    const withdraw = await call('PUT', '/api/user/consents/share-card', { granted: false }, register.json?.token);
+    assert(withdraw.status === 200 && withdraw.json.consents.share_card.granted === false, 'Test 7.4: Paylaşım kartı rızası geri alındı');
 
     // TEST 8: Club panel permissions and tenant isolation
     const ownerToken = await login(DEMO_ACCOUNT_EMAILS.ISLETME_SAHIBI);

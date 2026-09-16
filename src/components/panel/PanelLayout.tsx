@@ -24,6 +24,30 @@ export const PanelLayout: React.FC<PanelLayoutProps> = ({ children }) => {
     return () => { cancelled = true; };
   }, [user?.id]);
 
+  // Owners confirm the current Kulüp Hizmet Sözleşmesi once per version
+  const [agreementPending, setAgreementPending] = useState(false);
+  const [agreementBusy, setAgreementBusy] = useState(false);
+  useEffect(() => {
+    if (user?.role !== 'ISLETME_SAHIBI') return;
+    let cancelled = false;
+    api.getClubAgreement()
+      .then(res => { if (!cancelled) setAgreementPending(!!res.document && !res.accepted); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.id, user?.role]);
+
+  const acceptAgreement = async () => {
+    setAgreementBusy(true);
+    try {
+      await api.acceptClubAgreement();
+      setAgreementPending(false);
+    } catch (err: any) {
+      window.alert(err.message || 'Onay kaydedilemedi.');
+    } finally {
+      setAgreementBusy(false);
+    }
+  };
+
   const businessId = panelBusiness?.business.id || user?.businessId || '';
   const businessName = panelBusiness?.business.name || 'İşletme';
   const businessInitials = businessName
@@ -145,6 +169,23 @@ export const PanelLayout: React.FC<PanelLayoutProps> = ({ children }) => {
 
       {/* Main Content Area */}
       <main id="main-content" className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl overflow-x-hidden">
+        {agreementPending && (
+          <div role="status" className="mb-5 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p>
+              <strong>Kulüp Hizmet Sözleşmesi</strong> yayımlandı veya güncellendi. Lütfen{' '}
+              <a href="/yasal/kulup-hizmet-sozlesmesi" target="_blank" rel="noopener" className="font-bold underline">sözleşmeyi okuyun</a>{' '}
+              ve onaylayın (100 TL uygulama rezervasyon ücreti, aylık hesap özeti ve havale ile ödeme koşulları).
+            </p>
+            <button
+              type="button"
+              disabled={agreementBusy}
+              onClick={acceptAgreement}
+              className="shrink-0 min-h-[44px] px-4 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-black cursor-pointer"
+            >
+              Okudum, Onaylıyorum
+            </button>
+          </div>
+        )}
         {children}
       </main>
 

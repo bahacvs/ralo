@@ -7,6 +7,7 @@ export interface RegisterInput {
   email: string;
   password: string;
   acceptTerms: boolean;
+  shareCardConsent?: boolean;
 }
 
 interface AuthContextType {

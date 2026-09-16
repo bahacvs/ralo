@@ -1,7 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.js';
 import { api } from '../../services/api.js';
-import { ArrowLeft, ShieldAlert, AlertTriangle, LogOut } from 'lucide-react';
+import { ArrowLeft, ShieldAlert, AlertTriangle, LogOut, FileText } from 'lucide-react';
+
+const LEGAL_LINKS = [
+  { slug: 'kullanim-kosullari', title: 'Kullanım Koşulları' },
+  { slug: 'kvkk-aydinlatma-metni', title: 'KVKK Aydınlatma Metni' },
+  { slug: 'acik-riza-metni', title: 'Açık Rıza Metni' }
+];
 import { ThemeToggle } from '../common/ThemeToggle.js';
 
 export const AccountPrivacyView: React.FC = () => {
@@ -13,6 +19,29 @@ export const AccountPrivacyView: React.FC = () => {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const canDelete = confirmCheck && confirmText === 'HESABIMI SIL';
+
+  const [shareCard, setShareCard] = useState<{ granted: boolean; at: string | null } | null>(null);
+  const [consentBusy, setConsentBusy] = useState(false);
+  const [consentMessage, setConsentMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.getConsents().then(res => setShareCard(res.consents.share_card)).catch(() => setShareCard(null));
+  }, []);
+
+  const toggleShareCard = async () => {
+    if (!shareCard) return;
+    setConsentBusy(true);
+    setConsentMessage(null);
+    try {
+      const res = await api.setShareCardConsent(!shareCard.granted);
+      setShareCard({ granted: !shareCard.granted, at: new Date().toISOString() });
+      setConsentMessage(res.message);
+    } catch (err: any) {
+      setConsentMessage(err.message || 'Tercihiniz kaydedilemedi.');
+    } finally {
+      setConsentBusy(false);
+    }
+  };
 
   const handleDelete = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +92,53 @@ export const AccountPrivacyView: React.FC = () => {
         <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
           RALO, oyuncuların gizliliğini korumak amacıyla açık maç listelerinde ve arama sonuçlarında adınızı otomatik olarak maskeler (Örn: <strong className="text-slate-900 dark:text-slate-200">{user?.maskedName}</strong>). Telefon numaranız hiçbir zaman diğer oyuncularla paylaşılmaz; yalnızca tesis işletmecisi acil durum teyidi için görüntüleyebilir.
         </p>
+      </div>
+
+      {/* Consents and legal documents */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4 transition-colors">
+        <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <FileText className="w-5 h-5 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+          <span>Rızalar ve Yasal Metinler</span>
+        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60">
+          <div className="text-xs text-slate-700 dark:text-slate-300">
+            <p className="font-bold text-slate-900 dark:text-white">Paylaşım kartlarında görünme</p>
+            <p className="mt-0.5">
+              Açık maç paylaşım kartlarında kısaltılmış adınız, fotoğrafınız ve Elo puanınız görünsün mü? Vermezseniz kartta anonim görünürsünüz.
+            </p>
+            {shareCard?.at && (
+              <p className="mt-1 text-[11px] text-slate-500">
+                Son tercih: {shareCard.granted ? 'Rıza verildi' : 'Rıza verilmedi / geri alındı'} · {new Date(shareCard.at).toLocaleString('tr-TR')}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!shareCard?.granted}
+            disabled={!shareCard || consentBusy}
+            onClick={toggleShareCard}
+            className={`shrink-0 min-h-[44px] px-4 rounded-xl text-xs font-black cursor-pointer disabled:opacity-50 ${
+              shareCard?.granted ? 'bg-amber-500 text-slate-950' : 'bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200'
+            }`}
+          >
+            {shareCard?.granted ? 'Rızayı Geri Al' : 'Rıza Ver'}
+          </button>
+        </div>
+        {consentMessage && <p role="status" className="text-xs font-semibold text-amber-800 dark:text-amber-300">{consentMessage}</p>}
+        <ul className="flex flex-wrap gap-2">
+          {LEGAL_LINKS.map(link => (
+            <li key={link.slug}>
+              <button
+                type="button"
+                onClick={() => navigate(`/yasal/${link.slug}`)}
+                className="min-h-[40px] px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                {link.title}
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
 
       {/* Logout Card */}

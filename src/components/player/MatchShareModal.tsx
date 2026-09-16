@@ -230,11 +230,13 @@ export const MatchShareModal: React.FC<MatchShareModalProps> = ({
 
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 24px sans-serif';
-        ctx.fillText(p.userMaskedName || p.maskedName || `Oyuncu ${i + 1}`, sx + slotWidth / 2, sy + 50);
+        // Without the player's explicit share-card consent the card shows no name or Elo
+        const consented = p.shareCardConsent === true;
+        ctx.fillText(consented ? (p.userMaskedName || `Oyuncu ${i + 1}`) : `Oyuncu ${i + 1}`, sx + slotWidth / 2, sy + 50);
 
         ctx.fillStyle = '#fbbf24';
         ctx.font = 'bold 20px sans-serif';
-        ctx.fillText(`${p.userElo ?? p.elo ?? 1400} Elo`, sx + slotWidth / 2, sy + 85);
+        ctx.fillText(consented ? `${p.userElo ?? 1400} Elo` : 'Kadroda', sx + slotWidth / 2, sy + 85);
 
         if (isStory) {
           ctx.fillStyle = '#94a3b8';

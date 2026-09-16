@@ -1,5 +1,5 @@
-# Render Blueprint. Data lives in memory and is mirrored to Postgres,
-# so the service must run as a single instance.
+# Render Blueprint. All data lives in Postgres (migrations run on boot). Rate limits are per instance,
+# so start with a single instance.
 services:
   - type: web
     name: ralo
@@ -26,6 +26,9 @@ services:
         value: smtp.gmail.com
       - key: SMTP_PORT
         value: "465"
+      # Key for the email HMAC kept in consent records; generated once, never change it afterwards
+      - key: CONSENT_HMAC_KEY
+        generateValue: true
       # Secrets: set these in the Render dashboard
       - key: DATABASE_URL
         sync: false

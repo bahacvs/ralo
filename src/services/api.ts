@@ -66,7 +66,26 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   // Auth
-  register: (data: { displayName: string; email: string; password: string; acceptTerms: boolean }) =>
+  // Legal documents and consents
+  getLegalDocument: (slug: string) =>
+    request<{ document: { slug: string; title: string; version: string; publishedAt: string; content: string } }>(`/api/legal/${encodeURIComponent(slug)}`),
+
+  getConsents: () =>
+    request<{ consents: Record<'terms_of_use' | 'privacy_notice' | 'share_card' | 'club_service_agreement', { granted: boolean; currentVersion: boolean; at: string | null }> }>('/api/user/consents'),
+
+  setShareCardConsent: (granted: boolean) =>
+    request<{ success: boolean; message: string }>('/api/user/consents/share-card', {
+      method: 'PUT',
+      body: JSON.stringify({ granted })
+    }),
+
+  getClubAgreement: () =>
+    request<{ document: { slug: string; title: string; version: string } | null; accepted: boolean; acceptedAt: string | null }>('/api/panel/club-agreement'),
+
+  acceptClubAgreement: () =>
+    request<{ success: boolean; message: string }>('/api/panel/club-agreement/accept', { method: 'POST' }),
+
+  register: (data: { displayName: string; email: string; password: string; acceptTerms: boolean; shareCardConsent?: boolean }) =>
     request<{ success: boolean; token: string; user: User; verificationEmailSent: boolean }>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(data)

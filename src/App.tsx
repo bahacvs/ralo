@@ -29,6 +29,7 @@ import { LoginView } from './components/player/LoginView.js';
 import { VerifyEmailView, ResetPasswordView } from './components/player/AuthLinkViews.js';
 import { EmailVerificationBanner } from './components/common/EmailVerificationBanner.js';
 import { FeedView } from './components/player/FeedView.js';
+import { LegalDocumentView } from './components/player/LegalDocumentView.js';
 
 // Business Panel Views & Layout
 import { PanelLayout } from './components/panel/PanelLayout.js';
@@ -112,6 +113,9 @@ const AppContent: React.FC = () => {
     }
     if (currentRoute === '/sifre-sifirla') {
       return <ResetPasswordView />;
+    }
+    if (currentRoute.startsWith('/yasal/')) {
+      return <LegalDocumentView />;
     }
     if (currentRoute.startsWith('/saha/')) {
       return <CourtDetailView />;
