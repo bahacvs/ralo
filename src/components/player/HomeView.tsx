@@ -15,18 +15,42 @@ export const HomeView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [upcomingMatch, setUpcomingMatch] = useState<any | null>(null);
   const [todayOpenMatches, setTodayOpenMatches] = useState<any[]>([]);
+  const [featuredClubs, setFeaturedClubs] = useState<{
+    id: string; name: string; location: string; coverImage: string; rating: number; reviewsCount: number;
+    courtCount: number; minPrice: number; firstCourtId: string;
+  }[]>([]);
   const [showInstallModal, setShowInstallModal] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [matchesRes, openMatchesRes] = await Promise.all([
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' });
+      const [matchesRes, openMatchesRes, courtsRes] = await Promise.all([
         user
           ? api.getMyMatches().catch(() => ({ upcoming: [], past: [] }))
           : Promise.resolve({ upcoming: [], past: [] }),
-        api.getOpenMatches({ minAvailableSpots: 1 }).catch(() => ({ matches: [], total: 0 }))
+        api.getOpenMatches({ minAvailableSpots: 1 }).catch(() => ({ matches: [], total: 0 })),
+        api.getCourts({ date: today, startTime: '', duration: 90 }).catch(() => ({ courts: [], total: 0 }))
       ]);
+
+      // Group bookable courts by club: best rated first, then the ones with more courts
+      const clubs = new Map<string, any>();
+      for (const court of courtsRes.courts) {
+        const biz = court.business;
+        if (!biz) continue;
+        const club = clubs.get(biz.id) ?? {
+          id: biz.id, name: biz.name, location: [biz.district, biz.city].filter(Boolean).join(', '),
+          coverImage: biz.coverImage || court.photos?.[0] || '', rating: biz.rating ?? 0, reviewsCount: biz.reviewsCount ?? 0,
+          courtCount: 0, minPrice: Infinity, firstCourtId: court.id
+        };
+        club.courtCount++;
+        club.minPrice = Math.min(club.minPrice, court.pricePerHour);
+        clubs.set(biz.id, club);
+      }
+      setFeaturedClubs([...clubs.values()]
+        .sort((a, b) => (b.reviewsCount > 0 ? b.rating : 0) - (a.reviewsCount > 0 ? a.rating : 0) || b.courtCount - a.courtCount)
+        .slice(0, 4));
 
       if (matchesRes.upcoming && matchesRes.upcoming.length > 0) {
         setUpcomingMatch(matchesRes.upcoming[0]);
@@ -189,7 +213,7 @@ export const HomeView: React.FC = () => {
               <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Kort randevusu, oyuncu eşleşmeleri ve İzmir padel topluluğu
+              Kort randevusu, oyuncu eşleşmeleri ve padel topluluğu
             </p>
           </div>
         </div>
@@ -252,7 +276,7 @@ export const HomeView: React.FC = () => {
                   Kort Rezervasyonu Yap
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-200 mt-1 leading-relaxed line-clamp-2 drop-shadow-xs">
-                  İzmir'in en modern panoramik kortlarını inceleyin, müsait saatleri seçin ve saniyeler içinde ayırtın.
+                  Türkiye'deki padel kortlarını inceleyin, müsait saatleri seçin ve saniyeler içinde ayırtın.
                 </p>
               </div>
 
@@ -390,7 +414,7 @@ export const HomeView: React.FC = () => {
             {/* Middle 3D Feature Chips */}
             <div className="relative z-10 my-4 flex flex-wrap gap-2">
               <span className="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-white/90 border border-white/15 backdrop-blur-xs shadow-xs transition-colors">
-                İzmir Padel Topluluğu
+                Padel Topluluğu
               </span>
               <span className="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-white/90 border border-white/15 backdrop-blur-xs shadow-xs transition-colors">
                 Arkadaş Ekle & Sohbet
@@ -507,67 +531,50 @@ export const HomeView: React.FC = () => {
         </div>
       </section>
 
-      {/* Featured Venues & Facilities */}
-      <section aria-labelledby="featured-venues-heading" className="space-y-3">
-        <h2 id="featured-venues-heading" className="text-base font-extrabold text-slate-900 dark:text-white">
-          Popüler Padel Merkezleri
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200/90 dark:border-slate-800 shadow-2xs transition-colors">
-            <img 
-              src="https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&auto=format&fit=crop&q=80" 
-              alt="Padel Arena Urla kortları" 
-              className="w-full h-40 object-cover"
-            />
-            <div className="p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Padel Arena Urla</h3>
-                <span className="text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">★ 4.9 (128)</span>
+      {/* Featured clubs (real, bookable clubs) */}
+      {featuredClubs.length > 0 && (
+        <section aria-labelledby="featured-venues-heading" className="space-y-3">
+          <h2 id="featured-venues-heading" className="text-base font-extrabold text-slate-900 dark:text-white">
+            Padel Kulüpleri
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {featuredClubs.map(club => (
+              <div key={club.id} className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200/90 dark:border-slate-800 shadow-2xs transition-colors">
+                {club.coverImage ? (
+                  <img src={club.coverImage} alt={`${club.name} kortları`} className="w-full h-40 object-cover" />
+                ) : (
+                  <div className="w-full h-40 bg-gradient-to-br from-slate-800 to-slate-950 flex items-center justify-center text-amber-400 font-black text-lg" aria-hidden="true">
+                    {club.name}
+                  </div>
+                )}
+                <div className="p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">{club.name}</h3>
+                    {club.reviewsCount > 0 && (
+                      <span className="text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800 shrink-0">
+                        ★ {club.rating.toFixed(1)} ({club.reviewsCount})
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400" /> {club.location} • {club.courtCount} Kort
+                  </p>
+                  <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+                    <span className="text-slate-600 dark:text-slate-300 font-medium">Saatlik {club.minPrice.toLocaleString('tr-TR')} ₺'den başlayan</span>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/saha/${club.firstCourtId}`)}
+                      className="font-bold text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 min-h-[44px] px-2 py-1 flex items-center cursor-pointer"
+                    >
+                      Kortları Gör
+                    </button>
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" /> Urla, İzmir • 3 Kort (Açık Panoramik)
-              </p>
-              <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
-                <span className="text-slate-600 dark:text-slate-300 font-medium">Gündüz 1.000 ₺ / Akşam 1.200 ₺</span>
-                <button
-                  type="button"
-                  onClick={() => navigate('/sahalar')}
-                  className="font-bold text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 min-h-[44px] px-2 py-1 flex items-center cursor-pointer"
-                >
-                  Kortları Gör
-                </button>
-              </div>
-            </div>
+            ))}
           </div>
-
-          <div className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200/90 dark:border-slate-800 shadow-2xs transition-colors">
-            <img 
-              src="https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=800&auto=format&fit=crop&q=80" 
-              alt="Çeşme Padel Club kortları" 
-              className="w-full h-40 object-cover"
-            />
-            <div className="p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Çeşme Padel & Tennis Club</h3>
-                <span className="text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">★ 4.8 (94)</span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" /> Çeşme, İzmir • 2 Kort (Işıklandırmalı)
-              </p>
-              <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
-                <span className="text-slate-600 dark:text-slate-300 font-medium">1.200 ₺ / saat</span>
-                <button
-                  type="button"
-                  onClick={() => navigate('/sahalar')}
-                  className="font-bold text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 min-h-[44px] px-2 py-1 flex items-center cursor-pointer"
-                >
-                  Kortları Gör
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Mobile App Promotion Card for iOS & Android */}
       <div className="rounded-3xl p-5 sm:p-6 bg-gradient-to-r from-amber-950 via-slate-900 to-slate-950 text-white border border-amber-800/40 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">

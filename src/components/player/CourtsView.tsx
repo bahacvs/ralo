@@ -379,7 +379,7 @@ export const CourtsView: React.FC = () => {
                       </h2>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
                         <MapPin className="w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
-                        <span>{biz?.district}, İzmir</span>
+                        <span>{[biz?.district, biz?.city].filter(Boolean).join(', ')}</span>
                         <span className="text-slate-300 dark:text-slate-600">•</span>
                         <span>{court.surface}</span>
                       </p>
@@ -452,23 +452,10 @@ export const CourtsView: React.FC = () => {
               className="w-full min-h-[44px] px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
             >
               <option value="ALL">Tüm İlçeler</option>
-              {selectedCity !== 'Tüm Türkiye' && TURKEY_CITIES[selectedCity] ? (
+              {selectedCity !== 'Tüm Türkiye' && TURKEY_CITIES[selectedCity] &&
                 TURKEY_CITIES[selectedCity].districts.filter(d => d !== 'Tüm İlçeler').map(d => (
                   <option key={d} value={d}>{d}</option>
-                ))
-              ) : (
-                <>
-                  <option value="Urla">Urla (İzmir)</option>
-                  <option value="Çeşme">Çeşme (İzmir)</option>
-                  <option value="Bornova">Bornova (İzmir)</option>
-                  <option value="Karşıyaka">Karşıyaka (İzmir)</option>
-                  <option value="Sarıyer">Sarıyer (İstanbul)</option>
-                  <option value="Kadıköy">Kadıköy (İstanbul)</option>
-                  <option value="Çankaya">Çankaya (Ankara)</option>
-                  <option value="Muratpaşa">Muratpaşa (Antalya)</option>
-                  <option value="Bodrum">Bodrum (Muğla)</option>
-                </>
-              )}
+                ))}
             </select>
           </div>
 

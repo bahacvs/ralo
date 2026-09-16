@@ -144,6 +144,20 @@ export const OpenMatchDetailView: React.FC = () => {
     }
   };
 
+  const handleJoinRequest = async (requesterId: string, decision: 'approve' | 'reject') => {
+    if (!reservationId) return;
+    setActionLoading(true);
+    try {
+      const res = await api.respondToJoinRequest(reservationId, requesterId, decision);
+      setActionMessage(res.message);
+      await fetchDetail();
+    } catch (err: any) {
+      setActionMessage(err.message || 'Katılım isteği yanıtlanamadı.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleToggleWaitlist = async () => {
     if (!reservationId) return;
     setActionLoading(true);
@@ -162,11 +176,18 @@ export const OpenMatchDetailView: React.FC = () => {
   if (error) return <ErrorState message={error} onRetry={fetchDetail} />;
   if (!matchData) return null;
 
-  const { match, court, business, participants = [], waitlist = [], organizerMaskedName, pricePerPlayer } = matchData;
+  const { match, court, business, organizerMaskedName, pricePerPlayer } = matchData;
+  // The API names player fields userMaskedName/userElo/...; the cards below use the short names
+  const participants = (matchData.participants ?? []).map((p: any) => ({
+    ...p, maskedName: p.userMaskedName, avatarUrl: p.userAvatar, elo: p.userElo, playSide: p.userPlaySide
+  }));
+  const waitlist = (matchData.waitlist ?? []).map((w: any) => ({ ...w, maskedName: w.userMaskedName, elo: w.userElo }));
   
   const activeParticipants = participants.filter((p: any) => p.status === 'ACTIVE');
   const isUserJoined = participants.some((p: any) => p.userId === user?.id && p.status === 'ACTIVE');
   const isUserPending = participants.some((p: any) => p.userId === user?.id && p.status === 'PENDING_APPROVAL');
+  const isOrganizer = !!user && match.ownerUserId === user.id;
+  const pendingRequests = participants.filter((p: any) => p.status === 'PENDING_APPROVAL');
   const userWaitlistEntry = waitlist.find((w: any) => w.userId === user?.id);
   const isUserOnWaitlist = !!userWaitlistEntry;
   const isFull = activeParticipants.length >= 4;
@@ -230,7 +251,7 @@ export const OpenMatchDetailView: React.FC = () => {
             </div>
             <div className="flex items-center gap-1.5">
               <MapPin className="w-4 h-4 text-amber-400" />
-              <span>{business?.district}, İzmir</span>
+              <span>{[business?.district, business?.city].filter(Boolean).join(', ')}</span>
             </div>
           </div>
         </div>
@@ -392,6 +413,52 @@ export const OpenMatchDetailView: React.FC = () => {
           </div>
         </div>
 
+        {/* Join requests (organizer only) */}
+        {isOrganizer && pendingRequests.length > 0 && (
+          <div className="px-6 pb-6 pt-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+              Katılım İstekleri ({pendingRequests.length})
+            </h3>
+            <ul className="space-y-2">
+              {pendingRequests.map((p: any) => (
+                <li key={p.id} className="p-3 rounded-2xl border border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={p.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+                      alt=""
+                      className="w-10 h-10 rounded-xl object-cover border border-slate-200 dark:border-slate-700"
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">{p.maskedName}</p>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400">{p.elo} Elo</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={actionLoading || isFull}
+                      onClick={() => handleJoinRequest(p.userId, 'approve')}
+                      title={isFull ? 'Maç dolu' : undefined}
+                      className="inline-flex items-center gap-1 min-h-[40px] px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 text-xs font-black cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5" aria-hidden="true" /> Onayla
+                    </button>
+                    <button
+                      type="button"
+                      disabled={actionLoading}
+                      onClick={() => handleJoinRequest(p.userId, 'reject')}
+                      className="inline-flex items-center min-h-[40px] px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold cursor-pointer"
+                    >
+                      Reddet
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {isFull && <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">Maç dolu olduğu için yeni istek onaylanamaz.</p>}
+          </div>
+        )}
+
         {/* Waitlist (if full) */}
         {waitlist.length > 0 && (
           <div className="px-6 pb-6 pt-2">
@@ -435,10 +502,12 @@ export const OpenMatchDetailView: React.FC = () => {
         <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 text-xs text-amber-950 dark:text-amber-200 space-y-1">
           <p className="font-bold flex items-center gap-1.5">
             <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-            <span>Fair-Play & No-Show Politikası:</span>
+            <span>İptal ve Katılım Kuralları:</span>
           </p>
           <p className="text-amber-900 dark:text-amber-300 leading-relaxed">
-            Katılım onaylandıktan sonra mazeretsiz gelmeyen oyuncuların ArenaMate Güvenilirlik Skoru düşer ve 14 gün boyunca açık maçlara katılımı kısıtlanır. İptal için maçtan en az 6 saat önce ayrılmanız gerekmektedir.
+            Organizatör rezervasyonu maçtan {business?.cancellationWindowHours ?? 24} saat öncesine kadar uygulamadan iptal edebilir.
+            Katılımcılar maçtan ayrılabilir; boşalan koltuğa bekleme listesindeki ilk oyuncu otomatik alınır.
+            Maça 30 dakikadan az kala yeni katılım kapanır. Gelmeme durumunda kulübün tesis kuralları geçerlidir.
           </p>
         </div>
       </div>
@@ -452,7 +521,7 @@ export const OpenMatchDetailView: React.FC = () => {
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">Sosyal Ağ</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              İzmir padel topluluğunda maç organize edin, durum paylaşın ve yeni oyuncularla tanışın.
+              Padel topluluğunda maç organize edin, durum paylaşın ve yeni oyuncularla tanışın.
             </p>
           </div>
         </div>
@@ -520,9 +589,16 @@ export const OpenMatchDetailView: React.FC = () => {
               <span>Maçtan Ayrıl</span>
             </button>
           ) : isUserPending ? (
-            <div className="flex-1 sm:flex-none inline-flex items-center justify-center min-h-[48px] px-6 py-2.5 rounded-2xl bg-blue-900/60 border border-blue-600 text-blue-200 text-xs font-bold">
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={handleLeave}
+              title="Katılım isteğinizi geri çekin"
+              className="flex-1 sm:flex-none inline-flex flex-col items-center justify-center min-h-[48px] px-6 py-2 rounded-2xl bg-blue-900/60 hover:bg-blue-900 border border-blue-600 text-blue-200 text-xs font-bold cursor-pointer disabled:opacity-60"
+            >
               <span>Onay Bekleniyor</span>
-            </div>
+              <span className="text-[10px] font-semibold text-blue-300 underline">İsteği geri çek</span>
+            </button>
           ) : isFull ? (
             <button
               type="button"
@@ -581,7 +657,7 @@ export const OpenMatchDetailView: React.FC = () => {
                           </span>
                         </div>
                         <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                          {friend.playSide === 'LEFT' ? 'Sol Kanat' : friend.playSide === 'RIGHT' ? 'Sağ Kanat' : 'Çift Yön'} • {friend.district || 'İzmir'}
+                          {friend.playSide === 'LEFT' ? 'Sol Kanat' : friend.playSide === 'RIGHT' ? 'Sağ Kanat' : 'Çift Yön'}{friend.district ? ` • ${friend.district}` : ''}
                         </span>
                       </div>
                     </div>
@@ -616,7 +692,7 @@ export const OpenMatchDetailView: React.FC = () => {
           ) : (
             <div className="space-y-4">
               <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
-                Henüz arkadaş listenizde kayıtlı kimse bulunmuyor. Aşağıdaki İzmir padel oyuncularını arkadaş ekleyerek hemen maça davet edebilirsiniz:
+                Henüz arkadaş listenizde kayıtlı kimse bulunmuyor. Aşağıdaki padel oyuncularını arkadaş ekleyerek hemen maça davet edebilirsiniz:
               </div>
 
               {allPlayersList.length > 0 && (

@@ -444,7 +444,7 @@ export const ProfileView: React.FC = () => {
                     <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
                       <MapPin className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                       <span className="truncate">
-                        {court.business?.district ? `${court.business.district}, ` : ''}{court.business?.city || 'İzmir'}
+                        {court.business?.district ? `${court.business.district}, ` : ''}{court.business?.city}
                       </span>
                     </div>
                   </div>

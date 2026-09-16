@@ -216,41 +216,6 @@ export interface CourtOccupancyInfo {
   label: string;
 }
 
-export interface HourlyWeatherForecast {
-  time: string; // "18:00"
-  temperature: number;
-  rainProbability: number; // percentage 0-100
-  precipitation: number; // mm
-  isRainRisk: boolean;
-}
-
-export interface CourtWeatherInfo {
-  locationName: string;
-  city: string;
-  district: string;
-  temperature: number;
-  feelsLike: number;
-  humidity: number;
-  windSpeedKmH: number;
-  weatherCode: number;
-  weatherDescription: string;
-  isRaining: boolean;
-  rainProbability: number; // percentage 0-100
-  precipitationMm: number;
-  rainSeverity: 'NONE' | 'LOW' | 'MODERATE' | 'HIGH';
-  isOutdoor: boolean;
-  courtType?: string;
-  padelPlayability: {
-    status: 'OPTIMAL' | 'CAUTION' | 'UNPLAYABLE';
-    title: string;
-    description: string;
-    courtSafetyNote: string;
-  };
-  hourly: HourlyWeatherForecast[];
-  source: string;
-  updatedAt: string;
-}
-
 export interface CourtFilterOptions {
   date: string;
   startTime: string;

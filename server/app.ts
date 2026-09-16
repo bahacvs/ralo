@@ -667,6 +667,16 @@ export function createApp() {
     return res.json({ success: true, message: 'Maçtan ayrıldınız. Koltuğunuz diğer oyuncular için erişilebilir yapıldı.' });
   }));
 
+  app.post('/api/open-matches/:id/requests/:userId', requireAuth, handle(async (req, res) => {
+    const decision = req.body?.decision;
+    if (decision !== 'approve' && decision !== 'reject') throw new HttpError(400, 'Geçersiz karar. "approve" veya "reject" olmalıdır.');
+    await openMatches.respondToJoinRequest(req.params.id, currentUser(req), req.params.userId, decision === 'approve');
+    return res.json({
+      success: true,
+      message: decision === 'approve' ? 'Katılım isteği onaylandı, oyuncu maça eklendi.' : 'Katılım isteği reddedildi.'
+    });
+  }));
+
   app.post('/api/open-matches/:id/waitlist', requireAuth, handle(async (req, res) => {
     const action = await openMatches.toggleWaitlist(req.params.id, currentUser(req));
     return res.json({

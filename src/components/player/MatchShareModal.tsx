@@ -155,7 +155,7 @@ export const MatchShareModal: React.FC<MatchShareModalProps> = ({
 
     ctx.fillStyle = '#cbd5e1';
     ctx.font = '28px sans-serif';
-    ctx.fillText(`📍 ${business?.district || 'İzmir'}, Türkiye`, width / 2, titleY + 115);
+    ctx.fillText(`📍 ${[business?.district, business?.city].filter(Boolean).join(', ') || 'Türkiye'}`, width / 2, titleY + 115);
 
     // 6. Match Info Card Box (Date, Time, Duration)
     const boxY = isStory ? 580 : 470;
@@ -230,11 +230,11 @@ export const MatchShareModal: React.FC<MatchShareModalProps> = ({
 
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 24px sans-serif';
-        ctx.fillText(p.maskedName || `Oyuncu ${i + 1}`, sx + slotWidth / 2, sy + 50);
+        ctx.fillText(p.userMaskedName || p.maskedName || `Oyuncu ${i + 1}`, sx + slotWidth / 2, sy + 50);
 
         ctx.fillStyle = '#fbbf24';
         ctx.font = 'bold 20px sans-serif';
-        ctx.fillText(`${p.elo || 1400} Elo`, sx + slotWidth / 2, sy + 85);
+        ctx.fillText(`${p.userElo ?? p.elo ?? 1400} Elo`, sx + slotWidth / 2, sy + 85);
 
         if (isStory) {
           ctx.fillStyle = '#94a3b8';

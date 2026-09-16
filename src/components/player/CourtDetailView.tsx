@@ -249,7 +249,7 @@ export const CourtDetailView: React.FC = () => {
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 mt-1 flex items-center gap-1.5">
               <MapPin className="w-4 h-4 text-amber-400" aria-hidden="true" />
-              <span>{business?.address}, {business?.district}, {business?.city || 'İzmir'}</span>
+              <span>{business?.address}, {business?.district}, {business?.city}</span>
             </p>
           </div>
         </div>

@@ -246,7 +246,7 @@ export const FeedView: React.FC = () => {
               Sosyal Ağ & Oyuncu Akışı
             </h1>
             <p className="text-xs sm:text-sm text-slate-200 leading-relaxed drop-shadow-xs">
-              İzmir padel camiasında durum paylaşın, yeni partnerlerle tanışın, arkadaş ekleyin ve maç davetleri oluşturun.
+              Padel camiasında durum paylaşın, yeni partnerlerle tanışın, arkadaş ekleyin ve maç davetleri oluşturun.
             </p>
           </div>
 

@@ -141,6 +141,24 @@ async function runTests() {
       'Test 6.6: Ayrılan oyuncunun yerine bekleme listesindeki oyuncu alındı', detailAfter.json);
     const organizerLeave = await call('POST', `/api/open-matches/${matchId}/leave`, {}, playerToken);
     assert(organizerLeave.status === 400, 'Test 6.7: Organizatör maçtan ayrılamadı (iptal etmesi gerekir)');
+    const approvalMatch = await call('POST', '/api/reservations', {
+      courtId: urlaCourt.id, startAt: `${dayOffset(11)}T21:00:00`, durationMinutes: 90, isOpenMatch: true, approvalRequired: true
+    }, zeynepToken);
+    const approvalId = approvalMatch.json?.reservation?.id;
+    const request = await call('POST', `/api/open-matches/${approvalId}/join`, {}, tokens[4]);
+    const melisId = (await one(`SELECT id FROM app.users WHERE email = 'melis@demo.ralo.app'`)).id;
+    assert(approvalMatch.status === 201 && request.status === 200 && request.json.status === 'PENDING_APPROVAL', 'Test 6.8: Onaylı maça katılım isteği gönderildi', request.json);
+    const strangerApprove = await call('POST', `/api/open-matches/${approvalId}/requests/${melisId}`, { decision: 'approve' }, playerToken);
+    assert(strangerApprove.status === 403, 'Test 6.9: Organizatör olmayan oyuncu isteği onaylayamadı');
+    const approve = await call('POST', `/api/open-matches/${approvalId}/requests/${melisId}`, { decision: 'approve' }, zeynepToken);
+    const approved = await one(`SELECT p.status, p.slot_index, r.active_participant_count FROM app.reservation_participants p
+                                JOIN app.reservations r ON r.id = p.reservation_id WHERE p.reservation_id = $1 AND p.user_id = $2`, [approvalId, melisId]);
+    assert(approve.status === 200 && approved.status === 'active' && approved.slot_index === 1 && approved.active_participant_count === 2,
+      'Test 6.10: Organizatör isteği onayladı, oyuncu boş koltuğa yerleşti', approved);
+    await call('POST', `/api/open-matches/${approvalId}/join`, {}, tokens[3]);
+    const reject = await call('POST', `/api/open-matches/${approvalId}/requests/${kaanId}`, { decision: 'reject' }, zeynepToken);
+    const rejected = await one(`SELECT count(*)::int AS n FROM app.reservation_participants WHERE reservation_id = $1 AND user_id = $2`, [approvalId, kaanId]);
+    assert(reject.status === 200 && rejected.n === 0, 'Test 6.11: Reddedilen katılım isteği silindi', reject.json);
 
     // TEST 7: Email verification is required for app bookings
     const register = await call('POST', '/api/auth/register', { displayName: 'Yeni Oyuncu', email: 'yeni@test.ralo', password: 'padel2026', acceptTerms: true });

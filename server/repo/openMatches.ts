@@ -198,6 +198,71 @@ export async function leaveOpenMatch(matchId: string, user: User): Promise<{ pro
   });
 }
 
+/** The organizer approves (takes the lowest free seat) or rejects a pending join request. */
+export async function respondToJoinRequest(
+  matchId: string, organizer: User, requesterId: string, approve: boolean
+): Promise<void> {
+  return getDb().tx(async q => {
+    const match = await lockOpenMatch(q, matchId);
+    if (match.owner_user_id !== organizer.id) {
+      throw new HttpError(403, 'Katılım isteklerini yalnızca maçın organizatörü yanıtlayabilir.');
+    }
+    if (!isUuid(requesterId)) throw new HttpError(404, 'Katılım isteği bulunamadı.');
+    const { rows } = await q.query<{ id: string }>(
+      `SELECT id FROM app.reservation_participants
+       WHERE reservation_id = $1 AND user_id = $2 AND status = 'pending_approval'`,
+      [matchId, requesterId]
+    );
+    if (!rows[0]) throw new HttpError(404, 'Katılım isteği bulunamadı veya daha önce yanıtlandı.');
+
+    if (!approve) {
+      await q.query(`DELETE FROM app.reservation_participants WHERE id = $1`, [rows[0].id]);
+      await addNotification(q, {
+        userId: requesterId,
+        type: 'match_join',
+        title: 'Katılım İsteğiniz Yanıtlandı',
+        body: `${match.club_name} - ${match.court_name} maçının organizatörü katılım isteğinizi kabul etmedi.`,
+        reservationId: matchId,
+        actorUserId: organizer.id
+      });
+      return;
+    }
+
+    if (match.active_participant_count >= match.participant_limit) {
+      throw new HttpError(409, 'Maçın tüm koltukları dolu. İsteği onaylamak için önce bir koltuk boşalmalı.');
+    }
+    await q.query(
+      `UPDATE app.reservation_participants
+       SET status = 'active', approved_at = now(),
+           slot_index = (SELECT min(s)::smallint FROM generate_series(0, $2::int - 1) AS s
+                         WHERE NOT EXISTS (SELECT 1 FROM app.reservation_participants p
+                                           WHERE p.reservation_id = $3 AND p.status = 'active' AND p.slot_index = s))
+       WHERE id = $1`,
+      [rows[0].id, match.participant_limit, matchId]
+    );
+    await q.query(
+      `UPDATE app.reservations SET active_participant_count = active_participant_count + 1 WHERE id = $1`,
+      [matchId]
+    );
+    await q.query(`DELETE FROM app.reservation_waitlist WHERE reservation_id = $1 AND user_id = $2`, [matchId, requesterId]);
+    const requester = await findUserById(requesterId, q);
+    await addNotification(q, {
+      userId: requesterId,
+      type: 'match_join',
+      title: 'Katılım İsteğiniz Onaylandı ✅',
+      body: `${match.club_name} - ${match.court_name} maçına katılımınız onaylandı. Koltuğunuz ayrıldı.`,
+      reservationId: matchId,
+      actorUserId: organizer.id
+    });
+    await notifyActiveParticipants(q, matchId, requesterId, {
+      type: 'match_join',
+      title: 'Maça Katılım 🎾',
+      body: `${requester?.displayName ?? 'Bir oyuncu'} ${match.club_name} - ${match.court_name} maçına katıldı.`,
+      actorUserId: requesterId
+    });
+  });
+}
+
 export async function toggleWaitlist(matchId: string, user: User): Promise<'JOINED' | 'LEFT'> {
   return getDb().tx(async q => {
     await lockOpenMatch(q, matchId);

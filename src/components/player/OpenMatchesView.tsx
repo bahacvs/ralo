@@ -450,7 +450,7 @@ export const OpenMatchesView: React.FC = () => {
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-                    <span>{m.business?.district}, İzmir</span>
+                    <span>{[m.business?.district, m.business?.city].filter(Boolean).join(', ')}</span>
                     <span className="text-slate-300 dark:text-slate-600">•</span>
                     <span>{m.court?.type === 'OUTDOOR_PANORAMIC' ? 'Panoramik Cam' : 'Kapalı'}</span>
                   </p>

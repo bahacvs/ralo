@@ -1,7 +1,7 @@
 import { 
   User, Court, Business, Reservation, 
   CourtFilterOptions, OpenMatchFilterOptions, Message, Conversation, Notification,
-  FeedPost, FeedReply, FeedCategory, CourtWeatherInfo, CourtOccupancyInfo
+  FeedPost, FeedReply, FeedCategory, CourtOccupancyInfo
 } from '../types/index.js';
 import type {
   AdminOverview, AdminReference, AdminClubListItem, AdminClubDetail, FeeSettings, MonthlyStatement,
@@ -174,18 +174,6 @@ export const api = {
   getFavoriteCourts: () =>
     request<{ courts: any[]; total: number }>('/api/user/favorites/courts'),
 
-  // Weather & Outdoor Conditions (Google Search grounded)
-  getWeather: (params: { lat?: number; lng?: number; city?: string; district?: string; courtType?: string; date?: string }) => {
-    const q = new URLSearchParams();
-    if (params.lat !== undefined) q.set('lat', String(params.lat));
-    if (params.lng !== undefined) q.set('lng', String(params.lng));
-    if (params.city) q.set('city', params.city);
-    if (params.district) q.set('district', params.district);
-    if (params.courtType) q.set('courtType', params.courtType);
-    if (params.date) q.set('date', params.date);
-    return request<CourtWeatherInfo>(`/api/weather?${q.toString()}`);
-  },
-
   // Reservations
   createReservation: (data: {
     courtId: string;
@@ -234,7 +222,13 @@ export const api = {
       method: 'POST'
     }),
 
-  toggleWaitlist: (id: string) => 
+  respondToJoinRequest: (matchId: string, userId: string, decision: 'approve' | 'reject') =>
+    request<{ success: boolean; message: string }>(`/api/open-matches/${matchId}/requests/${userId}`, {
+      method: 'POST',
+      body: JSON.stringify({ decision })
+    }),
+
+  toggleWaitlist: (id: string) =>
     request<{ success: boolean; action: 'JOINED' | 'LEFT'; message: string }>(`/api/open-matches/${id}/waitlist`, {
       method: 'POST'
     }),
