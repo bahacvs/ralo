@@ -9,6 +9,7 @@ import {
   COURT_TYPE_LABELS, LESSON_BASIS_LABELS, formatTl, minutesToClock
 } from './adminUi.js';
 import { ArrowLeft, Plus } from 'lucide-react';
+import { ClubReviews } from '../common/ClubReviews.js';
 
 const WEEKDAYS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
 
@@ -388,6 +389,8 @@ export const AdminClubDetailView: React.FC = () => {
           </div>
         </form>
       </Section>
+
+      <ClubReviews clubId={club.id} adminMode />
 
       <Section title="Ders platform ücreti" description="Bu kulüpte hocaların açtığı dersler için alınacak ücret. Ücret tanımlanmadan ders oluşturulamaz." feedback={feeFeedback}>
         <form onSubmit={saveLessonFee} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end" noValidate>

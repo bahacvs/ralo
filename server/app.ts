@@ -23,6 +23,7 @@ import * as admin from './repo/admin.js';
 import * as matchResults from './repo/matchResults.js';
 import * as legal from './repo/legal.js';
 import * as lessons from './repo/lessons.js';
+import * as reviews from './repo/reviews.js';
 import type { User, ReservationStatus } from '../src/types/index.js';
 
 // Demo helpers (role switcher, unverified bookings) are only exposed when explicitly enabled
@@ -57,6 +58,7 @@ const feedReplyLimit = rateLimit({ name: 'feed-reply', limit: 20, windowMs: 10 *
 const feedLikeLimit = rateLimit({ name: 'feed-like', limit: 60, windowMs: MINUTE, key: byUser, message: 'Çok hızlı işlem yapıyorsunuz. Lütfen biraz bekleyin.' });
 const messageSendLimit = rateLimit({ name: 'message-send', limit: 30, windowMs: MINUTE, key: byUser, message: 'Çok hızlı mesaj gönderiyorsunuz. Lütfen biraz bekleyin.' });
 const conversationStartLimit = rateLimit({ name: 'conversation-start', limit: 15, windowMs: HOUR, key: byUser, message: 'Saatlik yeni sohbet sınırına ulaştınız. Lütfen daha sonra tekrar deneyin.' });
+const reviewLimit = rateLimit({ name: 'review', limit: 10, windowMs: HOUR, key: byUser, message: 'Kısa sürede çok fazla değerlendirme yapıldı. Lütfen daha sonra tekrar deneyin.' });
 const bookingLimit = rateLimit({ name: 'booking', limit: 20, windowMs: HOUR, key: byUser, message: 'Kısa sürede çok fazla rezervasyon denemesi yapıldı. Lütfen daha sonra tekrar deneyin.' });
 
 const shareCaptionCache = new Map<string, { caption: string; expiresAt: number }>();
@@ -1190,6 +1192,30 @@ export function createApp() {
   // -------------------------------------------------------------
   // Health, unknown API routes, errors
   // -------------------------------------------------------------
+
+  // -------------------------------------------------------------
+  // Club reviews
+  // -------------------------------------------------------------
+
+  app.get('/api/clubs/:id/reviews', handle(async (req, res) => {
+    const user = await optionalUser(req);
+    return res.json(await reviews.getClubReviews(req.params.id, user?.id ?? null));
+  }));
+
+  app.put('/api/clubs/:id/reviews/me', requireAuth, reviewLimit, handle(async (req, res) => {
+    await reviews.upsertReview(req.params.id, currentUser(req), req.body?.rating, req.body?.comment);
+    return res.json({ success: true, message: 'Değerlendirmeniz kaydedildi. Teşekkürler!', ...(await reviews.getClubReviews(req.params.id, currentUser(req).id)) });
+  }));
+
+  app.delete('/api/clubs/:id/reviews/me', requireAuth, handle(async (req, res) => {
+    await reviews.deleteMyReview(req.params.id, currentUser(req).id);
+    return res.json({ success: true, message: 'Değerlendirmeniz silindi.', ...(await reviews.getClubReviews(req.params.id, currentUser(req).id)) });
+  }));
+
+  app.delete('/api/admin/reviews/:id', requireAuth, requirePlatformAdmin, handle(async (req, res) => {
+    await reviews.adminDeleteReview(currentUser(req).id, req.params.id);
+    return res.json({ success: true, message: 'Değerlendirme kaldırıldı.' });
+  }));
 
   // -------------------------------------------------------------
   // Lessons: players, coaches, club coach contracts

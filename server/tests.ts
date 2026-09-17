@@ -383,6 +383,26 @@ async function runTests() {
       'Test 13.11: Antrenör yoklama aldı ve öğrenci notunu gördü', { attendance: attendance.json, note: note.json });
     const endContract = await call('POST', `/api/panel/coaches/${addCoach.json.coaches[0].id}/end`, {}, ownerToken);
     assert(endContract.status === 409, 'Test 13.12: Yaklaşan oturumu olan antrenörün sözleşmesi sonlandırılamadı', endContract.json);
+
+    // TEST 14: Club reviews
+    const urlaId = urlaCourt.businessId;
+    const selinToken = await login('selin@demo.ralo.app');
+    const notPlayed = await call('PUT', `/api/clubs/${urlaId}/reviews/me`, { rating: 5 }, selinToken);
+    assert(notPlayed.status === 403, 'Test 14.1: Kulüpte oynamamış oyuncu değerlendirme yapamadı', notPlayed.json);
+    const firstReview = await call('PUT', `/api/clubs/${urlaId}/reviews/me`, { rating: 4, comment: 'Zemin iyi, soyunma odası küçük.' }, zeynepToken);
+    const secondReview = await call('PUT', `/api/clubs/${urlaId}/reviews/me`, { rating: 5 }, playerToken);
+    assert(firstReview.status === 200 && secondReview.status === 200 && secondReview.json.summary.count === 2 && secondReview.json.summary.average === 4.5,
+      'Test 14.2: Oynamış iki oyuncu değerlendirdi, ortalama 4,5 oldu', secondReview.json?.summary);
+    const editReview = await call('PUT', `/api/clubs/${urlaId}/reviews/me`, { rating: 2, comment: 'Işıklar yanmadı.' }, zeynepToken);
+    assert(editReview.json?.summary?.count === 2 && editReview.json.summary.average === 3.5 && editReview.json.viewer.myReview.rating === 2,
+      'Test 14.3: Oyuncu değerlendirmesini güncelledi (tek değerlendirme)', editReview.json?.summary);
+    const zeynepReviewId = editReview.json.viewer.myReview.id;
+    const strangerRemove = await call('DELETE', `/api/admin/reviews/${zeynepReviewId}`, undefined, playerToken);
+    const adminRemove = await call('DELETE', `/api/admin/reviews/${zeynepReviewId}`, undefined, adminToken);
+    const ratedCourts = await call('GET', `/api/courts?date=${dayOffset(10)}&city=İzmir`);
+    const urlaRating = ratedCourts.json.courts.find((c: any) => c.businessId === urlaId)?.business;
+    assert(strangerRemove.status === 403 && adminRemove.status === 200 && urlaRating?.rating === 5 && urlaRating?.reviewsCount === 1,
+      'Test 14.4: Yönetici değerlendirmeyi kaldırdı, kulüp puanı yeniden hesaplandı', urlaRating);
   } catch (err: any) {
     assert(false, 'Beklenmeyen hata', err?.stack ?? String(err));
   } finally {

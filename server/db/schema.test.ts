@@ -914,7 +914,13 @@ async function main() {
     const source = (await one<{ src: string }>(
       `SELECT pg_get_functiondef('app.anonymize_user(uuid,uuid)'::regprocedure) AS src`
     )).src;
-    const undecided = rows.filter(r => !handled.has(r.ref) && !retained.has(r.ref)).map(r => r.ref);
+    // Personal rows removed by a trigger when anonymize_user sets users.status = 'deleted'.
+    const handledByTrigger = new Map([['club_reviews.user_id', 'app.remove_reviews_of_deleted_user()']]);
+    for (const [ref, fn] of handledByTrigger) {
+      const def = (await one<{ src: string }>(`SELECT pg_get_functiondef($1::regprocedure) AS src`, [fn])).src;
+      assert(def.includes(ref.split('.')[0]), `${fn} does not remove ${ref}`);
+    }
+    const undecided = rows.filter(r => !handled.has(r.ref) && !retained.has(r.ref) && !handledByTrigger.has(r.ref)).map(r => r.ref);
     assert(undecided.length === 0, `new users(id) references need a KVKK decision: ${undecided.join(', ')}`);
     const unhandled = rows.filter(r => handled.has(r.ref) && !source.includes(r.tbl)).map(r => r.ref);
     assert(unhandled.length === 0, `anonymize_user does not touch: ${unhandled.join(', ')}`);

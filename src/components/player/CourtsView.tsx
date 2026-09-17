@@ -362,9 +362,11 @@ export const CourtsView: React.FC = () => {
                       {court.type === 'OUTDOOR_PANORAMIC' ? 'Açık Panoramik' : court.type === 'INDOOR' ? 'Kapalı Kort' : 'Açık Standart'}
                     </span>
                   </div>
-                  <div className="absolute top-3 right-3 bg-white/95 dark:bg-slate-900/90 backdrop-blur-xs px-2.5 py-1 rounded-full text-xs font-extrabold text-slate-900 dark:text-amber-400 shadow-xs">
-                    ★ {biz?.rating || '4.8'}
-                  </div>
+                  {biz?.reviewsCount > 0 && (
+                    <div className="absolute top-3 right-3 bg-white/95 dark:bg-slate-900/90 backdrop-blur-xs px-2.5 py-1 rounded-full text-xs font-extrabold text-slate-900 dark:text-amber-400 shadow-xs">
+                      ★ {Number(biz.rating).toFixed(1)} ({biz.reviewsCount})
+                    </div>
+                  )}
                   <div className="absolute bottom-3 left-3 bg-slate-900/85 backdrop-blur-xs text-amber-300 text-xs font-bold px-3 py-1 rounded-xl">
                     İlk Uygun Saat: {court.firstAvailableTime}
                   </div>

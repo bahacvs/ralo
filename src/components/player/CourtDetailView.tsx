@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ClubReviews } from '../common/ClubReviews.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { api } from '../../services/api.js';
 import { LoadingState, ErrorState } from '../common/StateViews.js';
@@ -240,9 +241,11 @@ export const CourtDetailView: React.FC = () => {
               <span className="bg-slate-900/80 backdrop-blur-xs text-slate-200 text-xs font-semibold px-3 py-1 rounded-full">
                 {court.surface}
               </span>
-              <span className="bg-amber-400 text-slate-950 text-xs font-black px-2.5 py-1 rounded-full">
-                ★ {business?.rating || '4.9'}
-              </span>
+              {business?.reviewsCount > 0 && (
+                <span className="bg-amber-400 text-slate-950 text-xs font-black px-2.5 py-1 rounded-full">
+                  ★ {Number(business.rating).toFixed(1)} ({business.reviewsCount})
+                </span>
+              )}
             </div>
             <h1 className="text-2xl sm:text-3xl font-black font-serif text-white tracking-tight">
               {business?.name} - {court.name}
@@ -605,6 +608,8 @@ export const CourtDetailView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {business?.id && <ClubReviews clubId={business.id} />}
 
       {/* Sticky Floating Quick-Rent Bottom Dock */}
       <div className="fixed bottom-0 left-0 right-0 z-30 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md border-t border-slate-800 px-4 py-3 text-white shadow-2xl">

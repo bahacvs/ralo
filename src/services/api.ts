@@ -10,6 +10,7 @@ import type {
 import type {
   LessonSummary, LessonDetail, MyLessonsResponse, CoachOverview, CoachContract
 } from '../types/lessons.js';
+import type { ClubReviewsResponse } from '../types/reviews.js';
 
 /** Fired on window when the server rejects the session; detail: { method } */
 export const UNAUTHORIZED_EVENT = 'ralo:unauthorized';
@@ -69,6 +70,21 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   // Auth
+  // Club reviews
+  getClubReviews: (clubId: string) => request<ClubReviewsResponse>(`/api/clubs/${clubId}/reviews`),
+
+  saveClubReview: (clubId: string, rating: number, comment: string) =>
+    request<ClubReviewsResponse & { success: boolean; message: string }>(`/api/clubs/${clubId}/reviews/me`, {
+      method: 'PUT',
+      body: JSON.stringify({ rating, comment })
+    }),
+
+  deleteMyClubReview: (clubId: string) =>
+    request<ClubReviewsResponse & { success: boolean; message: string }>(`/api/clubs/${clubId}/reviews/me`, { method: 'DELETE' }),
+
+  adminDeleteReview: (reviewId: string) =>
+    request<{ success: boolean; message: string }>(`/api/admin/reviews/${reviewId}`, { method: 'DELETE' }),
+
   // Lessons and coaches
   getLessons: (params: { city?: string; clubId?: string } = {}) => {
     const q = new URLSearchParams();
