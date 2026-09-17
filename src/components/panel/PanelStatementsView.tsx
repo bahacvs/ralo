@@ -13,6 +13,7 @@ export const PanelStatementsView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<MonthlyStatement | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<{ iban: string; accountName: string | null } | null>(null);
+  const [suspension, setSuspension] = useState<{ active: boolean; days: number }>({ active: false, days: 7 });
 
   const load = async () => {
     setError(null);
@@ -20,6 +21,7 @@ export const PanelStatementsView: React.FC = () => {
       const res = await api.getPanelStatements();
       setStatements(res.statements);
       setPaymentInfo(res.paymentInfo);
+      setSuspension({ active: res.bookingSuspended, days: res.suspendAfterDays });
     } catch (err: any) {
       setError(err.message || 'Hesap özetleri yüklenemedi.');
     }
@@ -44,6 +46,13 @@ export const PanelStatementsView: React.FC = () => {
         <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight font-serif">Hesap Özetleri</h1>
         <p className="text-xs sm:text-sm text-slate-600 mt-0.5">RALO üzerinden gelen rezervasyonların aylık platform ücretleri</p>
       </div>
+
+      {suspension.active && (
+        <div role="alert" className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-900 text-xs font-semibold">
+          Son ödeme tarihinden {suspension.days} gün sonra ödenmemiş hesap özetiniz olduğu için oyuncular şu an kulübünüzde
+          uygulamadan rezervasyon yapamıyor. Havaleniz kaydedildiğinde rezervasyonlar otomatik olarak yeniden açılır.
+        </div>
+      )}
 
       <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 text-xs flex items-start gap-2">
         <Info className="w-4 h-4 shrink-0 mt-px text-amber-600" aria-hidden="true" />

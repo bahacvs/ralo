@@ -214,7 +214,7 @@ async function replaceAmenities(q: Queryable, clubId: string, codes: string[]) {
 }
 
 const CLUB_LIST_SELECT = `
-  c.id, c.name, c.is_active, c.app_booking_enabled, c.created_at, ci.name AS city_name, d.name AS district_name,
+  c.id, c.name, c.is_active, c.app_booking_enabled, c.booking_suspended_reason, c.created_at, ci.name AS city_name, d.name AS district_name,
   (SELECT count(*)::int FROM app.courts co WHERE co.club_id = c.id) AS court_count,
   (SELECT count(*)::int FROM app.courts co WHERE co.club_id = c.id AND co.is_active) AS active_court_count,
   o.display_name AS owner_name, o.email AS owner_email, (o.password_hash IS NOT NULL) AS owner_has_password
@@ -234,6 +234,7 @@ function toClubListItem(row: any) {
     district: row.district_name,
     isActive: row.is_active,
     appBookingEnabled: row.app_booking_enabled,
+    bookingSuspendedForPayment: row.booking_suspended_reason === 'overdue_statement',
     courtCount: row.court_count,
     activeCourtCount: row.active_court_count,
     ownerName: row.owner_name ?? null,
@@ -358,7 +359,10 @@ export async function updateClub(adminId: string, clubId: string, input: ClubInp
          cover_image_url = CASE WHEN $13 THEN $14 ELSE cover_image_url END,
          policies = COALESCE($15, policies),
          is_active = COALESCE($16, is_active),
-         app_booking_enabled = COALESCE($17, app_booking_enabled)
+         app_booking_enabled = COALESCE($17, app_booking_enabled),
+         -- a manual on/off decision by an admin replaces an automatic debt suspension
+         booking_suspended_reason = CASE WHEN $17::boolean IS NULL THEN booking_suspended_reason END,
+         booking_suspended_at = CASE WHEN $17::boolean IS NULL THEN booking_suspended_at END
        WHERE id = $1`,
       [
         clubId, club.name ?? null, club.cityId ?? null, district, club.address ?? null,
@@ -595,6 +599,59 @@ export async function markOverdueStatements(): Promise<number> {
   });
 }
 
+/** App bookings are suspended when a statement is still unpaid this many days after its due date. */
+export const OVERDUE_SUSPEND_DAYS = 7;
+
+async function notifyOwners(q: Queryable, clubId: string, type: string, title: string, body: string, dedupeKey?: string) {
+  const owners = await q.query<{ user_id: string }>(
+    `SELECT user_id FROM app.club_memberships WHERE club_id = $1 AND role = 'owner' AND status = 'active'`, [clubId]
+  );
+  for (const owner of owners.rows) {
+    await addNotification(q, { userId: owner.user_id, type, title, body, dedupeKey });
+  }
+}
+
+/** Background job: turns off app bookings for clubs with a statement unpaid OVERDUE_SUSPEND_DAYS past due. */
+export async function suspendClubsForOverdueStatements(): Promise<number> {
+  return getDb().tx(async q => {
+    const { rows } = await q.query<{ id: string; name: string }>(
+      `UPDATE app.clubs c
+       SET app_booking_enabled = false, booking_suspended_reason = 'overdue_statement', booking_suspended_at = now()
+       WHERE c.app_booking_enabled AND c.booking_suspended_reason IS NULL
+         AND EXISTS (SELECT 1 FROM app.monthly_statements s
+                     WHERE s.club_id = c.id AND s.status IN ('issued','overdue')
+                       AND s.due_date < app.istanbul_date(now()) - $1::int)
+       RETURNING c.id, c.name`,
+      [OVERDUE_SUSPEND_DAYS]
+    );
+    for (const club of rows) {
+      await notifyOwners(q, club.id, 'statement_overdue', 'Uygulama Rezervasyonları Durduruldu',
+        `Son ödeme tarihinden ${OVERDUE_SUSPEND_DAYS} gün sonra hâlâ ödenmemiş bir hesap özetiniz olduğu için oyuncular kulübünüzde uygulamadan rezervasyon yapamıyor. Ödeme kaydedildiğinde rezervasyonlar otomatik olarak yeniden açılır.`,
+        `suspend:${club.id}:${new Date().toISOString().slice(0, 10)}`);
+      await audit(q, null, 'club.booking_suspended', 'club', club.id, club.id, { reason: 'overdue_statement' });
+    }
+    return rows.length;
+  });
+}
+
+/** Re-opens app bookings suspended for debt once no statement is unpaid past the grace period. */
+async function releaseBookingSuspension(q: Queryable, clubId: string, actorId: string | null): Promise<void> {
+  const { rows } = await q.query<{ id: string }>(
+    `UPDATE app.clubs c
+     SET app_booking_enabled = true, booking_suspended_reason = NULL, booking_suspended_at = NULL
+     WHERE c.id = $1 AND c.booking_suspended_reason = 'overdue_statement'
+       AND NOT EXISTS (SELECT 1 FROM app.monthly_statements s
+                       WHERE s.club_id = c.id AND s.status IN ('issued','overdue')
+                         AND s.due_date < app.istanbul_date(now()) - $2::int)
+     RETURNING c.id`,
+    [clubId, OVERDUE_SUSPEND_DAYS]
+  );
+  if (!rows[0]) return;
+  await notifyOwners(q, clubId, 'statement_issued', 'Uygulama Rezervasyonları Yeniden Açıldı',
+    'Ödemeniz kaydedildi; oyuncular kulübünüzde yeniden uygulamadan rezervasyon yapabilir.');
+  await audit(q, actorId, 'club.booking_resumed', 'club', clubId, clubId, { reason: 'overdue_statement_settled' });
+}
+
 /** adminId null = the monthly background job. */
 export async function generateStatements(adminId: string | null, period: unknown) {
   const match = typeof period === 'string' ? PERIOD_PATTERN.exec(period) : null;
@@ -781,6 +838,7 @@ export async function markStatementPaid(adminId: string, id: string, input: { pa
     );
     if (!rows[0]) throw new HttpError(409, 'Yalnızca ödenmemiş hesap özetleri ödendi olarak işaretlenebilir.');
     await audit(q, adminId, 'statement.paid', 'monthly_statement', id, rows[0].club_id, { amount, reference });
+    await releaseBookingSuspension(q, rows[0].club_id, adminId);
   });
 }
 
@@ -800,6 +858,7 @@ export async function cancelStatement(adminId: string, id: string, reason: unkno
       [id]
     );
     await audit(q, adminId, 'statement.cancel', 'monthly_statement', id, rows[0].club_id, { reason });
+    await releaseBookingSuspension(q, rows[0].club_id, adminId);
   });
 }
 

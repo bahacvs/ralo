@@ -197,6 +197,11 @@ export const AdminClubDetailView: React.FC = () => {
               Uygulama rezervasyonu: <strong>{club.appBookingEnabled ? 'Açık' : 'Kapalı'}</strong>
             </p>
             <p className="text-[11px] text-slate-600">Kapalıyken kulüp görünür ama oyuncular uygulamadan kort ayıramaz; panelden giriş devam eder.</p>
+            {club.bookingSuspendedForPayment && (
+              <p className="text-[11px] font-semibold text-red-700">
+                Gecikmiş hesap özeti nedeniyle otomatik kapatıldı. Özet ödendi olarak işaretlenince kendiliğinden açılır; elle açarsanız ödeme hâlâ gecikmişse ertesi gün yeniden kapanır.
+              </p>
+            )}
             <button type="button" className={secondaryButton} onClick={toggleBooking} disabled={busy === 'status'}>
               {club.appBookingEnabled ? 'Rezervasyonları Kapat' : 'Rezervasyonları Aç'}
             </button>

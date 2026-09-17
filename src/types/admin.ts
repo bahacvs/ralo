@@ -24,6 +24,8 @@ export interface AdminClubListItem {
   district: string;
   isActive: boolean;
   appBookingEnabled: boolean;
+  /** App bookings were turned off automatically because a statement is unpaid past the grace period */
+  bookingSuspendedForPayment: boolean;
   courtCount: number;
   activeCourtCount: number;
   ownerName: string | null;

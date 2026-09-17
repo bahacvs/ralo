@@ -109,7 +109,9 @@ export const AdminClubsView: React.FC = () => {
                       {club.isActive ? 'Yayında' : 'Pasif'}
                     </span>
                     {club.isActive && !club.appBookingEnabled && (
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">Uygulama rezervasyonu kapalı</span>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${club.bookingSuspendedForPayment ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-900'}`}>
+                        {club.bookingSuspendedForPayment ? 'Ödeme gecikmesi: rezervasyon durduruldu' : 'Uygulama rezervasyonu kapalı'}
+                      </span>
                     )}
                   </div>
                   <p className="text-xs text-slate-600 mt-0.5">{club.district} / {club.city} · {club.activeCourtCount} aktif kort ({club.courtCount} toplam)</p>

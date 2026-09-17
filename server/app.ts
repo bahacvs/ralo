@@ -1025,7 +1025,15 @@ export function createApp() {
     // Where clubs send the bank transfer (public account details, set per environment)
     const iban = process.env.PAYMENT_IBAN?.trim();
     const paymentInfo = iban ? { iban, accountName: process.env.PAYMENT_ACCOUNT_NAME?.trim() || null } : null;
-    return res.json({ statements: await admin.listStatements({ clubId: currentClubId(req) }), paymentInfo });
+    const suspended = await getDb().query(
+      `SELECT 1 FROM app.clubs WHERE id = $1 AND booking_suspended_reason = 'overdue_statement'`, [currentClubId(req)]
+    );
+    return res.json({
+      statements: await admin.listStatements({ clubId: currentClubId(req) }),
+      paymentInfo,
+      bookingSuspended: suspended.rows.length > 0,
+      suspendAfterDays: admin.OVERDUE_SUSPEND_DAYS
+    });
   }));
 
   app.get('/api/panel/statements/:id', requireAuth, requireBusiness('BILLING_VIEW'), handle(async (req, res) => {

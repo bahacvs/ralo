@@ -15,6 +15,7 @@ import { normalizeEmail, validatePassword, hashPassword, verifyPassword, createA
 import { computeEloChanges, parseSets } from './repo/matchResults.js';
 import { runJobs, previousPeriod } from './jobs.js';
 import { syncLegalDocuments } from './repo/legal.js';
+import { suspendClubsForOverdueStatements } from './repo/admin.js';
 
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'padel2026demo';
 
@@ -303,6 +304,24 @@ async function runTests() {
     assert(auto.status === 'confirmed' && auto.confirmed_by === null && overdueRun?.status === 'succeeded',
       'Test 12.1: Süresi dolan sonuç otomatik onaylandı, günlük gecikme işi çalıştı', { auto, overdueRun });
     assert(previousPeriod('2027-01-05') === '2026-12' && previousPeriod('2026-10-01') === '2026-09', 'Test 12.2: Aylık hesap özeti işi bir önceki ayı seçti');
+    const karsiyaka = await one<{ id: string }>(`SELECT id FROM app.clubs WHERE name LIKE '%Karşıyaka%'`);
+    await db.query(
+      `INSERT INTO app.monthly_statements (statement_no, club_id, period_start, period_end, subtotal_kurus, vat_rate_bps, vat_kurus, total_kurus, due_date)
+       VALUES ('RALO-TEST-00001', $1, '2026-01-01', '2026-02-01', 0, 2000, 0, 0, app.istanbul_date(now()) - 10)`,
+      [karsiyaka.id]
+    );
+    const suspendedCount = await suspendClubsForOverdueStatements();
+    const karsiyakaCourt = courts.json.courts.find((c: any) => c.business.id === karsiyaka.id);
+    const blockedBooking = await call('POST', '/api/reservations', { courtId: karsiyakaCourt.id, startAt: `${dayOffset(14)}T10:00:00`, durationMinutes: 60 }, zeynepToken);
+    const adminClubList = await call('GET', '/api/admin/clubs', undefined, adminToken);
+    assert(suspendedCount === 1 && blockedBooking.status >= 400 && adminClubList.json.clubs.find((c: any) => c.id === karsiyaka.id)?.bookingSuspendedForPayment === true,
+      'Test 12.3: Vadesinden 7 gün sonra ödenmeyen kulübün uygulama rezervasyonları durduruldu', { suspendedCount, blocked: blockedBooking.json });
+    const testStatement = await one<{ id: string }>(`SELECT id FROM app.monthly_statements WHERE statement_no = 'RALO-TEST-00001'`);
+    const settle = await call('POST', `/api/admin/statements/${testStatement.id}/paid`, {}, adminToken);
+    const reopened = await one<{ app_booking_enabled: boolean; booking_suspended_reason: string | null }>(
+      `SELECT app_booking_enabled, booking_suspended_reason FROM app.clubs WHERE id = $1`, [karsiyaka.id]);
+    assert(settle.status === 200 && reopened.app_booking_enabled && reopened.booking_suspended_reason === null,
+      'Test 12.4: Ödeme kaydedilince rezervasyonlar otomatik açıldı', reopened);
 
     // TEST 13: Coaches and lessons
     const staffCoach = await call('POST', '/api/panel/coaches', { name: 'Deniz Hoca', email: 'hoca@test.ralo' }, staffToken);
