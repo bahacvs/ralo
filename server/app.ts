@@ -24,6 +24,7 @@ import * as matchResults from './repo/matchResults.js';
 import * as legal from './repo/legal.js';
 import * as lessons from './repo/lessons.js';
 import * as reviews from './repo/reviews.js';
+import * as mediaRepo from './repo/media.js';
 import type { User, ReservationStatus } from '../src/types/index.js';
 
 // Demo helpers (role switcher, unverified bookings) are only exposed when explicitly enabled
@@ -1192,6 +1193,68 @@ export function createApp() {
   // -------------------------------------------------------------
   // Health, unknown API routes, errors
   // -------------------------------------------------------------
+
+  // -------------------------------------------------------------
+  // Uploaded images (club cover, court photos)
+  // -------------------------------------------------------------
+
+  app.get('/api/media/:id', handle(async (req, res) => {
+    const media = await mediaRepo.getMedia(req.params.id);
+    if (!media) throw new HttpError(404, 'Görsel bulunamadı.');
+    // An id always points at the same bytes, so the image can be cached forever
+    res.set('Content-Type', media.contentType);
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    res.set('X-Content-Type-Options', 'nosniff');
+    return res.send(media.data);
+  }));
+
+  app.post('/api/panel/business/cover', requireAuth, requireBusiness('COURT_MANAGE'), handle(async (req, res) => {
+    const url = await mediaRepo.setClubCover(currentClubId(req), currentUser(req).id, req.body?.image);
+    return res.json({ success: true, url, message: 'Kapak fotoğrafı güncellendi.' });
+  }));
+
+  app.delete('/api/panel/business/cover', requireAuth, requireBusiness('COURT_MANAGE'), handle(async (req, res) => {
+    await mediaRepo.removeClubCover(currentClubId(req));
+    return res.json({ success: true, url: null, message: 'Kapak fotoğrafı kaldırıldı.' });
+  }));
+
+  app.get('/api/panel/courts/:courtId/photos', requireAuth, requireBusiness(), handle(async (req, res) => {
+    return res.json({ photos: await mediaRepo.listCourtPhotos(currentClubId(req), req.params.courtId) });
+  }));
+
+  app.post('/api/panel/courts/:courtId/photos', requireAuth, requireBusiness('COURT_MANAGE'), handle(async (req, res) => {
+    const photos = await mediaRepo.addCourtPhoto(currentClubId(req), req.params.courtId, currentUser(req).id, req.body?.image);
+    return res.status(201).json({ success: true, photos, message: 'Fotoğraf eklendi.' });
+  }));
+
+  app.delete('/api/panel/courts/:courtId/photos/:photoId', requireAuth, requireBusiness('COURT_MANAGE'), handle(async (req, res) => {
+    const photos = await mediaRepo.deleteCourtPhoto(currentClubId(req), req.params.courtId, req.params.photoId);
+    return res.json({ success: true, photos, message: 'Fotoğraf silindi.' });
+  }));
+
+  app.post('/api/admin/clubs/:id/cover', requireAuth, requirePlatformAdmin, handle(async (req, res) => {
+    const url = await mediaRepo.setClubCover(req.params.id, currentUser(req).id, req.body?.image);
+    return res.json({ success: true, url, message: 'Kapak fotoğrafı güncellendi.' });
+  }));
+
+  app.delete('/api/admin/clubs/:id/cover', requireAuth, requirePlatformAdmin, handle(async (req, res) => {
+    await mediaRepo.removeClubCover(req.params.id);
+    return res.json({ success: true, url: null, message: 'Kapak fotoğrafı kaldırıldı.' });
+  }));
+
+  app.get('/api/admin/clubs/:id/courts/:courtId/photos', requireAuth, requirePlatformAdmin, handle(async (req, res) => {
+    return res.json({ photos: await mediaRepo.listCourtPhotos(req.params.id, req.params.courtId) });
+  }));
+
+  app.post('/api/admin/clubs/:id/courts/:courtId/photos', requireAuth, requirePlatformAdmin, handle(async (req, res) => {
+    const photos = await mediaRepo.addCourtPhoto(req.params.id, req.params.courtId, currentUser(req).id, req.body?.image);
+    return res.status(201).json({ success: true, photos, message: 'Fotoğraf eklendi.' });
+  }));
+
+  app.delete('/api/admin/clubs/:id/courts/:courtId/photos/:photoId', requireAuth, requirePlatformAdmin, handle(async (req, res) => {
+    const photos = await mediaRepo.deleteCourtPhoto(req.params.id, req.params.courtId, req.params.photoId);
+    return res.json({ success: true, photos, message: 'Fotoğraf silindi.' });
+  }));
 
   // -------------------------------------------------------------
   // Club reviews

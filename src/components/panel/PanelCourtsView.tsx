@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext.js';
 import { api } from '../../services/api.js';
 import { LoadingState, ErrorState } from '../common/StateViews.js';
 import { Modal } from '../common/Modal.js';
+import { CoverPhotoEditor, CourtPhotosEditor } from '../common/PhotoEditors.js';
 import { 
   Plus, Edit2, LayoutGrid, CheckCircle2, XCircle, 
   BarChart3, TrendingUp, Clock, Calendar, Activity, 
@@ -17,6 +18,20 @@ import {
 interface CourtWithOccupancy extends Court {
   occupancy?: CourtOccupancyInfo & { estimatedDailyRevenue?: number };
 }
+
+/** Owner: the club's cover photo shown to players. */
+const PanelCoverCard: React.FC = () => {
+  const [cover, setCover] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    api.getPanelBusiness().then(res => setCover(res.business.coverImage || null)).catch(() => setCover(null));
+  }, []);
+  if (cover === undefined) return null;
+  return (
+    <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-5">
+      <CoverPhotoEditor endpoint="/api/panel/business/cover" currentUrl={cover} onChanged={setCover} />
+    </div>
+  );
+};
 
 interface AnalyticsData {
   avgOccupancyRate: number;
@@ -56,6 +71,7 @@ function getOccupancyBadgeClass(status?: string): string {
 
 export const PanelCourtsView: React.FC = () => {
   const { user } = useAuth();
+  const isOwner = user?.role === 'ISLETME_SAHIBI';
   const businessId = user?.businessId || '';
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -236,6 +252,8 @@ export const PanelCourtsView: React.FC = () => {
           <span>Yeni Kort Ekle</span>
         </button>
       </div>
+
+      {isOwner && <PanelCoverCard />}
 
       {loading && courts.length === 0 ? (
         <LoadingState message="Kort bilgileri ve doluluk analizleri yükleniyor..." />
@@ -544,6 +562,13 @@ export const PanelCourtsView: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  <details>
+                    <summary className="text-xs font-bold text-slate-700 cursor-pointer min-h-[32px] flex items-center">Fotoğraflar</summary>
+                    <div className="pt-2">
+                      <CourtPhotosEditor endpoint={`/api/panel/courts/${court.id}/photos`} canEdit={isOwner} />
+                    </div>
+                  </details>
 
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                     <span className="text-[11px] text-slate-400 font-mono">ID: {court.id}</span>

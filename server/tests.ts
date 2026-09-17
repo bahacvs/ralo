@@ -403,6 +403,28 @@ async function runTests() {
     const urlaRating = ratedCourts.json.courts.find((c: any) => c.businessId === urlaId)?.business;
     assert(strangerRemove.status === 403 && adminRemove.status === 200 && urlaRating?.rating === 5 && urlaRating?.reviewsCount === 1,
       'Test 14.4: Yönetici değerlendirmeyi kaldırdı, kulüp puanı yeniden hesaplandı', urlaRating);
+
+    // TEST 15: Uploaded images
+    const jpeg = `data:image/jpeg;base64,${Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(300, 7)]).toString('base64')}`;
+    const notImage = `data:image/png;base64,${Buffer.alloc(300, 1).toString('base64')}`;
+    const badUpload = await call('POST', '/api/panel/business/cover', { image: notImage }, ownerToken);
+    assert(badUpload.status === 400, 'Test 15.1: Türü uyuşmayan dosya reddedildi', badUpload.json);
+    const cover = await call('POST', '/api/panel/business/cover', { image: jpeg }, ownerToken);
+    const coverFile = await fetch(`${base}${cover.json?.url}`);
+    const coverBytes = Buffer.from(await coverFile.arrayBuffer());
+    assert(cover.status === 200 && coverFile.status === 200 && coverFile.headers.get('content-type') === 'image/jpeg' && coverBytes.length === 304,
+      'Test 15.2: Kulüp sahibi kapak fotoğrafı yükledi, görsel sunuldu', cover.json);
+    const staffPhoto = await call('POST', `/api/panel/courts/${urlaCourt.id}/photos`, { image: jpeg }, staffToken);
+    const ownerPhoto = await call('POST', `/api/panel/courts/${urlaCourt.id}/photos`, { image: jpeg }, ownerToken);
+    const courtAfterUpload = await call('GET', `/api/courts/${urlaCourt.id}?date=${dayOffset(10)}`);
+    const uploaded = ownerPhoto.json?.photos?.find((p: any) => p.url.startsWith('/api/media/'));
+    assert(staffPhoto.status === 403 && ownerPhoto.status === 201 && !!uploaded && courtAfterUpload.json?.court?.photos?.includes(uploaded.url),
+      'Test 15.3: Kort fotoğrafı eklendi (personel ekleyemedi) ve kort sayfasında göründü', ownerPhoto.json);
+    const removed = await call('DELETE', `/api/panel/courts/${urlaCourt.id}/photos/${uploaded?.id}`, undefined, ownerToken);
+    const goneFile = await fetch(`${base}${uploaded?.url}`);
+    const foreignCourt = await call('POST', `/api/panel/courts/${istanbulCourts.json.courts[0].id}/photos`, { image: jpeg }, ownerToken);
+    assert(removed.status === 200 && !removed.json.photos.some((p: any) => p.id === uploaded?.id) && goneFile.status === 404 && foreignCourt.status === 404,
+      'Test 15.4: Silinen fotoğraf kaldırıldı, başka kulübün kortuna fotoğraf eklenemedi');
   } catch (err: any) {
     assert(false, 'Beklenmeyen hata', err?.stack ?? String(err));
   } finally {

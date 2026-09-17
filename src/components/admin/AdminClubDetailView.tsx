@@ -10,6 +10,7 @@ import {
 } from './adminUi.js';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { ClubReviews } from '../common/ClubReviews.js';
+import { CoverPhotoEditor, CourtPhotosEditor } from '../common/PhotoEditors.js';
 
 const WEEKDAYS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
 
@@ -225,7 +226,7 @@ export const AdminClubDetailView: React.FC = () => {
         ) : (
           <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 overflow-hidden">
             {club.courts.map(court => (
-              <li key={court.id} className="p-3 flex flex-col lg:flex-row lg:items-center gap-3">
+              <li key={court.id} className="p-3 flex flex-col lg:flex-row lg:flex-wrap lg:items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-slate-900">{court.name}</p>
                   <p className="text-xs text-slate-600">{COURT_TYPE_LABELS[court.type]} · {court.surface} · {court.isActive ? 'Aktif' : 'Kapalı'}</p>
@@ -257,6 +258,12 @@ export const AdminClubDetailView: React.FC = () => {
                     {court.isActive ? 'Kortu Kapat' : 'Kortu Aç'}
                   </button>
                 </div>
+                <details className="w-full lg:basis-full">
+                  <summary className="text-xs font-bold text-slate-700 cursor-pointer min-h-[32px] flex items-center">Fotoğraflar</summary>
+                  <div className="pt-2">
+                    <CourtPhotosEditor endpoint={`/api/admin/clubs/${club.id}/courts/${court.id}/photos`} />
+                  </div>
+                </details>
               </li>
             ))}
           </ul>
@@ -316,6 +323,11 @@ export const AdminClubDetailView: React.FC = () => {
       </Section>
 
       <Section title="Kulüp bilgileri" feedback={infoFeedback}>
+        <CoverPhotoEditor
+          endpoint={`/api/admin/clubs/${club.id}/cover`}
+          currentUrl={club.business.coverImage || null}
+          onChanged={url => setInfo(prev => ({ ...prev, coverImageUrl: url ?? '' }))}
+        />
         <form onSubmit={saveInfo} className="space-y-3" noValidate>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>

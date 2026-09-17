@@ -170,7 +170,8 @@ function cleanClubInput(input: ClubInput, partial: boolean): CleanClub {
   }
   if (input.coverImageUrl !== undefined) {
     if (input.coverImageUrl === null || input.coverImageUrl === '') out.coverImageUrl = null;
-    else if (typeof input.coverImageUrl === 'string' && /^https:\/\//.test(input.coverImageUrl) && input.coverImageUrl.length <= 2000) {
+    else if (typeof input.coverImageUrl === 'string' && input.coverImageUrl.length <= 2000
+      && (/^https:\/\//.test(input.coverImageUrl) || /^\/api\/media\/[0-9a-f-]{36}$/.test(input.coverImageUrl))) {
       out.coverImageUrl = input.coverImageUrl;
     } else {
       throw new HttpError(400, 'Kapak görseli https ile başlayan bir bağlantı olmalıdır.');

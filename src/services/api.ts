@@ -70,6 +70,25 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   // Auth
+  // Uploaded images (endpoint = panel or admin path of the cover / court photos)
+  uploadImage: (endpoint: string, image: string) =>
+    request<{ success: boolean; url: string | null; message: string }>(endpoint, { method: 'POST', body: JSON.stringify({ image }) }),
+
+  deleteImage: (endpoint: string) =>
+    request<{ success: boolean; url: string | null; message: string }>(endpoint, { method: 'DELETE' }),
+
+  listCourtPhotos: (endpoint: string) =>
+    request<{ photos: { id: string; url: string; isPrimary: boolean }[] }>(endpoint),
+
+  addCourtPhoto: (endpoint: string, image: string) =>
+    request<{ success: boolean; photos: { id: string; url: string; isPrimary: boolean }[]; message: string }>(endpoint, {
+      method: 'POST',
+      body: JSON.stringify({ image })
+    }),
+
+  deleteCourtPhoto: (endpoint: string, photoId: string) =>
+    request<{ success: boolean; photos: { id: string; url: string; isPrimary: boolean }[]; message: string }>(`${endpoint}/${photoId}`, { method: 'DELETE' }),
+
   // Club reviews
   getClubReviews: (clubId: string) => request<ClubReviewsResponse>(`/api/clubs/${clubId}/reviews`),
 
