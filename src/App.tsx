@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, lazy, Suspense } from 'react';
 import { ThemeProvider } from './context/ThemeContext.js';
 import { AuthProvider, useAuth } from './context/AuthContext.js';
 import { LocationProvider } from './context/LocationContext.js';
@@ -14,44 +14,59 @@ import { Header } from './components/common/Header.js';
 import { BottomNav } from './components/common/BottomNav.js';
 import { PWAInstallBanner, OfflineIndicator } from './components/common/PWAInstallBanner.js';
 
-// Player Views
+// The home and sign-in screens load with the app; every other screen is its own chunk
 import { HomeView } from './components/player/HomeView.js';
-import { CourtsView } from './components/player/CourtsView.js';
-import { CourtDetailView } from './components/player/CourtDetailView.js';
-import { OpenMatchesView } from './components/player/OpenMatchesView.js';
-import { OpenMatchDetailView } from './components/player/OpenMatchDetailView.js';
-import { MyMatchesView } from './components/player/MyMatchesView.js';
-import { MessagesView } from './components/player/MessagesView.js';
-import { ProfileView } from './components/player/ProfileView.js';
-import { AccountPrivacyView } from './components/player/AccountPrivacyView.js';
-import { LeaderboardView } from './components/player/LeaderboardView.js';
 import { LoginView } from './components/player/LoginView.js';
-import { VerifyEmailView, ResetPasswordView } from './components/player/AuthLinkViews.js';
 import { EmailVerificationBanner } from './components/common/EmailVerificationBanner.js';
-import { FeedView } from './components/player/FeedView.js';
-import { LegalDocumentView } from './components/player/LegalDocumentView.js';
-import { LessonsView } from './components/player/LessonsView.js';
-import { LessonDetailView } from './components/player/LessonDetailView.js';
-import { CoachView } from './components/coach/CoachView.js';
-import { PanelCoachesView } from './components/panel/PanelCoachesView.js';
 
-// Business Panel Views & Layout
-import { PanelLayout } from './components/panel/PanelLayout.js';
-import { PanelCalendarView } from './components/panel/PanelCalendarView.js';
-import { PanelReservationsView } from './components/panel/PanelReservationsView.js';
-import { PanelCourtsView } from './components/panel/PanelCourtsView.js';
-import { PanelStaffView } from './components/panel/PanelStaffView.js';
-import { PanelReportsView } from './components/panel/PanelReportsView.js';
-import { PanelStatementsView } from './components/panel/PanelStatementsView.js';
+/** lazy() for named exports. */
+function lazyNamed<M extends Record<string, any>, K extends keyof M>(load: () => Promise<M>, name: K) {
+  return lazy(() => load().then(module => ({ default: module[name] as React.ComponentType<any> })));
+}
+
+// Player views
+const CourtsView = lazyNamed(() => import('./components/player/CourtsView.js'), 'CourtsView');
+const CourtDetailView = lazyNamed(() => import('./components/player/CourtDetailView.js'), 'CourtDetailView');
+const OpenMatchesView = lazyNamed(() => import('./components/player/OpenMatchesView.js'), 'OpenMatchesView');
+const OpenMatchDetailView = lazyNamed(() => import('./components/player/OpenMatchDetailView.js'), 'OpenMatchDetailView');
+const MyMatchesView = lazyNamed(() => import('./components/player/MyMatchesView.js'), 'MyMatchesView');
+const MessagesView = lazyNamed(() => import('./components/player/MessagesView.js'), 'MessagesView');
+const ProfileView = lazyNamed(() => import('./components/player/ProfileView.js'), 'ProfileView');
+const AccountPrivacyView = lazyNamed(() => import('./components/player/AccountPrivacyView.js'), 'AccountPrivacyView');
+const LeaderboardView = lazyNamed(() => import('./components/player/LeaderboardView.js'), 'LeaderboardView');
+const VerifyEmailView = lazyNamed(() => import('./components/player/AuthLinkViews.js'), 'VerifyEmailView');
+const ResetPasswordView = lazyNamed(() => import('./components/player/AuthLinkViews.js'), 'ResetPasswordView');
+const FeedView = lazyNamed(() => import('./components/player/FeedView.js'), 'FeedView');
+const LegalDocumentView = lazyNamed(() => import('./components/player/LegalDocumentView.js'), 'LegalDocumentView');
+const LessonsView = lazyNamed(() => import('./components/player/LessonsView.js'), 'LessonsView');
+const LessonDetailView = lazyNamed(() => import('./components/player/LessonDetailView.js'), 'LessonDetailView');
+const CoachView = lazyNamed(() => import('./components/coach/CoachView.js'), 'CoachView');
+
+// Business panel
+const PanelLayout = lazyNamed(() => import('./components/panel/PanelLayout.js'), 'PanelLayout');
+const PanelCalendarView = lazyNamed(() => import('./components/panel/PanelCalendarView.js'), 'PanelCalendarView');
+const PanelReservationsView = lazyNamed(() => import('./components/panel/PanelReservationsView.js'), 'PanelReservationsView');
+const PanelCourtsView = lazyNamed(() => import('./components/panel/PanelCourtsView.js'), 'PanelCourtsView');
+const PanelStaffView = lazyNamed(() => import('./components/panel/PanelStaffView.js'), 'PanelStaffView');
+const PanelReportsView = lazyNamed(() => import('./components/panel/PanelReportsView.js'), 'PanelReportsView');
+const PanelStatementsView = lazyNamed(() => import('./components/panel/PanelStatementsView.js'), 'PanelStatementsView');
+const PanelCoachesView = lazyNamed(() => import('./components/panel/PanelCoachesView.js'), 'PanelCoachesView');
 
 // Platform admin
-import { AdminLayout } from './components/admin/AdminLayout.js';
-import { AdminOverviewView } from './components/admin/AdminOverviewView.js';
-import { AdminClubsView } from './components/admin/AdminClubsView.js';
-import { AdminClubDetailView } from './components/admin/AdminClubDetailView.js';
-import { AdminFeesView } from './components/admin/AdminFeesView.js';
-import { AdminStatementsView } from './components/admin/AdminStatementsView.js';
-import { AdminUsersView } from './components/admin/AdminUsersView.js';
+const AdminLayout = lazyNamed(() => import('./components/admin/AdminLayout.js'), 'AdminLayout');
+const AdminOverviewView = lazyNamed(() => import('./components/admin/AdminOverviewView.js'), 'AdminOverviewView');
+const AdminClubsView = lazyNamed(() => import('./components/admin/AdminClubsView.js'), 'AdminClubsView');
+const AdminClubDetailView = lazyNamed(() => import('./components/admin/AdminClubDetailView.js'), 'AdminClubDetailView');
+const AdminFeesView = lazyNamed(() => import('./components/admin/AdminFeesView.js'), 'AdminFeesView');
+const AdminStatementsView = lazyNamed(() => import('./components/admin/AdminStatementsView.js'), 'AdminStatementsView');
+const AdminUsersView = lazyNamed(() => import('./components/admin/AdminUsersView.js'), 'AdminUsersView');
+
+const RouteLoading: React.FC = () => (
+  <div className="min-h-[40vh] flex items-center justify-center" role="status" aria-live="polite">
+    <span className="w-8 h-8 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" aria-hidden="true" />
+    <span className="sr-only">Yükleniyor...</span>
+  </div>
+);
 
 const PROTECTED_PLAYER_ROUTES = ['/maclarim', '/mesajlar', '/profil', '/hesap-ve-gizlilik', '/antrenor'];
 
@@ -179,7 +194,11 @@ const AppContent: React.FC = () => {
     };
     return (
       <div className="min-h-screen bg-slate-50 text-slate-900 antialiased font-sans overflow-x-hidden w-full">
-        <AdminLayout>{renderAdmin()}</AdminLayout>
+        <Suspense fallback={<RouteLoading />}>
+          <AdminLayout>
+            <Suspense fallback={<RouteLoading />}>{renderAdmin()}</Suspense>
+          </AdminLayout>
+        </Suspense>
       </div>
     );
   }
@@ -190,9 +209,11 @@ const AppContent: React.FC = () => {
         <div>
           <PushNotificationAlert />
           <PWAInstallBanner />
-          <PanelLayout>
-            {renderRoute()}
-          </PanelLayout>
+          <Suspense fallback={<RouteLoading />}>
+            <PanelLayout>
+              <Suspense fallback={<RouteLoading />}>{renderRoute()}</Suspense>
+            </PanelLayout>
+          </Suspense>
         </div>
         <OfflineIndicator />
       </div>
@@ -207,7 +228,7 @@ const AppContent: React.FC = () => {
         <Header />
         <EmailVerificationBanner />
         <main id="main-content" tabIndex={-1} className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-28 sm:pb-16 outline-none">
-          {renderRoute()}
+          <Suspense fallback={<RouteLoading />}>{renderRoute()}</Suspense>
         </main>
       </div>
       <BottomNav />

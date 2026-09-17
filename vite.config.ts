@@ -82,9 +82,9 @@ export default defineConfig(() => {
         ],
         manifest: {
           id: '/',
-          name: 'ArenaMate - Padel Kulübü',
-          short_name: 'ArenaMate',
-          description: 'Padel kort rezervasyonu, açık maçlar ve İzmir padel topluluğu.',
+          name: 'RALO - Padel',
+          short_name: 'RALO',
+          description: 'Padel kort rezervasyonu, açık maçlar, dersler ve padel topluluğu.',
           theme_color: '#0f172a',
           background_color: '#0f172a',
           display: 'standalone',
