@@ -16,6 +16,7 @@ import { computeEloChanges, parseSets } from './repo/matchResults.js';
 import { runJobs, previousPeriod } from './jobs.js';
 import { syncLegalDocuments } from './repo/legal.js';
 import { suspendClubsForOverdueStatements } from './repo/admin.js';
+import { purgeOldErrors } from './repo/errors.js';
 
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'padel2026demo';
 
@@ -425,6 +426,22 @@ async function runTests() {
     const foreignCourt = await call('POST', `/api/panel/courts/${istanbulCourts.json.courts[0].id}/photos`, { image: jpeg }, ownerToken);
     assert(removed.status === 200 && !removed.json.photos.some((p: any) => p.id === uploaded?.id) && goneFile.status === 404 && foreignCourt.status === 404,
       'Test 15.4: Silinen fotoğraf kaldırıldı, başka kulübün kortuna fotoğraf eklenemedi');
+
+    // TEST 16: Error tracking
+    const clientError = await call('POST', '/api/client-errors', {
+      message: 'TypeError: user oyuncu@ornek.com failed', stack: 'at render (App.tsx:10:5)', path: '/sifre-sifirla#token=abc'
+    });
+    const errorsForPlayer = await call('GET', '/api/admin/errors?days=1', undefined, playerToken);
+    const errorsForAdmin = await call('GET', '/api/admin/errors?days=1', undefined, adminToken);
+    const group = errorsForAdmin.json?.groups?.find((g: any) => g.source === 'client');
+    const overviewWithErrors = await call('GET', '/api/admin/overview', undefined, adminToken);
+    assert(clientError.status === 204 && errorsForPlayer.status === 403 && group?.message === 'TypeError: user [e-posta] failed'
+      && group.lastPath === '/sifre-sifirla' && overviewWithErrors.json.errorsLast24h >= 1,
+      'Test 16.1: Tarayıcı hatası e-posta ve token temizlenerek kaydedildi, yalnızca yönetici gördü', { group, overview: overviewWithErrors.json?.errorsLast24h });
+    await db.query(`UPDATE app.error_events SET created_at = now() - interval '40 days'`);
+    const purged = await purgeOldErrors(30);
+    assert(purged >= 1 && (await one<{ n: number }>(`SELECT count(*)::int AS n FROM app.error_events`)).n === 0,
+      'Test 16.2: 30 günden eski hata kayıtları silindi');
   } catch (err: any) {
     assert(false, 'Beklenmeyen hata', err?.stack ?? String(err));
   } finally {

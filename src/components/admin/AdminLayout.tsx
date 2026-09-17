@@ -1,13 +1,14 @@
 import React, { ReactNode, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.js';
-import { LayoutDashboard, Building2, BadgePercent, Receipt, Users, ArrowLeft, LogOut, Menu, X, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Building2, BadgePercent, Receipt, Users, ArrowLeft, LogOut, Menu, X, ShieldCheck, Bug } from 'lucide-react';
 
 const MENU = [
   { label: 'Genel Bakış', path: '/admin', icon: LayoutDashboard, match: (route: string) => route === '/admin' },
   { label: 'Kulüpler', path: '/admin/kulupler', icon: Building2, match: (route: string) => route.startsWith('/admin/kulupler') },
   { label: 'Ücretler & KDV', path: '/admin/ucretler', icon: BadgePercent, match: (route: string) => route === '/admin/ucretler' },
   { label: 'Hesap Özetleri', path: '/admin/hesap-ozetleri', icon: Receipt, match: (route: string) => route === '/admin/hesap-ozetleri' },
-  { label: 'Kullanıcılar', path: '/admin/kullanicilar', icon: Users, match: (route: string) => route === '/admin/kullanicilar' }
+  { label: 'Kullanıcılar', path: '/admin/kullanicilar', icon: Users, match: (route: string) => route === '/admin/kullanicilar' },
+  { label: 'Hatalar', path: '/admin/hatalar', icon: Bug, match: (route: string) => route === '/admin/hatalar' }
 ];
 
 export const AdminLayout: React.FC<{ children: ReactNode }> = ({ children }) => {

@@ -25,6 +25,7 @@ import * as legal from './repo/legal.js';
 import * as lessons from './repo/lessons.js';
 import * as reviews from './repo/reviews.js';
 import * as mediaRepo from './repo/media.js';
+import * as errorsRepo from './repo/errors.js';
 import type { User, ReservationStatus } from '../src/types/index.js';
 
 // Demo helpers (role switcher, unverified bookings) are only exposed when explicitly enabled
@@ -59,6 +60,7 @@ const feedReplyLimit = rateLimit({ name: 'feed-reply', limit: 20, windowMs: 10 *
 const feedLikeLimit = rateLimit({ name: 'feed-like', limit: 60, windowMs: MINUTE, key: byUser, message: 'Çok hızlı işlem yapıyorsunuz. Lütfen biraz bekleyin.' });
 const messageSendLimit = rateLimit({ name: 'message-send', limit: 30, windowMs: MINUTE, key: byUser, message: 'Çok hızlı mesaj gönderiyorsunuz. Lütfen biraz bekleyin.' });
 const conversationStartLimit = rateLimit({ name: 'conversation-start', limit: 15, windowMs: HOUR, key: byUser, message: 'Saatlik yeni sohbet sınırına ulaştınız. Lütfen daha sonra tekrar deneyin.' });
+const clientErrorLimit = rateLimit({ name: 'client-error', limit: 30, windowMs: 10 * MINUTE, key: byIp, message: 'Çok fazla hata raporu gönderildi.' });
 const reviewLimit = rateLimit({ name: 'review', limit: 10, windowMs: HOUR, key: byUser, message: 'Kısa sürede çok fazla değerlendirme yapıldı. Lütfen daha sonra tekrar deneyin.' });
 const bookingLimit = rateLimit({ name: 'booking', limit: 20, windowMs: HOUR, key: byUser, message: 'Kısa sürede çok fazla rezervasyon denemesi yapıldı. Lütfen daha sonra tekrar deneyin.' });
 
@@ -1082,7 +1084,14 @@ export function createApp() {
 
   const adminOnly = [requireAuth, requirePlatformAdmin];
 
-  app.get('/api/admin/overview', ...adminOnly, handle(async (_req, res) => res.json(await admin.getOverview())));
+  app.get('/api/admin/overview', ...adminOnly, handle(async (_req, res) => {
+    return res.json({ ...(await admin.getOverview()), errorsLast24h: await errorsRepo.countRecentErrors(24) });
+  }));
+
+  app.get('/api/admin/errors', ...adminOnly, handle(async (req, res) => {
+    const days = [1, 7, 30].includes(Number(req.query.days)) ? Number(req.query.days) : 7;
+    return res.json({ days, groups: await errorsRepo.listErrorGroups(days) });
+  }));
 
   app.get('/api/admin/reference', ...adminOnly, handle(async (_req, res) => {
     return res.json({ cities: await admin.listCities(), amenities: await admin.listAmenities() });
@@ -1193,6 +1202,14 @@ export function createApp() {
   // -------------------------------------------------------------
   // Health, unknown API routes, errors
   // -------------------------------------------------------------
+
+  // Browser errors (window.onerror, unhandled rejections, React error boundary); no user data is stored
+  app.post('/api/client-errors', clientErrorLimit, handle(async (req, res) => {
+    const { message, stack, path } = req.body || {};
+    if (typeof message !== 'string' || !message.trim()) throw new HttpError(400, 'Hata mesajı zorunludur.');
+    await errorsRepo.recordError({ source: 'client', message, stack, path, userAgent: req.get('user-agent') });
+    return res.status(204).end();
+  }));
 
   // -------------------------------------------------------------
   // Uploaded images (club cover, court photos)
@@ -1443,6 +1460,10 @@ export function createApp() {
       return res.status(400).json({ error: 'Geçersiz istek gövdesi.' });
     }
     console.error(`Unhandled error on ${req.method} ${req.path}:`, err);
+    void errorsRepo.recordError({
+      source: 'server', message: err?.message ?? String(err), stack: err?.stack, path: req.path, method: req.method,
+      userAgent: req.get('user-agent')
+    });
     return res.status(500).json({ error: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.' });
   });
 

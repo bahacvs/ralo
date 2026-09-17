@@ -73,6 +73,9 @@ export const AdminOverviewView: React.FC = () => {
         <StatCard label="Bu ay tahakkuk eden ücret" value={formatTl(overview.feesThisMonth)} hint="KDV hariç, iptaller düşülmüş" />
         <StatCard label="Ödenmemiş hesap özetleri" value={formatTl(overview.openStatementsTotal)} />
         <StatCard label="Vadesi geçen" value={overview.overdueStatements} tone={overview.overdueStatements > 0 ? 'warning' : 'default'} />
+        <button type="button" onClick={() => navigate('/admin/hatalar')} className="text-left cursor-pointer">
+          <StatCard label="Son 24 saatteki hatalar" value={overview.errorsLast24h} hint="Ayrıntılar için tıklayın" tone={overview.errorsLast24h > 0 ? 'warning' : 'default'} />
+        </button>
       </div>
 
       <section className="bg-white rounded-3xl border border-slate-200 shadow-xs p-5 space-y-3" aria-labelledby="setup-title">

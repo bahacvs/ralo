@@ -8,6 +8,7 @@ import { seedDemoData } from './server/db/seed.js';
 import { createApp } from './server/app.js';
 import { assertMailConfigured } from './server/mailer.js';
 import { startJobs } from './server/jobs.js';
+import { recordError } from './server/repo/errors.js';
 import { assertLegalConfigured, syncLegalDocuments } from './server/repo/legal.js';
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -60,6 +61,17 @@ async function start() {
   process.once('SIGTERM', () => shutdown('SIGTERM'));
   process.once('SIGINT', () => shutdown('SIGINT'));
 }
+
+// Keep a record of crashes that happen outside request handling (jobs, timers)
+process.on('unhandledRejection', reason => {
+  console.error('Unhandled promise rejection:', reason);
+  void recordError({ source: 'server', message: (reason as any)?.message ?? String(reason), stack: (reason as any)?.stack, path: 'process' });
+});
+process.on('uncaughtException', err => {
+  console.error('Uncaught exception:', err);
+  recordError({ source: 'server', message: err.message, stack: err.stack, path: 'process' })
+    .finally(() => process.exit(1));
+});
 
 start().catch(err => {
   console.error('Failed to start server:', err);

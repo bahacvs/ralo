@@ -4,6 +4,7 @@ import { purgeExpiredAuthRows } from './auth.js';
 import { autoConfirmDueResults } from './repo/matchResults.js';
 import { generateStatements, markOverdueStatements, suspendClubsForOverdueStatements } from './repo/admin.js';
 import { chargeStartedLessonSessions } from './repo/lessons.js';
+import { purgeOldErrors } from './repo/errors.js';
 
 /**
  * Background jobs, run in-process on every instance. Periodic jobs are safe to run concurrently (row locks,
@@ -66,6 +67,7 @@ export async function runJobs(): Promise<void> {
   const today = todayLocal();
   await once('statements_overdue', today, () => markOverdueStatements());
   await once('booking_suspensions', today, () => suspendClubsForOverdueStatements());
+  await once('error_events_purge', today, () => purgeOldErrors(30));
   if (nowLocal().slice(11, 16) >= STATEMENT_ISSUE_TIME) {
     const period = previousPeriod(today);
     await once('monthly_statements', period, async () => (await generateStatements(null, period)).created);

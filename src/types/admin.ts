@@ -10,6 +10,20 @@ export interface AdminOverview {
   feesThisMonth: number;
   openStatementsTotal: number;
   overdueStatements: number;
+  errorsLast24h: number;
+}
+
+export interface ErrorGroup {
+  fingerprint: string;
+  source: 'server' | 'client';
+  message: string;
+  count: number;
+  firstSeen: string;
+  lastSeen: string;
+  lastPath: string | null;
+  lastMethod: string | null;
+  lastStack: string | null;
+  lastUserAgent: string | null;
 }
 
 export interface AdminReference {

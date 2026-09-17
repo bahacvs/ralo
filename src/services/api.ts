@@ -5,7 +5,7 @@ import {
 } from '../types/index.js';
 import type {
   AdminOverview, AdminReference, AdminClubListItem, AdminClubDetail, FeeSettings, MonthlyStatement,
-  AdminUserRow, LessonFeeBasis
+  AdminUserRow, LessonFeeBasis, ErrorGroup
 } from '../types/admin.js';
 import type {
   LessonSummary, LessonDetail, MyLessonsResponse, CoachOverview, CoachContract
@@ -646,6 +646,8 @@ export const api = {
       }),
 
     users: (search?: string) =>
-      request<{ users: AdminUserRow[] }>(`/api/admin/users${search ? `?search=${encodeURIComponent(search)}` : ''}`)
+      request<{ users: AdminUserRow[] }>(`/api/admin/users${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+
+    errors: (days: number) => request<{ days: number; groups: ErrorGroup[] }>(`/api/admin/errors?days=${days}`)
   }
 };

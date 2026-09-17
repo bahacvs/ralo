@@ -60,6 +60,7 @@ const AdminClubDetailView = lazyNamed(() => import('./components/admin/AdminClub
 const AdminFeesView = lazyNamed(() => import('./components/admin/AdminFeesView.js'), 'AdminFeesView');
 const AdminStatementsView = lazyNamed(() => import('./components/admin/AdminStatementsView.js'), 'AdminStatementsView');
 const AdminUsersView = lazyNamed(() => import('./components/admin/AdminUsersView.js'), 'AdminUsersView');
+const AdminErrorsView = lazyNamed(() => import('./components/admin/AdminErrorsView.js'), 'AdminErrorsView');
 
 const RouteLoading: React.FC = () => (
   <div className="min-h-[40vh] flex items-center justify-center" role="status" aria-live="polite">
@@ -190,6 +191,7 @@ const AppContent: React.FC = () => {
       if (currentRoute === '/admin/ucretler') return <AdminFeesView />;
       if (currentRoute === '/admin/hesap-ozetleri') return <AdminStatementsView />;
       if (currentRoute === '/admin/kullanicilar') return <AdminUsersView />;
+      if (currentRoute === '/admin/hatalar') return <AdminErrorsView />;
       return <AdminOverviewView />;
     };
     return (
