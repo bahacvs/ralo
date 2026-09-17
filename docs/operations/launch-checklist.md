@@ -68,7 +68,9 @@ announced. Details for each item are in [runbook.md](runbook.md).
 ## 5. Infrastructure and operations
 
 - [ ] Supabase production project in Frankfurt, paid plan, daily backups on, **PITR enabled**.
-- [ ] Backup restore drill completed and recorded (runbook 10).
+- [ ] Own encrypted backups running (`bun run db:backup`, daily once clubs book), files copied off the laptop,
+      `BACKUP_PASSPHRASE` in the password manager (runbook 10.1).
+- [ ] Backup restore drill completed and recorded (runbook 10.3).
 - [ ] Email checklist complete: dedicated RALO Gmail, 2-Step Verification, app password, daily
       sending limit understood (runbook 5).
 - [ ] 2FA enabled on Render, Supabase, the RALO Gmail account, GitHub and domain registrar accounts.

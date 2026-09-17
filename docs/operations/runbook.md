@@ -207,13 +207,54 @@ Data rollback (bad release corrupted data):
    everything written after that timestamp is lost; export the affected rows first if possible.
 3. Roll back the code, resume the service, verify, and inform affected clubs.
 
-## 10. Backup restore drill (do before launch, then quarterly)
+## 10. Backups and the restore drill
+
+### 10.1 Own encrypted backups (`bun run db:backup`)
+
+Supabase's free plan has no downloadable backups, and even Pro backups live inside the same Supabase
+account. Keep an independent copy:
+
+```sh
+DATABASE_MIGRATION_URL="postgresql://postgres.<ref>:<password>@aws-0-eu-central-1.pooler.supabase.com:5432/postgres" \
+DATABASE_SSL_CA="$(cat supabase-ca.crt)" \
+BACKUP_PASSPHRASE="<from the password manager>" \
+bun run db:backup
+```
+
+- Writes `backups/ralo-YYYYMMDD-HHMM.ralobk`: every `app` table from one consistent snapshot, gzip, encrypted
+  with AES-256-GCM. No `pg_dump` needed. `backups/` and `*.ralobk` are gitignored.
+- Frequency: **daily** once clubs take real bookings (weekly before that), and always before a risky
+  migration or a manual data fix. Keep the last 7 daily and 4 weekly files.
+- Copy each file off the laptop (e.g. a private cloud drive folder). It is encrypted, but it still holds
+  every user's personal data (KVKK): only the platform owner has access; delete files past retention.
+- `BACKUP_PASSPHRASE` (16+ characters) lives only in the password manager. Losing it makes every
+  backup unreadable; never put it on Render or in git.
+
+### 10.2 Restoring (`bun run db:restore`)
+
+```sh
+RESTORE_DATABASE_URL="postgresql://postgres.<new-ref>:<password>@aws-0-eu-central-1.pooler.supabase.com:5432/postgres" \
+DATABASE_SSL_CA="$(cat supabase-ca.crt)" \
+BACKUP_PASSPHRASE="<from the password manager>" \
+bun run db:restore backups/ralo-YYYYMMDD-HHMM.ralobk
+```
+
+- The target must be an **empty** database (a new Supabase project). The command applies the migrations
+  to it, then loads every table in one transaction. A wrong passphrase, a cut-off file, a target with data or
+  different migrations stops it before any row is written. It never uses `DATABASE_URL`.
+- The backup must come from the same migrations as the checked-out code: restore with the release that was
+  live when the backup was taken (`git checkout <commit>`), then deploy newer releases as usual.
+- After a real restore: enable the runtime role on the new project (section 6), point Render's
+  `DATABASE_URL` at it and verify (section 7). Sessions are restored too, so users stay signed in.
+- CI restores a seeded database with both commands on every push, so the format stays restorable.
+
+### 10.3 Restore drill (before launch, then quarterly)
 
 Goal: prove we can restore production data and know how long it takes.
 
 1. Note the time `T` and a few recent reservation ids from production.
-2. In Supabase, restore production into a **new** project (Database > Backups > Restore to new project,
-   or PITR to time `T`). Never restore over production during a drill.
+2. Restore into a **new** Supabase project: `bun run db:restore` with the latest file from 10.1, or on a paid
+   plan Database > Backups > Restore to new project (or PITR to time `T`). Never restore over production during a drill.
 3. Point the **staging** Render service's `DATABASE_URL` to the restored project (session pooler URL),
    set `DEMO_MODE=false`, deploy.
 4. Verify section 7 on staging, confirm the noted reservation ids exist, compare row counts:
