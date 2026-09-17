@@ -31,7 +31,8 @@
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "recharts": "^3.10.1",
-    "vite": "^6.2.3"
+    "vite": "^6.2.3",
+    "web-push": "3"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",
@@ -39,6 +40,7 @@
     "@types/node": "^22.14.0",
     "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.23.1",
+    "@types/web-push": "3",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",

@@ -916,7 +916,10 @@ async function main() {
       `SELECT pg_get_functiondef('app.anonymize_user(uuid,uuid)'::regprocedure) AS src`
     )).src;
     // Personal rows removed by a trigger when anonymize_user sets users.status = 'deleted'.
-    const handledByTrigger = new Map([['club_reviews.user_id', 'app.remove_reviews_of_deleted_user()']]);
+    const handledByTrigger = new Map([
+      ['club_reviews.user_id', 'app.remove_reviews_of_deleted_user()'],
+      ['push_subscriptions.user_id', 'app.remove_push_subscriptions_of_deleted_user()']
+    ]);
     for (const [ref, fn] of handledByTrigger) {
       const def = (await one<{ src: string }>(`SELECT pg_get_functiondef($1::regprocedure) AS src`, [fn])).src;
       assert(def.includes(ref.split('.')[0]), `${fn} does not remove ${ref}`);

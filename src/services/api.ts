@@ -70,6 +70,15 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   // Auth
+  // Web push
+  getPushPublicKey: () => request<{ publicKey: string | null }>('/api/push/public-key'),
+
+  savePushSubscription: (subscription: PushSubscriptionJSON) =>
+    request<{ success: boolean }>('/api/push/subscriptions', { method: 'POST', body: JSON.stringify({ subscription }) }),
+
+  deletePushSubscription: (endpoint: string) =>
+    request<{ success: boolean }>('/api/push/subscriptions', { method: 'DELETE', body: JSON.stringify({ endpoint }) }),
+
   // Uploaded images (endpoint = panel or admin path of the cover / court photos)
   uploadImage: (endpoint: string, image: string) =>
     request<{ success: boolean; url: string | null; message: string }>(endpoint, { method: 'POST', body: JSON.stringify({ image }) }),

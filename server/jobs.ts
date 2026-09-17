@@ -5,12 +5,14 @@ import { autoConfirmDueResults } from './repo/matchResults.js';
 import { generateStatements, markOverdueStatements, suspendClubsForOverdueStatements } from './repo/admin.js';
 import { chargeStartedLessonSessions } from './repo/lessons.js';
 import { purgeOldErrors } from './repo/errors.js';
+import { createDueReminders, dispatchPendingPushes } from './push.js';
 
 /**
  * Background jobs, run in-process on every instance. Periodic jobs are safe to run concurrently (row locks,
  * idempotent writes); dated jobs claim a job_runs row first, so only one instance runs them per run key.
  */
 const TICK_MS = 10 * 60 * 1000;
+const PUSH_TICK_MS = 60 * 1000;
 /** Monthly statements for the previous month are issued after this Istanbul time. */
 const STATEMENT_ISSUE_TIME = '03:00';
 
@@ -74,20 +76,35 @@ export async function runJobs(): Promise<void> {
   }
 }
 
-/** Starts the job loop (first run shortly after boot). Returns a stop function. */
+/** Every minute: 2-hour reminders and sending new notifications to subscribed devices. */
+export async function runPushTick(): Promise<void> {
+  await periodic('match_reminders', () => createDueReminders());
+  await periodic('push_dispatch', () => dispatchPendingPushes());
+}
+
+/** Starts the job loops (first run shortly after boot). Returns a stop function. */
 export function startJobs(): () => void {
   let running = false;
+  let pushRunning = false;
   const tick = () => {
     if (running) return;
     running = true;
     runJobs().finally(() => { running = false; });
   };
+  const pushTick = () => {
+    if (pushRunning) return;
+    pushRunning = true;
+    runPushTick().finally(() => { pushRunning = false; });
+  };
   const first = setTimeout(tick, 30_000);
   const timer = setInterval(tick, TICK_MS);
+  const pushTimer = setInterval(pushTick, PUSH_TICK_MS);
   first.unref();
   timer.unref();
+  pushTimer.unref();
   return () => {
     clearTimeout(first);
     clearInterval(timer);
+    clearInterval(pushTimer);
   };
 }

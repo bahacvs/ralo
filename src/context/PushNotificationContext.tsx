@@ -89,6 +89,43 @@ function playChimeSound() {
   }
 }
 
+function urlBase64ToUint8Array(base64: string): Uint8Array {
+  const padded = (base64 + '='.repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(padded);
+  return Uint8Array.from(raw, char => char.charCodeAt(0));
+}
+
+/**
+ * Registers this device for web push with the server (needs notification permission, a service worker and
+ * VAPID keys on the server). Returns false when any of these is missing; in-app notifications keep working.
+ */
+async function subscribeDeviceToPush(): Promise<boolean> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  if (Notification.permission !== 'granted') return false;
+  try {
+    const { publicKey } = await api.getPushPublicKey();
+    if (!publicKey) return false;
+    // In development there is no service worker; do not wait forever for it
+    const registration = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 5000))
+    ]);
+    if (!registration) return false;
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource
+      });
+    }
+    await api.savePushSubscription(subscription.toJSON());
+    return true;
+  } catch (err) {
+    console.debug('Push subscription failed:', err);
+    return false;
+  }
+}
+
 export const PushNotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, updateUser } = useAuth();
 
@@ -137,6 +174,7 @@ export const PushNotificationProvider: React.FC<{ children: React.ReactNode }> =
         setPushPermission(perm as 'default' | 'granted' | 'denied');
         if (perm === 'granted') {
           await setPushEnabled(true);
+          if (user) await subscribeDeviceToPush();
           return true;
         }
       } catch (err) {
@@ -225,6 +263,30 @@ export const PushNotificationProvider: React.FC<{ children: React.ReactNode }> =
       }
     }
   }, [pushEnabled, reminder2HoursEnabled, soundEnabled]);
+
+  // Signed in with permission already granted: make sure this device's subscription belongs to this account
+  useEffect(() => {
+    if (user?.id && pushPermission === 'granted') subscribeDeviceToPush();
+  }, [user?.id, pushPermission]);
+
+  // Pushes arriving while the app is visible are shown in-app (the service worker forwards them)
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type !== 'ralo-push') return;
+      const payload = event.data.payload ?? {};
+      setActiveAlert({
+        id: `push_${Date.now()}`,
+        title: payload.title || 'RALO',
+        message: payload.body || '',
+        timestamp: new Date().toISOString(),
+        type: 'PUSH'
+      });
+      if (soundEnabled) playChimeSound();
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, [soundEnabled]);
 
   // Periodic automatic check for upcoming matches within 2 hours
   useEffect(() => {

@@ -13,10 +13,11 @@ import { seedDemoData, DEMO_ADMIN_EMAIL } from './db/seed.js';
 import { createApp, DEMO_ACCOUNT_EMAILS } from './app.js';
 import { normalizeEmail, validatePassword, hashPassword, verifyPassword, createAuthToken, consumeAuthToken } from './auth.js';
 import { computeEloChanges, parseSets } from './repo/matchResults.js';
-import { runJobs, previousPeriod } from './jobs.js';
+import { runJobs, runPushTick, previousPeriod } from './jobs.js';
 import { syncLegalDocuments } from './repo/legal.js';
 import { suspendClubsForOverdueStatements } from './repo/admin.js';
 import { purgeOldErrors } from './repo/errors.js';
+import { usePushSenderForTests } from './push.js';
 
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'padel2026demo';
 
@@ -426,6 +427,38 @@ async function runTests() {
     const foreignCourt = await call('POST', `/api/panel/courts/${istanbulCourts.json.courts[0].id}/photos`, { image: jpeg }, ownerToken);
     assert(removed.status === 200 && !removed.json.photos.some((p: any) => p.id === uploaded?.id) && goneFile.status === 404 && foreignCourt.status === 404,
       'Test 15.4: Silinen fotoğraf kaldırıldı, başka kulübün kortuna fotoğraf eklenemedi');
+
+    // TEST 17: Web push
+    const pushed: { endpoint: string; payload: any }[] = [];
+    usePushSenderForTests(async (subscription, payload) => {
+      if (subscription.endpoint.includes('gone')) throw Object.assign(new Error('Gone'), { statusCode: 410 });
+      pushed.push({ endpoint: subscription.endpoint, payload: JSON.parse(payload) });
+    });
+    const pushKey = await call('GET', '/api/push/public-key');
+    const subscription = { endpoint: 'https://push.example.com/send/abc123', keys: { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) } };
+    const savedSub = await call('POST', '/api/push/subscriptions', { subscription }, zeynepToken);
+    await call('POST', '/api/push/subscriptions', { subscription: { ...subscription, endpoint: 'https://push.example.com/gone/1' } }, zeynepToken);
+    const invalidSub = await call('POST', '/api/push/subscriptions', { subscription: { endpoint: 'http://insecure', keys: {} } }, zeynepToken);
+    assert(pushKey.json?.publicKey && savedSub.status === 201 && invalidSub.status === 400, 'Test 17.1: Cihaz bildirim aboneliği kaydedildi, geçersiz abonelik reddedildi');
+    const zeynepId = (await one<{ id: string }>(`SELECT id FROM app.users WHERE email = 'zeynep@demo.ralo.app'`)).id;
+    const soonMatch = await call('POST', '/api/reservations', { courtId: urlaCourt.id, startAt: `${dayOffset(25)}T08:00:00`, durationMinutes: 60 }, zeynepToken);
+    await db.query(
+      `UPDATE app.court_bookings SET starts_at = now() + interval '90 minutes', ends_at = now() + interval '150 minutes'
+       WHERE id = (SELECT booking_id FROM app.reservations WHERE id = $1)`, [soonMatch.json?.reservation?.id]
+    );
+    await db.query(`UPDATE app.notifications SET pushed_at = now() WHERE pushed_at IS NULL`);
+    await runPushTick();
+    const reminderPush = pushed.find(p => p.payload.title.includes('2 Saat'));
+    const goneRemoved = await one<{ n: number }>(`SELECT count(*)::int AS n FROM app.push_subscriptions WHERE endpoint LIKE '%gone%'`);
+    await runPushTick();
+    assert(!!reminderPush && reminderPush.endpoint === subscription.endpoint && reminderPush.payload.url === '/maclarim'
+      && goneRemoved.n === 0 && pushed.filter(p => p.payload.title.includes('2 Saat')).length === 1,
+      'Test 17.2: 2 saat hatırlatması sunucuda oluşturulup telefona bir kez gönderildi, geçersiz abonelik silindi', pushed);
+    await db.query(`UPDATE app.users SET push_notifications_enabled = false WHERE id = $1`, [zeynepId]);
+    await db.query(`INSERT INTO app.notifications (user_id, type, title, body) VALUES ($1, 'friend_add', 'Test', 'Kapalı')`, [zeynepId]);
+    const pushCountBefore = pushed.length;
+    await runPushTick();
+    assert(pushed.length === pushCountBefore, 'Test 17.3: Bildirimleri kapatan kullanıcıya telefon bildirimi gönderilmedi');
 
     // TEST 16: Error tracking
     const clientError = await call('POST', '/api/client-errors', {

@@ -115,7 +115,10 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
+          // Push and notification click handlers (public/push-sw.js)
+          importScripts: ['push-sw.js'],
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          globIgnores: ['push-sw.js'],
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

@@ -26,6 +26,7 @@ import * as lessons from './repo/lessons.js';
 import * as reviews from './repo/reviews.js';
 import * as mediaRepo from './repo/media.js';
 import * as errorsRepo from './repo/errors.js';
+import * as push from './push.js';
 import type { User, ReservationStatus } from '../src/types/index.js';
 
 // Demo helpers (role switcher, unverified bookings) are only exposed when explicitly enabled
@@ -1202,6 +1203,21 @@ export function createApp() {
   // -------------------------------------------------------------
   // Health, unknown API routes, errors
   // -------------------------------------------------------------
+
+  // Web push subscriptions (phone / desktop notifications)
+  app.get('/api/push/public-key', handle(async (_req, res) => {
+    return res.json({ publicKey: push.getPushPublicKey() });
+  }));
+
+  app.post('/api/push/subscriptions', requireAuth, handle(async (req, res) => {
+    await push.saveSubscription(currentUser(req).id, req.body?.subscription, req.get('user-agent'));
+    return res.status(201).json({ success: true });
+  }));
+
+  app.delete('/api/push/subscriptions', requireAuth, handle(async (req, res) => {
+    await push.deleteSubscription(currentUser(req).id, req.body?.endpoint);
+    return res.json({ success: true });
+  }));
 
   // Browser errors (window.onerror, unhandled rejections, React error boundary); no user data is stored
   app.post('/api/client-errors', clientErrorLimit, handle(async (req, res) => {

@@ -44,6 +44,13 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
+      # Web push keys: generate once with `npx web-push generate-vapid-keys`; never change them afterwards
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
       # Bank account shown to clubs on their monthly statements
       - key: PAYMENT_IBAN
         sync: false

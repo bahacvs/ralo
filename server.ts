@@ -9,6 +9,7 @@ import { createApp } from './server/app.js';
 import { assertMailConfigured } from './server/mailer.js';
 import { startJobs } from './server/jobs.js';
 import { recordError } from './server/repo/errors.js';
+import { configurePush } from './server/push.js';
 import { assertLegalConfigured, syncLegalDocuments } from './server/repo/legal.js';
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -22,6 +23,7 @@ async function start() {
   await db.migrate(message => console.log(message));
   console.log(db.kind === 'postgres' ? 'Connected to Postgres.' : 'Using the local PGlite database (data/pglite).');
   console.log(`Legal documents published: ${await syncLegalDocuments()}`);
+  console.log(configurePush() ? 'Web push enabled.' : 'Web push disabled (VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY not set).');
 
   if (process.env.DEMO_MODE === 'true' && (await seedDemoData(db))) {
     console.log('Demo data seeded (DEMO_MODE=true).');
