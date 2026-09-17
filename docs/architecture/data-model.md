@@ -226,7 +226,7 @@ Each is configurable or isolated in the schema; the product answer is still need
 3. **No-show fee:** `billing_policies.charge_no_show` (default true).
 4. **VAT and invoicing:** `amounts_include_vat` (no default), e-Arşiv/e-Fatura provider, whether the statement is the invoice (`invoice_reference`).
 5. **Billing basis:** service month (implemented) vs booking month.
-6. **Payment terms:** due days (15; a daily job marks overdue statements and notifies owners), overdue consequences (`clubs.app_booking_enabled` can be switched off by an admin, no automatic rule), partial payments, zero-total statements.
+6. **Payment terms:** due days (15; a daily job marks overdue statements and notifies owners), overdue consequences (implemented: app bookings are suspended automatically 7 days after the due date and reopen when the statement is paid or cancelled; `clubs.booking_suspended_reason`), partial payments, zero-total statements.
 7. **Rescheduling:** allowed (keeps the charge, implemented) or cancel and rebook.
 8. **Open matches:** `pending_approval` does not reserve capacity; the organizer approves (lowest free seat, refused when full) or rejects. Still open: auto-promotion vs time-limited waitlist offers.
 9. **Coach contracts:** club owners create them in the panel (active immediately, invite email for new accounts) and end them when no sessions are upcoming. Still open: coach verification (`coach_profiles.is_verified`).
@@ -235,10 +235,10 @@ Each is configurable or isolated in the schema; the product answer is still need
 12. **Friends:** directed follow (current) vs mutual.
 13. **Panel walk-ins:** `guest_name`/`guest_phone` on the reservation (implemented) vs a club customer book.
 14. **Retention periods:** consent after deletion, ledger/statements (likely 10 years under VUK), messages, audit log, venue payments.
-15. **Reviews and ratings:** `rating_avg`/`reviews_count` are cached columns without a reviews model.
+15. **Reviews and ratings:** implemented (`club_reviews`, one per player who played at the club; triggers keep `rating_avg`/`reviews_count` current). Still open: moderation beyond admin removal.
 16. **Multi-club staff UI:** how the active club is chosen (it also sets `app.scope`).
-17. **Player-level RLS:** whether to add per-user policies (`app.user_id` GUC) on messages, notifications and participants, beyond the club tenant backstop.
-18. **Avatar URL allowlist:** restrict to the Supabase Storage host in the API.
+17. **Player-level RLS:** whether to add per-user policies (`app.user_id` GUC) on messages, notifications and participants, beyond the club tenant backstop. The server runs as `ralo_app` with `app.scope` defaulting to `global` per pooled connection; CI runs the full suite that way on Postgres.
+18. **Avatar URL allowlist:** avatars are inline data URLs or https URLs validated by the API; club and court photos are stored in `media_assets` (no external storage).
 19. **Time zone:** `Europe/Istanbul` is a literal; expanding abroad needs per-club zones.
 20. **Slot granularity:** app/panel reservations are 60/90/120 minutes; alignment to :00/:30 and the 14-day block maximum need confirming.
-21. **Push notifications:** a device token table is not designed yet.
+21. **Push notifications:** implemented (`push_subscriptions`, `notifications.pushed_at` outbox, endpoints restricted to browser push services).
