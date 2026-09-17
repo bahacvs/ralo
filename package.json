@@ -15,7 +15,10 @@
     "db:seed": "tsx scripts/db-seed.ts",
     "admin:grant": "tsx scripts/admin-grant.ts",
     "db:migrate": "tsx scripts/db-migrate.ts",
-    "test:db": "tsx server/db/schema.test.ts"
+    "test:db": "tsx server/db/schema.test.ts",
+    "db:backup": "tsx scripts/db-backup.ts",
+    "db:restore": "tsx scripts/db-restore.ts",
+    "test:backup": "tsx server/db/backup.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

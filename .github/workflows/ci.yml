@@ -58,6 +58,11 @@ jobs:
         env:
           TZ: UTC
 
+      - name: Backup and restore tests
+        run: npx tsx server/db/backup.test.ts
+        env:
+          TZ: UTC
+
       - name: Build
         run: npm run build
         env:
@@ -114,3 +119,23 @@ jobs:
         env:
           TZ: UTC
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ralo_test
+
+      - name: Backup and restore tests on Postgres
+        run: npx tsx server/db/backup.test.ts
+        env:
+          TZ: UTC
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ralo_test
+
+      # The operator commands themselves: back up the database the suite above filled, restore it into an empty one
+      - name: db:backup and db:restore commands
+        shell: bash
+        env:
+          DATABASE_MIGRATION_URL: postgresql://postgres:postgres@localhost:5432/ralo_test
+          RESTORE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ralo_restore
+          BACKUP_PASSPHRASE: ci-only-throwaway-passphrase
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -c 'CREATE DATABASE ralo_restore'
+          npx tsx scripts/db-backup.ts "$RUNNER_TEMP/backups" | tee "$RUNNER_TEMP/backup.log"
+          npx tsx scripts/db-restore.ts "$RUNNER_TEMP"/backups/*.ralobk | tee "$RUNNER_TEMP/restore.log"
+          test "$(grep '^Users:' "$RUNNER_TEMP/backup.log")" = "$(grep '^Users:' "$RUNNER_TEMP/restore.log")"

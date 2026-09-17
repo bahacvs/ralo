@@ -183,12 +183,12 @@ function buildSslOptions(): pg.ClientConfig['ssl'] {
   return ca ? { ca, rejectUnauthorized: true } : { rejectUnauthorized: true };
 }
 
-/** Connects with a dedicated (non-pooled) connection and applies pending migrations. */
-export async function migrateDatabase(connectionString: string, options: MigrateOptions = {}): Promise<MigrateResult> {
+/** A dedicated (non-pooled) session connection with the same TLS rules as the application pool. */
+export async function connectDirect(connectionString: string, applicationName: string): Promise<pg.Client> {
   const url = new URL(connectionString);
   if (url.port === '6543') {
-    // Supavisor transaction mode cannot hold a session advisory lock or run multi-statement files safely.
-    throw new Error('Migrations need a direct or session-mode connection (port 5432), not the transaction pooler (6543).');
+    // Supavisor transaction mode cannot hold session state (advisory locks, cursors, multi-statement files).
+    throw new Error('This needs a direct or session-mode connection (port 5432), not the transaction pooler (6543).');
   }
   const isLocal = ['localhost', '127.0.0.1'].includes(url.hostname);
   // sslmode in the URL would override the ssl option, so it is removed for remote hosts.
@@ -196,9 +196,15 @@ export async function migrateDatabase(connectionString: string, options: Migrate
   const client = new pg.Client({
     connectionString: isLocal ? connectionString : url.toString(),
     ssl: isLocal ? false : buildSslOptions(),
-    application_name: 'ralo-migrate'
+    application_name: applicationName
   });
   await client.connect();
+  return client;
+}
+
+/** Connects with a dedicated (non-pooled) connection and applies pending migrations. */
+export async function migrateDatabase(connectionString: string, options: MigrateOptions = {}): Promise<MigrateResult> {
+  const client = await connectDirect(connectionString, 'ralo-migrate');
   try {
     return await runMigrations(fromPgClient(client), options);
   } finally {
