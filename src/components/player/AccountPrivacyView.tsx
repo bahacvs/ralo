@@ -165,7 +165,9 @@ export const AccountPrivacyView: React.FC = () => {
             <span>Hesabı Kalıcı Olarak Sil</span>
           </h2>
           <p className="text-xs text-red-800 dark:text-red-300/90 mt-1 leading-relaxed">
-            Hesabınızı sildiğinizde; profiliniz, puanlarınız (Elo), maç geçmişiniz ve rezervasyon kayıtlarınız kalıcı olarak kaldırılır. Bu işlem geri alınamaz.
+            Hesabınızı sildiğinizde e-posta adresiniz, şifreniz, profil bilgileriniz ve fotoğrafınız silinir; mesajlarınız, gönderileriniz,
+            değerlendirmeleriniz, arkadaş listeniz ve bildirimleriniz kaldırılır; yaklaşan rezervasyonlarınız iptal edilir. Kulüplerin muhasebe
+            ve yasal saklama yükümlülükleri nedeniyle geçmiş rezervasyon kayıtları adınız olmadan (anonim olarak) saklanır. Bu işlem geri alınamaz.
           </p>
         </div>
 
@@ -185,7 +187,7 @@ export const AccountPrivacyView: React.FC = () => {
               onChange={(e) => setConfirmCheck(e.target.checked)}
               className="mt-0.5 rounded text-red-600 focus:ring-red-600 h-4 w-4 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
             />
-            <span>Hesabımın ve maç geçmişimin kalıcı olarak silineceğini anlıyor ve onaylıyorum.</span>
+            <span>Hesabımın kalıcı olarak silineceğini ve bu işlemin geri alınamayacağını anlıyor ve onaylıyorum.</span>
           </label>
 
           {/* Step 2: Confirm text input */}

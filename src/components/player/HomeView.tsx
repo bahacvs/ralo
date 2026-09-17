@@ -20,6 +20,7 @@ export const HomeView: React.FC = () => {
     courtCount: number; minPrice: number; firstCourtId: string;
   }[]>([]);
   const [showInstallModal, setShowInstallModal] = useState(false);
+  const [totalCourts, setTotalCourts] = useState(0);
 
   const loadData = async () => {
     setLoading(true);
@@ -34,6 +35,7 @@ export const HomeView: React.FC = () => {
         api.getCourts({ date: today, startTime: '', duration: 90 }).catch(() => ({ courts: [], total: 0 }))
       ]);
 
+      setTotalCourts(courtsRes.courts.length);
       // Group bookable courts by club: best rated first, then the ones with more courts
       const clubs = new Map<string, any>();
       for (const court of courtsRes.courts) {
@@ -252,20 +254,20 @@ export const HomeView: React.FC = () => {
               
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/70 border border-amber-400/40 backdrop-blur-md text-amber-300 text-xs font-bold shadow-md">
                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-                <span>16 Aktif Kort</span>
+                <span>{totalCourts > 0 ? `${totalCourts} Aktif Kort` : 'Kortlar'}</span>
               </div>
             </div>
 
             {/* Middle 3D Feature Chips */}
             <div className="relative z-10 my-4 flex flex-wrap gap-2">
               <span className="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-white/90 border border-white/15 backdrop-blur-xs shadow-xs transition-colors">
-                WPT Standart Mavi Çim
+                Açık & Kapalı Kortlar
               </span>
               <span className="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-white/90 border border-white/15 backdrop-blur-xs shadow-xs transition-colors">
-                Gece Aydınlatmalı
+                Anında Rezervasyon
               </span>
               <span className="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-white/90 border border-white/15 backdrop-blur-xs shadow-xs transition-colors">
-                Panoramik Cam
+                Ödeme Tesiste
               </span>
             </div>
 
