@@ -45,13 +45,35 @@ export function usePushSenderForTests(fn: Sender, key = 'BTestPublicKey') {
 
 export const getPushPublicKey = () => publicKey;
 
+/**
+ * Browser push services (Chrome/Android/Samsung/Opera: FCM, Firefox: Mozilla, Safari: Apple, Edge: WNS).
+ * The server POSTs to the stored endpoint, so any other host would let a client make RALO call arbitrary URLs.
+ */
+export function isPushServiceEndpoint(endpoint: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(endpoint);
+  } catch {
+    return false;
+  }
+  const host = url.hostname.toLowerCase();
+  return url.protocol === 'https:' && (url.port === '' || url.port === '443') && (
+    host === 'fcm.googleapis.com'
+    || host === 'android.googleapis.com'
+    || host.endsWith('.push.services.mozilla.com')
+    || host === 'web.push.apple.com'
+    || host.endsWith('.push.apple.com')
+    || host.endsWith('.notify.windows.com')
+  );
+}
+
 export async function saveSubscription(userId: string, input: unknown, userAgent: string | undefined): Promise<void> {
   if (!publicKey) throw new HttpError(503, 'Telefon bildirimleri şu an kullanılamıyor.');
   const sub = input as { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } } | null;
   const endpoint = typeof sub?.endpoint === 'string' ? sub.endpoint : '';
   const p256dh = typeof sub?.keys?.p256dh === 'string' ? sub.keys.p256dh : '';
   const auth = typeof sub?.keys?.auth === 'string' ? sub.keys.auth : '';
-  if (!/^https:\/\//.test(endpoint) || endpoint.length > 1000 || p256dh.length < 20 || p256dh.length > 200 || auth.length < 8 || auth.length > 100) {
+  if (!isPushServiceEndpoint(endpoint) || endpoint.length > 1000 || p256dh.length < 20 || p256dh.length > 200 || auth.length < 8 || auth.length > 100) {
     throw new HttpError(400, 'Bildirim aboneliği geçersiz.');
   }
   // One device = one endpoint; a different account signing in on the same device takes it over

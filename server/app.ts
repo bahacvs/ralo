@@ -714,7 +714,9 @@ export function createApp() {
   }));
 
   app.post('/api/open-matches/:id/generate-share-card', requireAuth, shareCardUserLimit, handle(async (req, res) => {
-    const { theme = 'SUNSET', format = 'STORY' } = req.body || {};
+    // Only known values: both go into the caption cache key, which must not grow with arbitrary input
+    const theme = ['SUNSET', 'NEON_NIGHT', 'CHAMPIONSHIP', 'CYBER_AMBER'].includes(req.body?.theme) ? req.body.theme as string : 'SUNSET';
+    const format = req.body?.format === 'POST' ? 'POST' : 'STORY';
     const match = await openMatches.getOpenMatch(req.params.id);
     if (!match) throw new HttpError(404, 'Açık maç bulunamadı.');
 
@@ -995,6 +997,7 @@ export function createApp() {
     const granted = Array.isArray(permissions) ? permissions.filter((p: unknown): p is string => typeof p === 'string') : [];
 
     const existing = await users.findCredentialByEmail(email);
+    if (existing && existing.status !== 'active') throw new HttpError(400, 'Bu e-posta adresine ait hesap kullanılamıyor.');
     const { staff, userId } = await getDb().tx(async q => {
       const userId = existing ? existing.id : await users.createInvitedUser(email, staffName, q);
       const staff = await clubs.addMembership(q, { clubId, userId, role: 'staff', permissions: granted, invitedBy: currentUser(req).id });

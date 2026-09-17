@@ -1,6 +1,6 @@
 import path from 'path';
 import pg from 'pg';
-import { runMigrations, fromPgClient, type MigrationClient } from './migrate.js';
+import { runMigrations, assertMigrationsApplied, fromPgClient, type MigrationClient } from './migrate.js';
 
 // One interface over the production Postgres pool (Supabase) and PGlite, an in-process Postgres
 // used for local development (file-backed) and tests (in memory). Both run the same migrations.
@@ -65,7 +65,16 @@ class PostgresDatabase implements Database {
   async migrate(log?: (message: string) => void) {
     const client = await this.pool.connect();
     try {
-      await runMigrations(fromPgClient(client), { log });
+      // The least-privilege runtime role (ralo_app) cannot change the schema; it only checks nothing is pending
+      const { rows } = await client.query(
+        `SELECT to_regnamespace('app') IS NULL OR has_schema_privilege('app', 'CREATE') AS can_migrate`
+      );
+      if (rows[0]?.can_migrate) {
+        await runMigrations(fromPgClient(client), { log });
+      } else {
+        await assertMigrationsApplied(fromPgClient(client));
+        log?.('Schema is up to date (runtime role without schema privileges; migrations run with DATABASE_MIGRATION_URL).');
+      }
     } finally {
       client.release();
     }
@@ -134,6 +143,14 @@ export function createPostgresDatabase(connectionString: string): Database {
     application_name: 'ralo-api'
   });
   pool.on('error', err => console.error('Postgres pool error:', err.message));
+  // Statements outside tx() (player, admin and job reads) run in the 'global' scope. Without a default the
+  // tenant policies fail closed for the least-privilege role ralo_app and those queries would see no rows;
+  // tx(fn, 'club:<id>') still narrows club panel work with SET LOCAL, which reverts to this at commit.
+  pool.on('connect', client => {
+    client.query(`SELECT set_config('app.scope', 'global', false)`).catch(err => {
+      console.error('Could not set the default request scope:', err.message);
+    });
+  });
   return new PostgresDatabase(pool);
 }
 

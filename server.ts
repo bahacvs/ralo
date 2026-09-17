@@ -4,6 +4,7 @@ import express from 'express';
 import path from 'path';
 import { createDatabase } from './server/db/client.js';
 import { setDatabase } from './server/db/instance.js';
+import { migrateDatabase } from './server/db/migrate.js';
 import { seedDemoData } from './server/db/seed.js';
 import { createApp } from './server/app.js';
 import { assertMailConfigured } from './server/mailer.js';
@@ -20,6 +21,12 @@ async function start() {
 
   const db = await createDatabase();
   setDatabase(db);
+  // Production connects as the least-privilege role ralo_app, which cannot change the schema. With
+  // DATABASE_MIGRATION_URL (owner connection) set, pending migrations are applied on boot; otherwise the
+  // runtime connection applies them itself (owner, local) or refuses to start while any are missing (ralo_app).
+  if (db.kind === 'postgres' && process.env.DATABASE_MIGRATION_URL) {
+    await migrateDatabase(process.env.DATABASE_MIGRATION_URL, { log: message => console.log(message) });
+  }
   await db.migrate(message => console.log(message));
   console.log(db.kind === 'postgres' ? 'Connected to Postgres.' : 'Using the local PGlite database (data/pglite).');
   console.log(`Legal documents published: ${await syncLegalDocuments()}`);

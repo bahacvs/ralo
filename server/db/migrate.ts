@@ -138,6 +138,30 @@ export async function runMigrations(client: MigrationClient, options: MigrateOpt
   }
 }
 
+/**
+ * For a connection that may not change the schema (the runtime role ralo_app): throws unless every migration
+ * file is applied with an unchanged checksum, so a deploy never runs against an older schema.
+ */
+export async function assertMigrationsApplied(client: MigrationClient, dir?: string): Promise<void> {
+  const { rows } = await client.query(
+    `SELECT version, checksum FROM app.schema_migrations`
+  ).catch(err => {
+    throw new Error(`Cannot read app.schema_migrations (${err instanceof Error ? err.message : err}). Run the migrations with the owner connection first.`);
+  });
+  const applied = new Map(rows.map(row => [String(row.version), String(row.checksum)]));
+  const problems = loadMigrations(dir).flatMap(m => {
+    const checksum = applied.get(m.version);
+    if (!checksum) return [`${m.file} is not applied`];
+    return checksum === m.checksum ? [] : [`${m.file} was modified after it was applied`];
+  });
+  if (problems.length > 0) {
+    throw new Error(
+      `Database schema is not up to date: ${problems.join('; ')}. This connection may not change the schema: run ` +
+      '`bun run db:migrate` with DATABASE_MIGRATION_URL (owner connection) before deploying, or set DATABASE_MIGRATION_URL on the server.'
+    );
+  }
+}
+
 export function fromPgClient(client: pg.ClientBase): MigrationClient {
   return {
     query: async (sql, params) => {

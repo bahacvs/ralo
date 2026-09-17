@@ -23,10 +23,15 @@ export interface ErrorGroup {
   lastUserAgent: string | null;
 }
 
-/** At most this many rows per process per minute, so an error loop cannot flood the database. */
-const MAX_PER_MINUTE = 60;
-let windowStart = 0;
-let windowCount = 0;
+/**
+ * Rows per process per minute, so an error loop cannot flood the database. Separate budgets: anyone can post
+ * browser errors, and a flood of those must not crowd out the server's own errors.
+ */
+const MAX_PER_MINUTE: Record<ErrorInput['source'], number> = { server: 60, client: 30 };
+const windows: Record<ErrorInput['source'], { start: number; count: number }> = {
+  server: { start: 0, count: 0 },
+  client: { start: 0, count: 0 }
+};
 
 const text = (value: unknown, max: number): string | null => {
   if (value === undefined || value === null) return null;
@@ -55,12 +60,14 @@ function fingerprintOf(source: string, message: string, stack: string | null): s
 /** Stores an error; never throws (error reporting must not cause new errors). */
 export async function recordError(input: ErrorInput): Promise<void> {
   try {
+    const source = input.source === 'server' ? 'server' : 'client';
+    const bucket = windows[source];
     const now = Date.now();
-    if (now - windowStart > 60_000) {
-      windowStart = now;
-      windowCount = 0;
+    if (now - bucket.start > 60_000) {
+      bucket.start = now;
+      bucket.count = 0;
     }
-    if (++windowCount > MAX_PER_MINUTE) return;
+    if (++bucket.count > MAX_PER_MINUTE[source]) return;
 
     const message = scrub(text(input.message, 1000) ?? 'Bilinmeyen hata');
     const stack = text(input.stack, 8000);
@@ -70,7 +77,7 @@ export async function recordError(input: ErrorInput): Promise<void> {
     await getDb().query(
       `INSERT INTO app.error_events (source, fingerprint, message, stack, path, method, user_agent)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [input.source, fingerprintOf(input.source, message, scrubbedStack), message, scrubbedStack,
+      [source, fingerprintOf(source, message, scrubbedStack), message, scrubbedStack,
        path ? scrub(path) : null, text(input.method, 10), text(input.userAgent, 300)]
     );
   } catch (err: any) {

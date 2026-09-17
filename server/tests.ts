@@ -1,23 +1,26 @@
 /**
- * RALO integration tests: the real Express app against an in-memory PGlite with every migration and the
- * demo seed applied. Run: npx tsx server/tests.ts (CI runs it with TZ=UTC; the app pins Europe/Istanbul).
+ * RALO integration tests: the real Express app, running as the least-privilege role ralo_app, against an in-memory
+ * PGlite with every migration and the demo seed applied. Run: npx tsx server/tests.ts (CI runs it with TZ=UTC; the app
+ * pins Europe/Istanbul). With TEST_DATABASE_URL (a local throwaway Postgres) the same suite runs on a real server,
+ * where the concurrent requests of test 19 really race.
  */
 process.env.MAIL_PROVIDER = 'console';
 process.env.DEMO_MODE = 'false';
 
 import type { AddressInfo } from 'net';
 import { addMinutesToLocal, parseClientDateTime, todayLocal } from './time.js';
-import { createPgliteDatabase } from './db/client.js';
+import { createPgliteDatabase, createPostgresDatabase } from './db/client.js';
 import { setDatabase } from './db/instance.js';
 import { seedDemoData, DEMO_ADMIN_EMAIL } from './db/seed.js';
 import { createApp, DEMO_ACCOUNT_EMAILS } from './app.js';
-import { normalizeEmail, validatePassword, hashPassword, verifyPassword, createAuthToken, consumeAuthToken } from './auth.js';
+import { normalizeEmail, validatePassword, hashPassword, verifyPassword, createAuthToken, consumeAuthToken, createSession } from './auth.js';
 import { computeEloChanges, parseSets } from './repo/matchResults.js';
 import { runJobs, runPushTick, previousPeriod } from './jobs.js';
 import { syncLegalDocuments } from './repo/legal.js';
 import { suspendClubsForOverdueStatements } from './repo/admin.js';
 import { purgeOldErrors } from './repo/errors.js';
 import { usePushSenderForTests } from './push.js';
+import { createPlayer, markEmailVerified } from './repo/users.js';
 
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'padel2026demo';
 
@@ -44,13 +47,36 @@ function assert(condition: unknown, testName: string, detail?: unknown) {
 async function runTests() {
   originalLog('\n🎾 ================= RALO Automated Tests ================= 🎾\n');
 
-  const db = await createPgliteDatabase();
+  // TEST_DATABASE_URL: a throwaway local Postgres (CI service) where concurrent requests really race;
+  // otherwise an in-memory PGlite. `db` is the owner connection used for setup and inspection.
+  const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+  if (testDatabaseUrl && !['localhost', '127.0.0.1'].includes(new URL(testDatabaseUrl).hostname)) {
+    throw new Error('TEST_DATABASE_URL must point at a local throwaway database: the tests seed demo data and set a role password.');
+  }
+  const db = testDatabaseUrl ? createPostgresDatabase(testDatabaseUrl) : await createPgliteDatabase();
   setDatabase(db);
   await db.migrate();
   await syncLegalDocuments();
   await seedDemoData(db);
 
-  const server = createApp().listen(0);
+  // The API runs as the least-privilege role ralo_app like production, so RLS policies and grants apply
+  let appDb = db;
+  if (testDatabaseUrl) {
+    await db.query(`ALTER ROLE ralo_app LOGIN PASSWORD 'ralo_app_test'`);
+    const appUrl = new URL(testDatabaseUrl);
+    appUrl.username = 'ralo_app';
+    appUrl.password = 'ralo_app_test';
+    appDb = createPostgresDatabase(appUrl.toString());
+    await appDb.migrate();
+    setDatabase(appDb);
+  } else {
+    // PGlite has a single connection: switch it to ralo_app with the same default scope the Postgres pool sets
+    await db.query('SET ROLE ralo_app');
+    await db.query(`SELECT set_config('app.scope', 'global', false)`);
+  }
+
+  const fuzzApp = createApp();
+  const server = fuzzApp.listen(0);
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
   const call = async (method: string, path: string, body?: unknown, token?: string) => {
@@ -435,11 +461,14 @@ async function runTests() {
       pushed.push({ endpoint: subscription.endpoint, payload: JSON.parse(payload) });
     });
     const pushKey = await call('GET', '/api/push/public-key');
-    const subscription = { endpoint: 'https://push.example.com/send/abc123', keys: { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) } };
+    const subscription = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc123', keys: { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) } };
     const savedSub = await call('POST', '/api/push/subscriptions', { subscription }, zeynepToken);
-    await call('POST', '/api/push/subscriptions', { subscription: { ...subscription, endpoint: 'https://push.example.com/gone/1' } }, zeynepToken);
+    await call('POST', '/api/push/subscriptions', { subscription: { ...subscription, endpoint: 'https://updates.push.services.mozilla.com/wpush/v2/gone1' } }, zeynepToken);
     const invalidSub = await call('POST', '/api/push/subscriptions', { subscription: { endpoint: 'http://insecure', keys: {} } }, zeynepToken);
-    assert(pushKey.json?.publicKey && savedSub.status === 201 && invalidSub.status === 400, 'Test 17.1: Cihaz bildirim aboneliği kaydedildi, geçersiz abonelik reddedildi');
+    const foreignHostSubs = await Promise.all(['https://169.254.169.254/latest', 'https://evil.example.com/fcm.googleapis.com', 'https://fcm.googleapis.com.evil.com/x', 'https://fcm.googleapis.com:8443/x']
+      .map(endpoint => call('POST', '/api/push/subscriptions', { subscription: { ...subscription, endpoint } }, zeynepToken)));
+    assert(pushKey.json?.publicKey && savedSub.status === 201 && invalidSub.status === 400 && foreignHostSubs.every(r => r.status === 400),
+      'Test 17.1: Cihaz bildirim aboneliği kaydedildi; geçersiz veya tarayıcı bildirim servisine ait olmayan adresler reddedildi', foreignHostSubs.map(r => r.status));
     const zeynepId = (await one<{ id: string }>(`SELECT id FROM app.users WHERE email = 'zeynep@demo.ralo.app'`)).id;
     const soonMatch = await call('POST', '/api/reservations', { courtId: urlaCourt.id, startAt: `${dayOffset(25)}T08:00:00`, durationMinutes: 60 }, zeynepToken);
     await db.query(
@@ -475,10 +504,101 @@ async function runTests() {
     const purged = await purgeOldErrors(30);
     assert(purged >= 1 && (await one<{ n: number }>(`SELECT count(*)::int AS n FROM app.error_events`)).n === 0,
       'Test 16.2: 30 günden eski hata kayıtları silindi');
+
+    // TEST 19: Simultaneous requests. They really race on Postgres (CI job with TEST_DATABASE_URL); PGlite runs
+    // statements one after another, so there these only check the outcome.
+    const racerHash = await hashPassword('padel2026');
+    const racers: string[] = [];
+    for (let i = 0; i < 12; i++) {
+      const id = await createPlayer({ email: `yaris${i}@test.ralo`, displayName: `Yarış ${i}`, passwordHash: racerHash }, db);
+      await markEmailVerified(id, db);
+      racers.push(await createSession(id, db));
+    }
+    const statusesOf = (responses: { status: number }[]) => responses.map(r => r.status);
+
+    const raceSlot = { courtId: urlaCourt.id, startAt: `${dayOffset(40)}T12:00:00`, durationMinutes: 90 };
+    const slotRace = await Promise.all(racers.map(token => call('POST', '/api/reservations', raceSlot, token)));
+    const slotWinners = slotRace.filter(r => r.status === 201);
+    const slotFees = await one<{ n: number }>(
+      `SELECT count(*)::int AS n FROM app.fee_ledger_entries f JOIN app.reservations r ON r.id = f.reservation_id
+       JOIN app.court_bookings b ON b.id = r.booking_id WHERE b.court_id = $1 AND b.starts_at = $2::timestamptz`,
+      [urlaCourt.id, new Date(raceSlot.startAt).toISOString()]);
+    assert(slotWinners.length === 1 && slotRace.every(r => r.status === 201 || r.status === 409) && slotFees.n === 1,
+      'Test 19.1: Aynı kort ve saate aynı anda gelen 12 rezervasyondan yalnızca biri kabul edildi, tek ücret yazıldı', { statuses: statusesOf(slotRace), fees: slotFees });
+
+    const raceMatch = await call('POST', '/api/reservations', { courtId: urlaCourt.id, startAt: `${dayOffset(41)}T18:00:00`, durationMinutes: 90, isOpenMatch: true }, racers[0]);
+    const raceMatchId = raceMatch.json?.reservation?.id;
+    const joinRace = await Promise.all(racers.slice(1).map(token => call('POST', `/api/open-matches/${raceMatchId}/join`, {}, token)));
+    const seats = await one<{ n: number }>(`SELECT count(*)::int AS n FROM app.reservation_participants WHERE reservation_id = $1 AND status = 'active'`, [raceMatchId]);
+    assert(raceMatch.status === 201 && joinRace.filter(r => r.status === 200).length === 3 && joinRace.every(r => r.status === 200 || r.status === 400 || r.status === 409) && seats.n === 4,
+      'Test 19.2: Açık maça aynı anda katılan 11 oyuncudan yalnızca 3\'ü boş koltukları aldı, kadro 4\'ü aşmadı', { statuses: statusesOf(joinRace), seats });
+
+    const raceLesson = await call('POST', '/api/coach/lessons', {
+      clubId: urlaCourt.businessId, courtId: urlaCourt.id, kind: 'GROUP', title: 'Yoğun Grup', level: 'BEGINNER',
+      capacity: 3, pricePerStudent: 400, firstSessionAt: `${dayOffset(42)}T09:00`, durationMinutes: 60, sessionCount: 1
+    }, coachToken);
+    const raceLessonId = raceLesson.json?.lessonId;
+    const enrollRace = await Promise.all(racers.slice(0, 10).map(token => call('POST', `/api/lessons/${raceLessonId}/enroll`, {}, token)));
+    const lessonCount = await one<{ enrolled_count: number; active: number }>(
+      `SELECT l.enrolled_count, (SELECT count(*)::int FROM app.lesson_enrollments e WHERE e.lesson_id = l.id AND e.status = 'enrolled') AS active
+       FROM app.lessons l WHERE l.id = $1`, [raceLessonId]);
+    assert(raceLesson.status === 201 && enrollRace.every(r => r.status === 200)
+      && enrollRace.filter(r => r.json?.status === 'ENROLLED').length === 3 && lessonCount.enrolled_count === 3 && lessonCount.active === 3,
+      'Test 19.3: Kontenjanı 3 olan derse aynı anda kaydolan 10 öğrenciden 3\'ü alındı, diğerleri bekleme listesine girdi', { statuses: statusesOf(enrollRace), lessonCount });
+
+    const doubleCancel = await Promise.all([1, 2, 3].map(() => call('POST', `/api/reservations/${slotWinners[0]?.json?.reservation?.id}/cancel`, {}, racers[slotRace.indexOf(slotWinners[0])])));
+    const cancelledFees = await one<{ n: number; voided: number }>(
+      `SELECT count(*)::int AS n, count(*) FILTER (WHERE status = 'voided')::int AS voided FROM app.fee_ledger_entries WHERE reservation_id = $1`,
+      [slotWinners[0]?.json?.reservation?.id]);
+    assert(doubleCancel.some(r => r.status === 200) && doubleCancel.every(r => r.status < 500) && cancelledFees.n === 1 && cancelledFees.voided === 1,
+      'Test 19.4: Aynı rezervasyon aynı anda üç kez iptal edildi; hata yok, ücret bir kez silindi', { statuses: statusesOf(doubleCancel), cancelledFees });
+
+    await db.query(`UPDATE app.users SET push_notifications_enabled = true WHERE id = $1`, [zeynepId]);
+    await db.query(`INSERT INTO app.notifications (user_id, type, title, body) VALUES ($1, 'friend_add', 'Yarış bildirimi', 'Bir kez')`, [zeynepId]);
+    await Promise.all([runPushTick(), runPushTick(), runPushTick()]);
+    assert(pushed.filter(p => p.payload.title === 'Yarış bildirimi').length === 1,
+      'Test 19.5: Üç sunucu aynı anda bildirim gönderdiğinde telefona tek bildirim gitti', pushed.filter(p => p.payload.title === 'Yarış bildirimi').length);
+
+    // TEST 18: Every API route with malformed ids and wrongly typed bodies answers 4xx, never 500
+    const routes: { method: string; path: string }[] = [];
+    for (const layer of (fuzzApp as any)._router.stack) {
+      if (!layer.route) continue;
+      for (const method of Object.keys(layer.route.methods)) routes.push({ method: method.toUpperCase(), path: layer.route.path });
+    }
+    // Logging out or deleting the account would end the sessions the rest of the sweep uses
+    const skipped = new Set(['/api/auth/logout', '/api/auth/delete-account']);
+    const badBodies: unknown[] = [
+      {},
+      { email: {}, password: [], token: 12, displayName: {}, courtId: ['x'], startAt: {}, durationMinutes: 'x', status: {}, paymentStatus: [],
+        amount: 'x', basis: {}, days: 'x', image: 42, subscription: 'x', endpoint: {}, entries: 'x', rating: 'x', comment: {}, reason: {},
+        period: {}, decision: {}, granted: 'x', text: {}, conversationId: {}, content: {}, targetUserId: {}, friendUserId: {}, name: {},
+        permissions: 'x', date: {}, startTime: {}, endTime: {}, message: {}, theme: {}, format: {}, sets: 'x', matchId: {} },
+      { email: 'a@b.co', password: 'x'.repeat(200), token: 'x'.repeat(64), courtId: 'x', startAt: '2020-01-01T10:00', amount: -1, days: [{}],
+        image: 'data:image/png;base64,AAAA', subscription: { endpoint: 'http://127.0.0.1', keys: {} }, entries: [{}], rating: 99,
+        sets: [{ a: 'x' }], period: '2026-13', status: 'CONFIRMED', decision: 'approve', text: 'x', conversationId: 'x', content: 'x' }
+    ];
+    const fuzzTokens = [undefined, playerToken, ownerToken, adminToken, coachToken];
+    const crashes: string[] = [];
+    for (const route of routes) {
+      if (skipped.has(route.path)) continue;
+      const path = route.path.replace(/:[A-Za-z]+/g, 'not-a-uuid');
+      const uuidPath = route.path.replace(/:[A-Za-z]+/g, '00000000-0000-4000-8000-000000000000');
+      for (const token of fuzzTokens) {
+        for (const target of [path, uuidPath]) {
+          const bodies = route.method === 'GET' ? [undefined] : badBodies;
+          for (const body of bodies) {
+            const res = await call(route.method, target, body, token);
+            if (res.status >= 500) crashes.push(`${route.method} ${target} (${res.status}) ${JSON.stringify(body)?.slice(0, 80)}`);
+          }
+        }
+      }
+    }
+    assert(routes.length > 100 && crashes.length === 0, `Test 18.1: ${routes.length} API rotası bozuk kimlik ve hatalı gövdeyle 500 döndürmedi`, crashes.slice(0, 20));
   } catch (err: any) {
     assert(false, 'Beklenmeyen hata', err?.stack ?? String(err));
   } finally {
     server.close();
+    if (appDb !== db) await appDb.close();
     await db.close();
   }
 
